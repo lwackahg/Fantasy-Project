@@ -117,8 +117,8 @@ class TradeAnalyzer:
             analysis[team].update({
                 'before_stats': before_stats['stats'],
                 'after_stats': after_stats['stats'],
-                'top_players_before': before_stats['top_players'],
-                'top_players_after': after_stats['top_players'],
+                'top_players_before': before_stats['player_data'],
+                'top_players_after': after_stats['player_data'],
                 'value_change': incoming_value - outgoing_value,
                 'fairness_score': self._calculate_fairness_score(
                     before_stats['stats'],
@@ -154,51 +154,74 @@ class TradeAnalyzer:
         
         return value
 
-    def calculate_trade_fairness(self, trade_teams, top_x=None):
-        """Calculate trade fairness for all teams involved in the trade"""
-        analysis = {}
+    def calculate_trade_fairness(self, before_stats, after_stats, team_data):
+        """Calculate trade fairness based on multiple factors"""
+        fairness_score = 0.0
+        weights = {
+            'value_ratio': 0.4,      # How close the player values are
+            'stats_impact': 0.4,     # Impact on team's statistical performance
+            'depth_impact': 0.2      # Impact on team depth/roster balance
+        }
         
-        for team, players in trade_teams.items():
-            team_analysis = {
-                'incoming_players': players,
-                'outgoing_players': [],  # Will be filled based on other teams' incoming players
-                'value_change': 0,
-                'before_stats': None,
-                'after_stats': None,
-                'top_players_before': None,
-                'top_players_after': None
-            }
-            analysis[team] = team_analysis
+        # 1. Calculate value ratio (how close the incoming/outgoing values are)
+        incoming_value = sum(self.calculate_player_value(self.data[player]) 
+                           for player in team_data['incoming_players'])
+        outgoing_value = sum(self.calculate_player_value(self.data[player]) 
+                           for player in team_data['outgoing_players'])
         
-        # Fill in outgoing players
-        for team, team_data in analysis.items():
-            for other_team, other_data in analysis.items():
-                if team != other_team:
-                    team_data['outgoing_players'].extend(other_data['incoming_players'])
+        # Avoid division by zero
+        max_value = max(incoming_value, outgoing_value)
+        min_value = min(incoming_value, outgoing_value)
+        if max_value == 0:
+            value_ratio = 1.0  # If both values are 0, consider it neutral
+        else:
+            value_ratio = min_value / max_value
         
-        # Calculate statistics and value changes
-        for team, team_data in analysis.items():
-            before_stats = self.calculate_team_stats(team, top_x)
-            after_stats = self.calculate_team_stats_after_trade(team, team_data, top_x)
-            
-            team_data['before_stats'] = before_stats['stats']
-            team_data['after_stats'] = after_stats['stats']
-            team_data['top_players_before'] = before_stats['top_players']
-            team_data['top_players_after'] = after_stats['top_players']
-            
-            # Calculate value changes
-            incoming_value = sum(self.calculate_player_value(self.data[player]) 
-                               for player in team_data['incoming_players'])
-            outgoing_value = sum(self.calculate_player_value(self.data[player]) 
-                               for player in team_data['outgoing_players'])
-            team_data['value_change'] = incoming_value - outgoing_value
+        # 2. Calculate statistical impact
+        stats_changes = []
+        key_metrics = ['mean_fpg', 'median_fpg', 'total_fpts']
         
-        return analysis
+        for metric in key_metrics:
+            for time_range in ['7 Days', '14 Days', '30 Days']:
+                if time_range in before_stats and time_range in after_stats:
+                    before_val = before_stats[time_range][metric]
+                    after_val = after_stats[time_range][metric]
+                    if before_val != 0:
+                        pct_change = (after_val - before_val) / abs(before_val)
+                        stats_changes.append(pct_change)
+        
+        # Calculate average statistical impact
+        if stats_changes:
+            avg_stats_change = sum(stats_changes) / len(stats_changes)
+            # Convert to a 0-1 scale, with 0.5 being neutral
+            stats_impact = 0.5 + (avg_stats_change / 2)
+            # Clamp between 0 and 1
+            stats_impact = max(0, min(1, stats_impact))
+        else:
+            stats_impact = 0.5
+        
+        # 3. Calculate depth impact
+        before_depth = len([p for p in before_stats['7 Days'].get('player_data', []) 
+                          if p.get('FP/G', 0) > 20])  # Count solid contributors
+        after_depth = len([p for p in after_stats['7 Days'].get('player_data', []) 
+                         if p.get('FP/G', 0) > 20])
+        
+        depth_ratio = after_depth / before_depth if before_depth > 0 else 1.0
+        depth_impact = min(1.0, depth_ratio)
+        
+        # Combine all factors with weights
+        fairness_score = (
+            weights['value_ratio'] * value_ratio +
+            weights['stats_impact'] * stats_impact +
+            weights['depth_impact'] * depth_impact
+        )
+        
+        return fairness_score
 
     def calculate_team_stats(self, team, top_x=None):
         """Calculate team statistics from roster data"""
         team_stats = {}
-        top_players = {}
+        player_data = {}
         
         for time_range, data in self.data_ranges.items():
             if data is None:
@@ -223,19 +246,19 @@ class TradeAnalyzer:
                     'median_fpg': stats_players['FP/G'].median(),
                     'std_fpg': stats_players['FP/G'].std(),
                     'total_fpts': stats_players['FPts'].sum() if 'FPts' in stats_players.columns else 0,
-                    'avg_gp': stats_players['GP'].mean() if 'GP' in stats_players.columns else 0
+                    'avg_gp': stats_players['GP'].mean() if 'GP' in stats_players.columns else 0,
+                    'player_data': stats_players.to_dict('records')  # Include full player data
                 }
                 
-                # Store top players list
-                top_players[time_range] = stats_players
                 team_stats[time_range] = all_stats
+                player_data[time_range] = sorted_players  # Store full player DataFrame
         
-        return {'stats': team_stats, 'top_players': top_players}
+        return {'stats': team_stats, 'player_data': player_data}
 
     def calculate_team_stats_after_trade(self, team, team_data, top_x=None):
         """Calculate team stats after the proposed trade"""
         after_stats = {}
-        top_players = {}
+        player_data = {}
         
         for time_range, data in self.data_ranges.items():
             if data is None:
@@ -269,14 +292,14 @@ class TradeAnalyzer:
                     'median_fpg': stats_players['FP/G'].median(),
                     'std_fpg': stats_players['FP/G'].std(),
                     'total_fpts': stats_players['FPts'].sum() if 'FPts' in stats_players.columns else 0,
-                    'avg_gp': stats_players['GP'].mean() if 'GP' in stats_players.columns else 0
+                    'avg_gp': stats_players['GP'].mean() if 'GP' in stats_players.columns else 0,
+                    'player_data': stats_players.to_dict('records')  # Include full player data
                 }
                 
-                # Store top players list
-                top_players[time_range] = stats_players
                 after_stats[time_range] = all_stats
+                player_data[time_range] = sorted_players  # Store full player DataFrame
         
-        return {'stats': after_stats, 'top_players': top_players}
+        return {'stats': after_stats, 'player_data': player_data}
 
 def get_trade_details(teams):
     """Get trade details for all teams involved"""
@@ -295,14 +318,20 @@ def calculate_team_stats(roster_data):
         return {
             'mean_fpg': 0,
             'median_fpg': 0,
-            'std_fpg': 0
+            'std_fpg': 0,
+            'total_fpts': 0,
+            'avg_gp': 0
         }
     
-    return {
+    stats = {
         'mean_fpg': roster_data['FP/G'].mean(),
         'median_fpg': roster_data['FP/G'].median(),
-        'std_fpg': roster_data['FP/G'].std()
+        'std_fpg': roster_data['FP/G'].std(),
+        'total_fpts': roster_data['FPts'].sum() if 'FPts' in roster_data.columns else 0,
+        'avg_gp': roster_data['GP'].mean() if 'GP' in roster_data.columns else 0
     }
+    
+    return stats
 
 def get_team_stats_before_after(team, team_data):
     """Calculate team stats before and after trade"""
@@ -321,7 +350,12 @@ def get_team_stats_before_after(team, team_data):
         incoming_roster = current_data[current_data['Player'].isin(incoming)]
         new_roster = pd.concat([new_roster, incoming_roster])
         
+        # Calculate team stats
         before_stats[time_range] = calculate_team_stats(current_roster)
         after_stats[time_range] = calculate_team_stats(new_roster)
+        
+        # Add player data to stats
+        before_stats[time_range]['player_data'] = current_roster.to_dict('records')
+        after_stats[time_range]['player_data'] = new_roster.to_dict('records')
     
     return before_stats, after_stats

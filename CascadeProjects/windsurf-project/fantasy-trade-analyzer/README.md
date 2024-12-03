@@ -139,120 +139,38 @@ If you encounter numeric conversion errors:
 
 Feel free to open issues or submit pull requests for any improvements or bug fixes.
 
+## Recent Updates
 
-# Fantasy Trade Analyzer
+#### Enhanced Trade Analysis Display
+- Tabbed interface for multi-team trade analysis
+- Expandable sections for detailed statistics
+- Color-coded trade fairness indicators:
+  - 🟢 Green (≥80%): Very fair trade
+  - 🟡 Yellow (≥60%): Moderately fair trade
+  - 🟠 Orange (≥40%): Slightly unfair trade
+  - 🔴 Red (<40%): Very unfair trade
+- Improved player statistics visualization
+- Net value change calculation and display
 
-A comprehensive tool for analyzing fantasy basketball trades and team performance, featuring data import, statistical analysis, and trade evaluation.
+#### Statistical Improvements
+- Top X players analysis for consistent team evaluation
+- Before/After trade statistics across multiple time ranges
+- Enhanced statistical calculations:
+  - Mean and median FP/G
+  - Standard deviation for team balance (Green = more balanced, Red = less balanced)
+  - Games played (GP) tracking
+  - Total fantasy points analysis
 
-## Features
+#### User Interface Enhancements
+- Dark theme for better readability
+- Organized layout with tabs and expanders
+- Interactive player selection interface
+- Improved error handling and data validation
+- Clear visual indicators for trade impact
 
-### Trade Analysis
-- Multi-team trade support (2-5 teams)
-- Multiple time range analysis (7, 14, 30, 60 days)
-- Before/After trade comparison
-- Trade fairness evaluation
-- Fantasy Points Analysis
-  - Per game (FP/G) analysis
-  - Total points (FPts) comparison
-  - Mean, median, and standard deviation calculations
-
-### Team Statistics Analysis
-- Team Overview
-  - Customizable top N players analysis
-  - Statistical metrics across all time ranges
-  - Performance trends visualization
-- Player Analysis
-  - Individual player performance tracking
-  - Cross-time-range comparison
-  - Statistical trends visualization
-- Buy Low / Sell High Analysis
-  - Trend-based player evaluation
-  - Performance comparison across time ranges
-  - Automatic identification of trade opportunities
-
-### Data Management
-- CSV data import from Fantrax exports
-- Automatic data processing and validation
-- Support for multiple time ranges
-- Error handling and data validation
-
-## Setup Instructions
-
-### Prerequisites
-- Python 3.9+
-- Required packages:
-  - streamlit
-  - pandas
-  - plotly
-  - numpy
-
-### Installation
-
-1. Clone or download the repository
-2. Navigate to the project directory
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-### Running the Application
-
-#### Option 1: Using the Batch File
-1. Double-click `run_app.bat`
-2. The application will open in your default web browser
-
-#### Option 2: Using Command Line
-1. Open a terminal in the project directory
-2. Run the command:
-```bash
-streamlit run src/app.py
-```
-
-## Data Requirements
-
-The application expects CSV files exported from Fantrax with the following naming convention:
-- `Fantrax-Players-(60).csv` - 60-day statistics
-- `Fantrax-Players-(30).csv` - 30-day statistics
-- `Fantrax-Players-(14).csv` - 14-day statistics
-- `Fantrax-Players-(7).csv` - 7-day statistics
-
-Place these files in the `data` directory.
-
-## Usage Guide
-
-### Trade Analysis
-1. Select teams involved in the trade
-2. Choose players to trade between teams
-3. View comprehensive trade analysis across multiple time ranges
-4. Evaluate trade fairness and impact on team statistics
-
-### Team Statistics
-1. Select a team to analyze
-2. Choose the number of top players to consider
-3. Select metrics to analyze
-4. View team performance across different time ranges
-5. Analyze individual player trends
-6. Identify potential trade opportunities
-
-## Project Structure
-
-```
-fantasy-trade-analyzer/
-├── src/
-│   ├── app.py             # Main Streamlit application
-│   ├── data_import.py     # Data import and validation
-│   └── trade_analysis.py  # Trade evaluation logic
-├── data/                  # Place CSV files here
-└── run_app.bat           # Easy launch script
-```
-
-## Known Issues & Solutions
-
-If you encounter numeric conversion errors:
-- Ensure your CSV files contain valid numeric data
-- The app will handle invalid data gracefully
-- Check the console for specific error messages
-
-## Contributing
-
-Feel free to submit issues, fork the repository, and create pull requests for any improvements.
+### Upcoming Features
+- Player trend analysis and visualization
+- Advanced statistical metrics
+- Trade suggestion engine
+- Custom scoring system support
+- Historical trade tracking

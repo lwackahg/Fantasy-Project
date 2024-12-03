@@ -27,6 +27,8 @@ if 'data' not in st.session_state:
     st.session_state.data = None
 if 'trade_history' not in st.session_state:
     st.session_state.trade_history = []
+if 'debug_mode' not in st.session_state:
+    st.session_state.debug_mode = False
 
 # Initialize analyzers
 if 'trade_analyzer' not in st.session_state:
@@ -60,9 +62,9 @@ def load_data():
         numeric_columns = ['FPts', 'FP/G', 'PTS', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'MIN']
         
         for file in csv_files:
-            # Extract the date range from filename
+            # Extract the date range from filename, handling both formats
             for days in ['60', '30', '14', '7']:
-                if f"({days})" in file.name:
+                if f"({days})" in file.name or f" ({days})" in file.name:
                     try:
                         # Read CSV with proper type conversion
                         df = pd.read_csv(file)
@@ -88,7 +90,7 @@ def load_data():
                         
                         # Ensure 'Player' is not the index
                         if 'Player' in df.columns:
-                            df.reset_index(inplace=True)
+                            df.reset_index(inplace=True, drop=True)
                         
                         # Store in data ranges
                         data_ranges[f'{days} Days'] = df
@@ -116,6 +118,21 @@ def load_data():
         st.error(f"Error loading data: {str(e)}")
         return None, None
 
+def handle_error(func):
+    """Decorator to handle errors in the app"""
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            st.error("An error occurred!")
+            if st.session_state.debug_mode:
+                st.error(f"Error details: {str(e)}")
+                st.exception(e)
+            else:
+                st.error("Please try again or contact support if the issue persists.")
+    return wrapper
+
+@handle_error
 def calculate_team_stats(team_data: pd.DataFrame, top_x: int = None) -> dict:
     """Calculate key statistics for a team's players"""
     try:
@@ -157,6 +174,7 @@ def calculate_team_stats(team_data: pd.DataFrame, top_x: int = None) -> dict:
         }
     return stats
 
+@handle_error
 def calculate_player_value(player_data):
     """Calculate a player's value based on their stats across time ranges"""
     value = 0
@@ -179,6 +197,7 @@ def calculate_player_value(player_data):
     
     return value
 
+@handle_error
 def calculate_trade_fairness(before_stats, after_stats, team_data):
     """Calculate trade fairness based on player values and statistical changes"""
     # Get incoming and outgoing players
@@ -252,135 +271,161 @@ def calculate_trade_fairness(before_stats, after_stats, team_data):
     
     return fairness_score
 
-def display_team_comparison(before_data, after_data, team_name, top_x):
-    """Display before/after comparison for a team in a condensed format"""
-    st.write(f"#### {team_name} Analysis (Top {top_x} Players)")
+@handle_error
+def get_trend_color(value, is_positive_good=True):
+    """Get color for trend visualization.
     
-    # Calculate stats for all time ranges
-    before_stats = {}
-    after_stats = {}
-    available_ranges = [k for k, v in st.session_state.data_ranges.items() if v is not None]
+    Args:
+        value (float): Change in value
+        is_positive_good (bool): If True, positive changes are green
+        
+    Returns:
+        str: Hex color code
+    """
+    if abs(value) < 0.1:  # Very small change
+        return '#666666'  # Gray
     
-    for time_range in available_ranges:
-        before_stats[time_range] = calculate_team_stats(before_data, top_x)
-        after_stats[time_range] = calculate_team_stats(after_data, top_x)
+    if (value > 0 and is_positive_good) or (value < 0 and not is_positive_good):
+        return '#2ecc71'  # Green
+    else:
+        return '#e74c3c'  # Red
+
+@handle_error
+def display_team_comparison(team_data, team_name):
+    """Display comparison of team stats before and after trade"""
+    st.subheader(f"{team_name} Analysis")
     
-    # Display stats in a compact format
+    # Create two columns for the layout
     col1, col2 = st.columns(2)
     
+    # Display players involved in trade
     with col1:
-        st.write("**Before Trade**")
-        stats_df = pd.DataFrame({
-            'Range': available_ranges,
-            'Mean FP/G': [before_stats[r]['mean_fpg'] for r in available_ranges],
-            'Median FP/G': [before_stats[r]['median_fpg'] for r in available_ranges],
-            'Std Dev': [before_stats[r]['std_fpg'] for r in available_ranges],
-            'Total FPts': [before_stats[r]['total_fpts'] for r in available_ranges],
-            'Avg GP': [before_stats[r]['avg_gp'] for r in available_ranges]
-        })
-        st.dataframe(stats_df.style.format({
-            'Mean FP/G': '{:.1f}',
-            'Median FP/G': '{:.1f}',
-            'Std Dev': '{:.1f}',
-            'Total FPts': '{:.1f}',
-            'Avg GP': '{:.1f}'
-        }), hide_index=True)
+        st.write("Players Involved:")
+        
+        # Display outgoing players
+        st.write("Outgoing:")
+        if team_data['outgoing_players']:
+            outgoing_df = pd.DataFrame([
+                p for p in team_data['top_players_before']['season'].to_dict('records')
+                if p['Player'] in team_data['outgoing_players']
+            ])
+            if not outgoing_df.empty:
+                st.dataframe(outgoing_df[['Player', 'Team', 'FPts', 'FP/G', 'GP']])
+        
+        # Display incoming players
+        st.write("Incoming:")
+        if team_data['incoming_players']:
+            incoming_df = pd.DataFrame([
+                p for p in team_data['top_players_after']['season'].to_dict('records')
+                if p['Player'] in team_data['incoming_players']
+            ])
+            if not incoming_df.empty:
+                st.dataframe(incoming_df[['Player', 'Team', 'FPts', 'FP/G', 'GP']])
     
+    # Display value change
     with col2:
-        st.write("**After Trade**")
-        stats_df = pd.DataFrame({
-            'Range': available_ranges,
-            'Mean FP/G': [after_stats[r]['mean_fpg'] for r in available_ranges],
-            'Median FP/G': [after_stats[r]['median_fpg'] for r in available_ranges],
-            'Std Dev': [after_stats[r]['std_fpg'] for r in available_ranges],
-            'Total FPts': [after_stats[r]['total_fpts'] for r in available_ranges],
-            'Avg GP': [after_stats[r]['avg_gp'] for r in available_ranges],
-            'Mean Δ': [(after_stats[r]['mean_fpg'] - before_stats[r]['mean_fpg']) for r in available_ranges],
-            'Median Δ': [(after_stats[r]['median_fpg'] - before_stats[r]['median_fpg']) for r in available_ranges],
-            'Std Dev Δ': [(after_stats[r]['std_fpg'] - before_stats[r]['std_fpg']) for r in available_ranges],
-            'Total FPts Δ': [(after_stats[r]['total_fpts'] - before_stats[r]['total_fpts']) for r in available_ranges],
-            'Avg GP Δ': [(after_stats[r]['avg_gp'] - before_stats[r]['avg_gp']) for r in available_ranges]
-        })
-        st.dataframe(stats_df.style.format({
-            'Mean FP/G': '{:.1f}',
-            'Median FP/G': '{:.1f}',
-            'Std Dev': '{:.1f}',
-            'Total FPts': '{:.1f}',
-            'Avg GP': '{:.1f}',
-            'Mean Δ': '{:+.1f}',
-            'Median Δ': '{:+.1f}',
-            'Std Dev Δ': '{:+.1f}',
-            'Total FPts Δ': '{:+.1f}',
-            'Avg GP Δ': '{:+.1f}'
-        }).background_gradient(
-            subset=['Mean Δ', 'Median Δ', 'Total FPts Δ'],
-            cmap='RdYlGn'
-        ), hide_index=True)
+        value_change = team_data['value_change']
+        st.metric(
+            "Trade Value Change",
+            f"{value_change:.2f}",
+            delta=value_change
+        )
+        
+        # Display fairness score
+        st.metric(
+            "Trade Fairness Score",
+            f"{team_data['fairness_score']:.2f}"
+        )
     
-    # Display top players before and after trade side by side
-    st.markdown(
-        """
-        <div style='background-color: rgb(13, 17, 23); padding: 0.5rem; border-radius: 0.5rem; margin: 1rem 0 0.5rem 0;'>
-            <h5 style='margin: 0; color: white;'>Top Players by FP/G</h5>
-        </div>
-        """,
-        unsafe_allow_html=True
+    # Create performance trend visualization
+    fig = go.Figure()
+    
+    # Add before trade line (turquoise, dotted)
+    fig.add_trace(go.Scatter(
+        x=list(team_data['before_stats'].keys()),
+        y=[stats['mean_fpg'] for stats in team_data['before_stats'].values()],
+        name="Before Trade",
+        line=dict(color='#20c9bb', width=3, dash='dot'),
+        mode='lines+markers+text',
+        text=[f"{val:.1f}" for val in [stats['mean_fpg'] for stats in team_data['before_stats'].values()]],
+        textposition="top center",
+        textfont=dict(color='#20c9bb'),
+        hovertemplate="%{x}<br>" +
+                        "Mean FP/G: %{y:.2f}<br>" +
+                        "<extra>Before Trade</extra>"
+    ))
+    
+    # Add after trade line (green/red based on value change)
+    line_color = '#2ecc71' if team_data['value_change'] >= 0 else '#e74c3c'
+    fig.add_trace(go.Scatter(
+        x=list(team_data['after_stats'].keys()),
+        y=[stats['mean_fpg'] for stats in team_data['after_stats'].values()],
+        name="After Trade",
+        line=dict(color=line_color),
+        mode='lines+markers+text',
+        text=[f"{val:.1f}" for val in [stats['mean_fpg'] for stats in team_data['after_stats'].values()]],
+        textposition="bottom center",
+        textfont=dict(color=line_color),
+        hovertemplate="%{x}<br>" +
+                        "Mean FP/G: %{y:.2f}<br>" +
+                        "<extra>After Trade</extra>"
+    ))
+    
+    # Add change annotations
+    for i, (x, y_before, y_after) in enumerate(zip(list(team_data['before_stats'].keys()), [stats['mean_fpg'] for stats in team_data['before_stats'].values()], [stats['mean_fpg'] for stats in team_data['after_stats'].values()])):
+        change = y_after - y_before
+        if i == len(list(team_data['before_stats'].keys())) - 1:  # Only for the last point
+            fig.add_annotation(
+                x=x,
+                y=y_after,
+                text=f"{change:+.1f}",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                arrowwidth=2,
+                arrowcolor=line_color,
+                font=dict(color='white'),
+                bgcolor='rgba(0,0,0,0.8)',
+                bordercolor=line_color,
+                borderwidth=1
+            )
+    
+    # Update layout
+    fig.update_layout(
+        title="Performance Trend",
+        xaxis_title="Time Range",
+        yaxis_title="Average Fantasy Points per Game",
+        template="plotly_dark",
+        showlegend=True
     )
     
-    for time_range in ['60 Days', '30 Days']:
-        if time_range in team_data['before_stats'] and time_range in team_data['after_stats']:
-            st.markdown(f"**{time_range}**")
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown("**Before Trade**")
-                if 'top_players' in team_data['before_stats'] and time_range in team_data['before_stats']['top_players']:
-                    before_players = team_data['before_stats']['top_players'][time_range]
-                    if not before_players.empty:
-                        display_df = before_players[['Player', 'FP/G', 'FPts', 'GP']].copy()
-                        st.dataframe(
-                            display_df.style.format({
-                                'FP/G': '{:.1f}',
-                                'FPts': '{:.1f}',
-                                'GP': '{:.0f}'
-                            }).set_properties(**{
-                                'background-color': 'rgb(17, 23, 29)',
-                                'color': 'white',
-                                'font-size': '14px'
-                            }).set_table_styles([
-                                {'selector': 'th', 'props': [('background-color', 'rgb(13, 17, 23)'), ('color', 'white')]},
-                                {'selector': 'td', 'props': [('border', '1px solid rgb(38, 39, 48)')]}
-                            ]).bar(subset=['FP/G'], color='#1f77b4'),
-                            hide_index=True,
-                            height=400
-                        )
-            
-            with col2:
-                st.markdown("**After Trade**")
-                if 'top_players' in team_data['after_stats'] and time_range in team_data['after_stats']['top_players']:
-                    after_players = team_data['after_stats']['top_players'][time_range]
-                    if not after_players.empty:
-                        display_df = after_players[['Player', 'FP/G', 'FPts', 'GP']].copy()
-                        st.dataframe(
-                            display_df.style.format({
-                                'FP/G': '{:.1f}',
-                                'FPts': '{:.1f}',
-                                'GP': '{:.0f}'
-                            }).set_properties(**{
-                                'background-color': 'rgb(17, 23, 29)',
-                                'color': 'white',
-                                'font-size': '14px'
-                            }).set_table_styles([
-                                {'selector': 'th', 'props': [('background-color', 'rgb(13, 17, 23)'), ('color', 'white')]},
-                                {'selector': 'td', 'props': [('border', '1px solid rgb(38, 39, 48)')]}
-                            ]).bar(subset=['FP/G'], color='#1f77b4'),
-                            hide_index=True,
-                            height=400
-                        )
+    st.plotly_chart(fig)
     
-    return before_stats, after_stats
+    # Display detailed stats
+    st.write("Detailed Statistics:")
+    for time_range in team_data['before_stats'].keys():
+        st.write(f"\n{time_range} Stats:")
+        cols = st.columns(2)
+        
+        # Before trade stats
+        with cols[0]:
+            st.write("Before Trade:")
+            stats = team_data['before_stats'][time_range]
+            st.write(f"Mean FP/G: {stats['mean_fpg']:.2f}")
+            st.write(f"Median FP/G: {stats['median_fpg']:.2f}")
+            st.write(f"Std Dev FP/G: {stats['std_fpg']:.2f}")
+            st.write(f"Total Fantasy Points: {stats['total_fpts']:.2f}")
+        
+        # After trade stats
+        with cols[1]:
+            st.write("After Trade:")
+            stats = team_data['after_stats'][time_range]
+            st.write(f"Mean FP/G: {stats['mean_fpg']:.2f}")
+            st.write(f"Median FP/G: {stats['median_fpg']:.2f}")
+            st.write(f"Std Dev FP/G: {stats['std_fpg']:.2f}")
+            st.write(f"Total Fantasy Points: {stats['total_fpts']:.2f}")
 
+@handle_error
 def display_trade_analysis(analysis, teams):
     """Display the trade analysis results"""
     # Calculate overall trade fairness
@@ -429,7 +474,7 @@ def display_trade_analysis(analysis, teams):
             
             # Create expanders for different sections
             with st.expander("📊 Team Statistics", expanded=True):
-                # Create before/after trade stats tables
+                # Create before/after trade stats tables with trend indicators
                 col1, col2 = st.columns(2)
                 
                 with col1:
@@ -441,32 +486,194 @@ def display_trade_analysis(analysis, teams):
                                 stats = team_data['before_stats'][time_range]
                                 before_stats.append({
                                     'Time Range': time_range,
-                                    'Mean FP/G': f"{stats['mean_fpg']:.1f}",
-                                    'Median FP/G': f"{stats['median_fpg']:.1f}",
-                                    'Std Dev': f"{stats['std_fpg']:.1f}",
-                                    'Total FPts': f"{stats['total_fpts']:.1f}",
-                                    'Avg GP': f"{stats['avg_gp']:.1f}"
+                                    'Mean FP/G': stats['mean_fpg'],
+                                    'Median FP/G': stats['median_fpg'],
+                                    'Std Dev': stats['std_fpg'],
+                                    'Total FPts': stats['total_fpts'],
+                                    'Avg GP': stats['avg_gp']
                                 })
                         
-                        st.table(pd.DataFrame(before_stats))
+                        df = pd.DataFrame(before_stats)
+                        st.dataframe(
+                            df.style.format({
+                                'Mean FP/G': '{:.1f}',
+                                'Median FP/G': '{:.1f}',
+                                'Std Dev': '{:.1f}',
+                                'Total FPts': '{:.1f}',
+                                'Avg GP': '{:.1f}'
+                            }).set_properties(**{
+                                'background-color': 'rgb(17, 23, 29)',
+                                'color': 'white'
+                            }),
+                            hide_index=True
+                        )
                 
                 with col2:
                     st.markdown("##### After Trade")
                     if team_data['after_stats']:
                         after_stats = []
+                        changes = {}
+                        
                         for time_range in ['60 Days', '30 Days', '14 Days', '7 Days']:
-                            if time_range in team_data['after_stats']:
-                                stats = team_data['after_stats'][time_range]
+                            if time_range in team_data['after_stats'] and time_range in team_data['before_stats']:
+                                after = team_data['after_stats'][time_range]
+                                before = team_data['before_stats'][time_range]
+                                
+                                # Calculate changes
+                                changes[time_range] = {
+                                    'Mean FP/G': after['mean_fpg'] - before['mean_fpg'],
+                                    'Median FP/G': after['median_fpg'] - before['median_fpg'],
+                                    'Std Dev': after['std_fpg'] - before['std_fpg'],
+                                    'Total FPts': after['total_fpts'] - before['total_fpts'],
+                                    'Avg GP': after['avg_gp'] - before['avg_gp']
+                                }
+                                
                                 after_stats.append({
                                     'Time Range': time_range,
-                                    'Mean FP/G': f"{stats['mean_fpg']:.1f}",
-                                    'Median FP/G': f"{stats['median_fpg']:.1f}",
-                                    'Std Dev': f"{stats['std_fpg']:.1f}",
-                                    'Total FPts': f"{stats['total_fpts']:.1f}",
-                                    'Avg GP': f"{stats['avg_gp']:.1f}"
+                                    'Mean FP/G': after['mean_fpg'],
+                                    'Median FP/G': after['median_fpg'],
+                                    'Std Dev': after['std_fpg'],
+                                    'Total FPts': after['total_fpts'],
+                                    'Avg GP': after['avg_gp']
                                 })
                         
-                        st.table(pd.DataFrame(after_stats))
+                        df = pd.DataFrame(after_stats)
+                        
+                        # Create style functions for each column
+                        def style_column(col_name):
+                            def style_values(values):
+                                if col_name == 'Time Range':
+                                    return ['color: white'] * len(values)
+                                
+                                styles = []
+                                for idx, _ in enumerate(values):
+                                    time_range = df.iloc[idx]['Time Range']
+                                    change = changes[time_range][col_name]
+                                    
+                                    # Reverse color logic for Std Dev
+                                    if col_name == 'Std Dev':
+                                        if change < 0:
+                                            styles.append('color: #2ecc71')  # Green for decrease
+                                        elif change > 0:
+                                            styles.append('color: #e74c3c')  # Red for increase
+                                        else:
+                                            styles.append('color: white')  # White for no change
+                                    else:
+                                        if change > 0:
+                                            styles.append('color: #2ecc71')  # Green for positive
+                                        elif change < 0:
+                                            styles.append('color: #e74c3c')  # Red for negative
+                                        else:
+                                            styles.append('color: white')  # White for no change
+                                return styles
+                            return style_values
+                        
+                        # Apply styles column by column
+                        styler = df.style.format({
+                            'Mean FP/G': '{:.1f}',
+                            'Median FP/G': '{:.1f}',
+                            'Std Dev': '{:.1f}',
+                            'Total FPts': '{:.1f}',
+                            'Avg GP': '{:.1f}'
+                        }).set_properties(**{
+                            'background-color': 'rgb(17, 23, 29)',
+                        })
+                        
+                        for col in df.columns:
+                            styler = styler.apply(style_column(col), axis=0, subset=[col])
+                        
+                        st.dataframe(styler, hide_index=True)
+                
+                # Add trend plots
+                st.markdown("##### Performance Trends")
+                for metric in ['mean_fpg', 'median_fpg', 'total_fpts', 'avg_gp']:
+                    fig = go.Figure()
+                    
+                    # Get data for before and after
+                    time_ranges = ['60 Days', '30 Days', '14 Days', '7 Days']
+                    before_values = [team_data['before_stats'][tr][metric] for tr in time_ranges if tr in team_data['before_stats']]
+                    after_values = [team_data['after_stats'][tr][metric] for tr in time_ranges if tr in team_data['after_stats']]
+                    
+                    # Calculate overall change
+                    change = after_values[-1] - before_values[-1]
+                    change_color = '#2ecc71' if change > 0 else '#e74c3c'
+                    
+                    # Add before trade line
+                    fig.add_trace(go.Scatter(
+                        x=time_ranges,
+                        y=before_values,
+                        name='Before Trade',
+                        line=dict(color='#666666', dash='dot'),
+                        mode='lines+markers+text',
+                        text=[f"{val:.1f}" for val in before_values],
+                        textposition="top center",
+                        textfont=dict(color='#666666'),
+                        hovertemplate="%{x}<br>" +
+                                    f"{metric.replace('_', ' ').title()}: %{{y:.2f}}<br>" +
+                                    "<extra>Before Trade</extra>"
+                    ))
+                    
+                    # Add after trade line
+                    fig.add_trace(go.Scatter(
+                        x=time_ranges,
+                        y=after_values,
+                        name='After Trade',
+                        line=dict(color=change_color),
+                        mode='lines+markers+text',
+                        text=[f"{val:.1f}" for val in after_values],
+                        textposition="bottom center",
+                        textfont=dict(color=change_color),
+                        hovertemplate="%{x}<br>" +
+                                    f"{metric.replace('_', ' ').title()}: %{{y:.2f}}<br>" +
+                                    "<extra>After Trade</extra>"
+                    ))
+                    
+                    # Add change annotations
+                    for i, (x, y_before, y_after) in enumerate(zip(time_ranges, before_values, after_values)):
+                        change = y_after - y_before
+                        if i == len(time_ranges) - 1:  # Only for the last point
+                            fig.add_annotation(
+                                x=x,
+                                y=y_after,
+                                text=f"{change:+.1f}",
+                                showarrow=True,
+                                arrowhead=2,
+                                arrowsize=1,
+                                arrowwidth=2,
+                                arrowcolor=change_color,
+                                font=dict(color='white'),
+                                bgcolor='rgba(0,0,0,0.8)',
+                                bordercolor=change_color,
+                                borderwidth=1
+                            )
+                    
+                    # Update layout
+                    fig.update_layout(
+                        xaxis=dict(
+                            ticktext=time_ranges,
+                            tickvals=list(range(len(time_ranges))),
+                            title="Time Range",
+                            showgrid=True,
+                            gridcolor='rgba(128,128,128,0.2)',
+                            tickfont=dict(color='white')
+                        ),
+                        yaxis=dict(
+                            title="Value",
+                            showgrid=True,
+                            gridcolor='rgba(128,128,128,0.2)',
+                            tickfont=dict(color='white')
+                        ),
+                        title=metric,
+                        hovermode='x unified',
+                        showlegend=True,
+                        height=250,
+                        margin=dict(l=0, r=0, t=30, b=0),
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='white')
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
             
             # Display players involved
             with st.expander("👥 Players Involved", expanded=True):
@@ -474,76 +681,72 @@ def display_trade_analysis(analysis, teams):
                 
                 with col1:
                     st.markdown("##### Players Before")
-                    if 'top_players_before' in team_data:
-                        for time_range, players in team_data['top_players_before'].items():
-                            if time_range == '60 Days':  # Only show 60 days roster
-                                player_stats = []
-                                for _, player in players.iterrows():
-                                    player_stats.append({
-                                        'Player': player['Player'],
-                                        'FP/G': f"{player['FP/G']:.1f}",
-                                        'GP': str(int(player['GP']))
-                                    })
-                                st.table(pd.DataFrame(player_stats))
+                    if 'before_stats' in team_data:
+                        for time_range in ['60 Days', '30 Days', '14 Days', '7 Days']:
+                            if time_range in team_data['before_stats']:
+                                st.write(f"**{time_range}**")
+                                player_data = team_data['before_stats'][time_range].get('player_data', [])
+                                if player_data:
+                                    # Convert to DataFrame and select relevant columns
+                                    df = pd.DataFrame(player_data)
+                                    display_cols = ['Player', 'Team', 'FPts', 'FP/G', 'GP']
+                                    df = df[display_cols]
+                                    
+                                    # Format and display the DataFrame
+                                    st.dataframe(
+                                        df.style.format({
+                                            'FP/G': '{:.1f}',
+                                            'FPts': '{:.1f}',
+                                            'GP': '{:.1f}'
+                                        }).set_properties(**{
+                                            'background-color': 'rgb(17, 23, 29)',
+                                            'color': 'white'
+                                        }),
+                                        hide_index=True
+                                    )
                 
                 with col2:
                     st.markdown("##### Players After")
-                    if 'top_players_after' in team_data:
-                        for time_range, players in team_data['top_players_after'].items():
-                            if time_range == '60 Days':  # Only show 60 days roster
-                                player_stats = []
-                                for _, player in players.iterrows():
-                                    player_stats.append({
-                                        'Player': player['Player'],
-                                        'FP/G': f"{player['FP/G']:.1f}",
-                                        'GP': str(int(player['GP']))
-                                    })
-                                st.table(pd.DataFrame(player_stats))
+                    if 'after_stats' in team_data:
+                        for time_range in ['60 Days', '30 Days', '14 Days', '7 Days']:
+                            if time_range in team_data['after_stats']:
+                                st.write(f"**{time_range}**")
+                                player_data = team_data['after_stats'][time_range].get('player_data', [])
+                                if player_data:
+                                    # Convert to DataFrame and select relevant columns
+                                    df = pd.DataFrame(player_data)
+                                    display_cols = ['Player', 'Team', 'FPts', 'FP/G', 'GP']
+                                    df = df[display_cols]
+                                    
+                                    # Format and display the DataFrame
+                                    st.dataframe(
+                                        df.style.format({
+                                            'FP/G': '{:.1f}',
+                                            'FPts': '{:.1f}',
+                                            'GP': '{:.1f}'
+                                        }).set_properties(**{
+                                            'background-color': 'rgb(17, 23, 29)',
+                                            'color': 'white'
+                                        }),
+                                        hide_index=True
+                                    )
             
-            # Trade impact summary
+            # Display trade impact
             with st.expander("📈 Trade Impact", expanded=True):
-                # Display incoming/outgoing players
-                col1, col2 = st.columns(2)
+                st.markdown("##### Receiving")
+                for player in team_data.get('incoming_players', []):
+                    st.write(f"- {player}")
                 
-                with col1:
-                    st.markdown("##### Receiving")
-                    for player in team_data['incoming_players']:
-                        # Find player in 60 Days data
-                        if '60 Days' in team_data['top_players_after']:
-                            player_df = team_data['top_players_after']['60 Days']
-                            if player in player_df['Player'].values:
-                                player_data = player_df[player_df['Player'] == player].iloc[0]
-                                st.markdown(f"**{player}** - {player_data['FP/G']:.1f} FP/G")
-                            else:
-                                st.markdown(f"**{player}**")
-                        else:
-                            st.markdown(f"**{player}**")
+                st.markdown("##### Trading Away")
+                for player in team_data.get('outgoing_players', []):
+                    st.write(f"- {player}")
                 
-                with col2:
-                    st.markdown("##### Trading Away")
-                    for player in team_data['outgoing_players']:
-                        # Find player in 60 Days data
-                        if '60 Days' in team_data['top_players_before']:
-                            player_df = team_data['top_players_before']['60 Days']
-                            if player in player_df['Player'].values:
-                                player_data = player_df[player_df['Player'] == player].iloc[0]
-                                st.markdown(f"**{player}** - {player_data['FP/G']:.1f} FP/G")
-                            else:
-                                st.markdown(f"**{player}**")
-                        else:
-                            st.markdown(f"**{player}**")
-                
-                # Display value change
-                value_change = team_data['value_change']
-                st.markdown(
-                    f"""
-                    <div style='background-color: rgb(17, 23, 29); padding: 0.5rem; border-radius: 0.5rem; margin-top: 1rem;'>
-                        <h5 style='margin: 0; color: white;'>Net Value Change: {value_change:+.1f}</h5>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                if 'value_change' in team_data:
+                    value_change = team_data['value_change']
+                    color = '#2ecc71' if value_change > 0 else '#e74c3c'
+                    st.markdown(f"**Net Value Change:** <span style='color: {color}'>{value_change:+.1f}</span>", unsafe_allow_html=True)
 
+@handle_error
 def display_trade_analysis_page():
     """Display the trade analysis page"""
     st.write("## Trade Analysis")
@@ -554,6 +757,7 @@ def display_trade_analysis_page():
     # Setup and analyze trade
     trade_setup()
 
+@handle_error
 def trade_setup():
     """Setup the trade with drag and drop interface"""
     st.write("## Trade Setup")
@@ -561,6 +765,9 @@ def trade_setup():
     # Get all teams and sort them
     teams = get_all_teams()
     teams.sort()
+    
+    # Debug logging
+    st.write("Debug: Available teams", len(teams))
     
     # Allow user to select number of top players to analyze
     st.write("### Analysis Settings")
@@ -577,6 +784,9 @@ def trade_setup():
         st.warning("Please select teams to begin trading")
         return
 
+    # Debug logging
+    st.write("Debug: Selected teams", len(selected_teams))
+    
     # Dictionary to store players involved in trade for each team
     trade_teams = {}
     
@@ -600,6 +810,9 @@ def trade_setup():
             available_players = list(set(available_players))
             available_players.sort()
             
+            # Debug logging
+            st.write(f"Debug: {team_name} available players", len(available_players))
+            
             # Multi-select for players
             selected_players = st.multiselect(
                 f"Select players from {team_name}",
@@ -608,9 +821,16 @@ def trade_setup():
             )
             
             trade_teams[team] = selected_players
+            
+            # Debug logging
+            if selected_players:
+                st.write(f"Debug: {team_name} selected players", len(selected_players))
 
     # Only show player assignment section if teams have selected players
     active_teams = {team: players for team, players in trade_teams.items() if players}
+    
+    # Debug logging
+    st.write("Debug: Active teams", len(active_teams))
     
     if active_teams:
         st.write("### Assign Players to Teams")
@@ -638,9 +858,19 @@ def trade_setup():
         
         # Add analyze button with unique key
         if st.button("Analyze Trade", key="analyze_trade_button", help="Click to see detailed trade analysis"):
+            # Debug logging
+            st.write("Debug: Starting trade analysis")
+            st.write("Debug: Trade teams data", trade_teams)
+            
             analysis = st.session_state.trade_analyzer.evaluate_trade_fairness(trade_teams, top_x)
+            
+            # Debug logging
+            st.write("Debug: Analysis complete")
+            st.write("Debug: Analysis results", bool(analysis))
+            
             display_trade_analysis(analysis, selected_teams)
 
+@handle_error
 def display_team_stats_analysis():
     """Display team statistics analysis page"""
     st.write("## Team Statistics Analysis")
@@ -672,6 +902,7 @@ def display_team_stats_analysis():
     # Analyze team statistics
     st.session_state.stats_analyzer.analyze_team_stats(team, n_top_players)
 
+@handle_error
 def display_player_performance(player_name):
     """Display detailed performance analysis for a player"""
     st.write(f"## Player Analysis: {player_name}")
@@ -679,6 +910,7 @@ def display_player_performance(player_name):
     # Analyze player statistics
     st.session_state.stats_analyzer.analyze_player_stats(player_name)
 
+@handle_error
 def analyze_player_stats(player_name):
     """Analyze and display player statistics"""
     if not st.session_state.data_ranges:
@@ -735,15 +967,21 @@ def analyze_player_stats(player_name):
             col: '{:.1f}' for col in df.columns if col != 'Time Range'
         }))
 
+@handle_error
 def get_team_name(team_id):
     """Get full team name from team ID"""
     return TEAM_MAPPINGS.get(team_id, team_id)
 
+@handle_error
 def plot_performance_trends(data, selected_metrics, title="Performance Trends"):
     """Create a performance trend plot with visible data points"""
     fig = go.Figure()
     time_ranges = ['60 Days', '30 Days', '14 Days', '7 Days']
     x_positions = list(range(len(time_ranges)))
+    
+    # Define contrasting colors for before/after trade
+    before_color = '#20c9bb'  # Bright turquoise
+    after_color = '#FF0000'   # Bright red
     
     for metric in selected_metrics:
         values = []
@@ -758,18 +996,31 @@ def plot_performance_trends(data, selected_metrics, title="Performance Trends"):
                 values.append(None)
                 hover_texts.append(f"No data for {time_range}")
         
+        # Determine if this is before or after trade data
+        is_before = 'Before Trade' in metric
+        line_color = before_color if is_before else after_color
+        line_width = 3 if is_before else 2  # Make before trade line thicker
+        
         # Add both line and markers
         fig.add_trace(go.Scatter(
             x=x_positions,
             y=values,
             name=metric,
-            mode='lines+markers',  # Explicitly show both lines and markers
-            line=dict(width=2),
+            mode='lines+markers+text',  # Explicitly show both lines and markers
+            line=dict(
+                width=line_width,
+                color=line_color,
+                dash='dot' if is_before else None  # Add dot style for before trade
+            ),
             marker=dict(
                 size=10,
                 symbol='circle',
+                color=line_color,
                 line=dict(width=2, color='white')  # Add white border to markers
             ),
+            text=[f"{val:.1f}" for val in values],
+            textposition="top center" if is_before else "bottom center",
+            textfont=dict(color=line_color),
             hovertext=hover_texts,
             hoverinfo='text'
         ))
@@ -778,18 +1029,30 @@ def plot_performance_trends(data, selected_metrics, title="Performance Trends"):
         xaxis=dict(
             ticktext=time_ranges,
             tickvals=x_positions,
-            title="Time Range"
+            title="Time Range",
+            showgrid=True,
+            gridcolor='rgba(128,128,128,0.2)',
+            tickfont=dict(color='white')
         ),
-        yaxis=dict(title="Value"),
+        yaxis=dict(
+            title="Value",
+            showgrid=True,
+            gridcolor='rgba(128,128,128,0.2)',
+            tickfont=dict(color='white')
+        ),
         title=title,
         hovermode='x unified',
         showlegend=True,
-        height=400,  # Reduced height for more compact display
-        margin=dict(l=50, r=50, t=50, b=50)  # Reduced margins
+        height=400,
+        margin=dict(l=50, r=50, t=50, b=50),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='white')
     )
     
     return fig
 
+@handle_error
 def get_all_teams():
     """Get a list of all teams from the data"""
     if not st.session_state.data_ranges:
@@ -802,6 +1065,7 @@ def get_all_teams():
             return sorted(st.session_state.data_ranges[key]['Status'].unique())
     return []
 
+@handle_error
 def get_fairness_color(fairness_score: float) -> str:
     """Get color for fairness score visualization.
     
@@ -820,6 +1084,7 @@ def get_fairness_color(fairness_score: float) -> str:
     else:
         return '#e74c3c'  # Red
 
+@handle_error
 def main():
     """Main application function"""
     st.title("Fantasy Basketball Trade Analyzer")
@@ -828,14 +1093,16 @@ def main():
     if ('data_ranges' not in st.session_state or 
         st.session_state.data_ranges is None or 
         'data' not in st.session_state or 
-        st.session_state.data is None):
+        st.session_state.data is None or
+        'trade_analyzer' not in st.session_state or
+        st.session_state.trade_analyzer is None):
         
         data_ranges, player_data = load_data()
         st.session_state.data_ranges = data_ranges
         st.session_state.data = player_data
         
         # Initialize analyzers with the loaded data
-        if player_data is not None:
+        if data_ranges is not None and player_data is not None:
             st.session_state.trade_analyzer = TradeAnalyzer(player_data)
             st.session_state.stats_analyzer = StatisticalAnalyzer()
     
@@ -848,13 +1115,24 @@ def main():
         """)
         return
     
-    # Create navigation
-    pages = {
-        "Trade Analysis": display_trade_analysis_page,
-        "Team Statistics": display_team_stats_analysis
-    }
+    # Sidebar
+    with st.sidebar:
+        st.title("Fantasy Trade Analyzer")
+        
+        # Add debug mode toggle
+        st.session_state.debug_mode = st.toggle("Debug Mode", value=st.session_state.debug_mode)
+        
+        # Navigation
+        pages = {
+            "Trade Analysis": display_trade_analysis_page,
+            "Team Statistics": display_team_stats_analysis
+        }
+        page = st.selectbox(
+            "Navigation",
+            list(pages.keys())
+        )
     
-    page = st.sidebar.radio("Navigation", list(pages.keys()))
+    # Display selected page
     pages[page]()
 
 if __name__ == "__main__":
