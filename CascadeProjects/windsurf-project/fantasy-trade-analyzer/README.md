@@ -26,6 +26,17 @@ A comprehensive tool for analyzing fantasy basketball trades, featuring data imp
   - Overall team performance metrics
   - Statistical balance analysis
 
+### New Features
+- **Trade Impact**: Now prioritized at the top of the trade analysis page for immediate insights.
+- **League Statistics Tab**: Provides comprehensive league-wide metrics and FP/G distribution.
+- **API Data Fetching**: The application can now fetch player game data directly from the Fantrax API, enhancing the analysis with real-time data.
+
+### Layout Improvements
+- Organized layout with tabs and expanders
+- Interactive player selection interface
+- Improved error handling and data validation
+- Clear visual indicators for trade impact
+
 ## Setup Instructions
 
 ### Prerequisites
@@ -58,6 +69,88 @@ pip install -r requirements.txt
 ```bash
 python -m streamlit run src/app.py
 ```
+
+## Fantrax API Integration
+
+To enable data fetching from the Fantrax API, ensure you have set up your API key in the `.env` file located in the project directory. The key should be set as follows:
+
+```
+FANTRAX_API_KEY=your_api_key_here
+```
+
+Replace `your_api_key_here` with your actual API key.
+
+## Accessing Private League Data
+
+To access private league data, follow these steps:
+
+1. **Automate Login with Selenium**:
+   - Run the `fantrax_login.py` script to open a Chrome browser and log in to Fantrax. This will save your session cookies to a file.
+   - Ensure you have `selenium` and `webdriver-manager` installed.
+   ```bash
+   pip install selenium webdriver-manager
+   ```
+
+2. **Use Cookies with Fantrax API**:
+   - Run the `fantrax_api_access.py` script to load the saved cookies and connect to the Fantrax API.
+   - Update the script with your league ID to access specific league data.
+
+These steps allow you to authenticate and access private league data using the Fantrax API.
+
+## Connecting to a Private League
+
+To connect to a private league or access specific pages in a public league that are not public, follow these steps:
+
+### Step 1: Install Required Packages
+Ensure you have `selenium` and `webdriver-manager` installed:
+```bash
+pip install selenium
+pip install webdriver-manager
+```
+
+### Step 2: Automate Login and Save Cookies
+Use the following script to log in to Fantrax and save your session cookies:
+```python
+import pickle
+import time
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+
+service = Service(ChromeDriverManager().install())
+
+options = Options()
+options.add_argument("--window-size=1920,1600")
+options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.71 Safari/537.36")
+
+with webdriver.Chrome(service=service, options=options) as driver:
+    driver.get("https://www.fantrax.com/login")
+    time.sleep(30)  # Wait for the user to log in
+    pickle.dump(driver.get_cookies(), open("fantraxloggedin.cookie", "wb"))
+```
+
+### Step 3: Use Cookies with Fantrax API
+Load the saved cookies into a session and use it with the Fantrax API:
+```python
+import pickle
+from fantraxapi import FantraxAPI
+from requests import Session
+
+session = Session()
+
+with open("fantraxloggedin.cookie", "rb") as f:
+    for cookie in pickle.load(f):
+        session.cookies.set(cookie["name"], cookie["value"])
+
+league_id = "96igs4677sgjk7ol"
+
+api = FantraxAPI(league_id, session=session)
+
+print(api.trade_block())  # Access the private Trade Block page
+```
+
+This process allows you to authenticate with Fantrax and access private league data using the Fantrax API.
 
 ## Data Files
 
