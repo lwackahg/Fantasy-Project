@@ -78,7 +78,7 @@ class TradeAnalyzer:
         
         # Store initial team states
         initial_states = {}
-        for team in trade_teams.keys():
+        for team in list(trade_teams.keys()):
             initial_states[team] = self.calculate_team_stats(team, top_x)
         
         # First pass: Organize incoming/outgoing players for each team
@@ -95,7 +95,7 @@ class TradeAnalyzer:
                             analysis[dest_team] = {'incoming_players': [], 'outgoing_players': []}
                         analysis[dest_team]['incoming_players'].append(player)
             else:
-                outgoing_players = players
+                outgoing_players = list(players) if players else []  # Convert to list and handle empty case
             
             if team not in analysis:
                 analysis[team] = {'incoming_players': [], 'outgoing_players': []}
