@@ -759,37 +759,71 @@ def display_trade_analysis_page():
     
     # Setup and analyze trade
     trade_setup()
+    
+    # Display trade history
+    st.write("## Trade Analysis History")
+    if st.session_state.trade_analyzer:
+        history = st.session_state.trade_analyzer.get_trade_history()
+        for trade, blurb in history:
+            st.write(blurb)
+    else:
+        st.write("No trade history available.")
 
 @handle_error
 def trade_setup():
     """Setup the trade with drag and drop interface"""
     st.write("## Trade Setup")
     
-    # Get all teams and sort them
-    teams = get_all_teams()
-    teams.sort()
-    
-    # Debug logging
-    st.write("Debug: Available teams", len(teams))
-    
-    # Allow user to select number of top players to analyze
-    st.write("### Analysis Settings")
-    top_x = st.number_input("Number of top players to analyze", min_value=1, max_value=15, value=10)
-    
-    # Allow user to select teams involved in the trade first
+    # Display team legend with improved styling
+    st.write("## Team Legend")
+    team_legend = """
+    <style>
+    .team-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        justify-content: center;
+    }
+    .team-card {
+        background-color: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        padding: 15px;
+        text-align: center;
+        width: 200px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        color: #333;
+    }
+    .team-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    }
+    </style>
+    <div class="team-legend">
+    """
+    for team_id, team_name in TEAM_MAPPINGS.items():
+        team_legend += f"<div class='team-card'><strong>{team_id}</strong><br>{team_name}</div>"
+    team_legend += "</div>"
+    st.markdown(team_legend, unsafe_allow_html=True)
+
+    # Adjust layout for better UX
+    st.write("## Analysis Settings")
+    st.write("### Number of Top Players to Analyze")
+    top_x = st.number_input("Select the number of top players to analyze", min_value=1, max_value=15, value=10, help="Choose how many top players to include in the analysis.")
+
+    st.write("### Select Teams to Trade Between")
     selected_teams = st.multiselect(
-        "Select teams to trade between",
-        options=teams,
-        help="Choose teams involved in the trade"
+        "Choose teams involved in the trade",
+        options=get_all_teams(),
+        help="Select the teams that will participate in the trade.",
+        format_func=lambda x: get_team_name(x)
     )
 
     if not selected_teams:
-        st.warning("Please select teams to begin trading")
+        st.warning("Please select teams to begin trading.")
         return
 
-    # Debug logging
-    st.write("Debug: Selected teams", len(selected_teams))
-    
     # Dictionary to store players involved in trade for each team
     trade_teams = {}
     
@@ -872,6 +906,21 @@ def trade_setup():
             st.write("Debug: Analysis results", bool(analysis))
             
             display_trade_analysis(analysis, selected_teams)
+            
+            # Update trade history with formatted analysis data
+            for team, team_analysis in analysis.items():
+                incoming = ', '.join(team_analysis['incoming_players'])
+                outgoing = ', '.join(team_analysis['outgoing_players'])
+                net_value_change = team_analysis['value_change']
+                blurb = (
+                    f"Trade Impact for {team}:\n"
+                    f"Receiving: {incoming}\n"
+                    f"Trading Away: {outgoing}\n"
+                    f"Net Value Change: {net_value_change}"
+                )
+                st.session_state.trade_analyzer.trade_history.append((team, blurb))
+                if len(st.session_state.trade_analyzer.trade_history) > 25:
+                    st.session_state.trade_analyzer.trade_history.pop(0)
 
 @handle_error
 def display_team_stats_analysis():
@@ -1289,6 +1338,13 @@ def main():
         
         # Add debug mode toggle
         st.session_state.debug_mode = st.toggle("Debug Mode", value=st.session_state.debug_mode)
+        
+        # Add clear trade history checkbox
+        clear_history = st.checkbox("Clear trade history before each run")
+        
+        # Clear trade history if checkbox is checked
+        if clear_history and st.session_state.trade_analyzer:
+            st.session_state.trade_analyzer.trade_history.clear()
         
         # Navigation
         pages = {

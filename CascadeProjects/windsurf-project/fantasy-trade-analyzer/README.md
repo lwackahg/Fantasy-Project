@@ -37,6 +37,13 @@ A comprehensive tool for analyzing fantasy basketball trades, featuring data imp
 - Improved error handling and data validation
 - Clear visual indicators for trade impact
 
+## Goals
+
+- Implement a system to keep a history of the last 25 trades analyzed, including a brief description of each analysis.
+- Use a data structure (list or queue) to store the last 25 trade analyses.
+- Implement circular buffer logic to manage the size of the history.
+- Consider optional persistence to save the trade analysis history to a file or database.
+
 ## Setup Instructions
 
 ### Prerequisites
@@ -231,6 +238,12 @@ If you encounter numeric conversion errors:
 ## Contributing
 
 Feel free to open issues or submit pull requests for any improvements or bug fixes.
+
+## Recent Enhancements
+
+- **Modern UI Design**: Updated the team legend with a modern card design for improved visual appeal and user experience.
+- **Trade History Tracking**: Implemented a feature to maintain a history of the last 25 trades analyzed, including a summary of trade impacts.
+- **User Interface Improvements**: Enhanced layout and design for better usability, focusing on clarity and modern aesthetics.
 
 ## Recent Updates
 

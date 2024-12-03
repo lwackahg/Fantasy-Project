@@ -15,6 +15,7 @@ class TradeAnalyzer:
         """Initialize TradeAnalyzer with player data"""
         self.data = data if data is not None else {}
         self.data_ranges = st.session_state.data_ranges if hasattr(st.session_state, 'data_ranges') else {}
+        self.trade_history = []  # Initialize trade history
     
     def _calculate_player_value(self, player_name):
         """Calculate a player's value based on recent performance"""
@@ -182,7 +183,7 @@ class TradeAnalyzer:
         key_metrics = ['mean_fpg', 'median_fpg', 'total_fpts']
         
         for metric in key_metrics:
-            for time_range in ['7 Days', '14 Days', '30 Days']:
+            for time_range in ['60 Days', '30 Days', '14 Days', '7 Days']:
                 if time_range in before_stats and time_range in after_stats:
                     before_val = before_stats[time_range][metric]
                     after_val = after_stats[time_range][metric]
@@ -217,6 +218,29 @@ class TradeAnalyzer:
         )
         
         return fairness_score
+
+    def analyze_trade(self, trade_proposal):
+        """
+        Analyze a proposed trade
+        
+        :param trade_proposal: Dictionary of teams and traded players
+        :return: Trade fairness analysis
+        """
+        analysis_result = self.evaluate_trade_fairness(trade_proposal)
+        self._update_trade_history(trade_proposal, analysis_result)
+        return analysis_result
+
+    def _update_trade_history(self, trade_proposal, analysis_result):
+        """Update the trade history with the latest analysis"""
+        incoming = ', '.join([player for team in trade_proposal.values() for player in team])
+        blurb = f"Trade between {', '.join(trade_proposal.keys())}: Incoming players: {incoming}"
+        self.trade_history.append((trade_proposal, blurb))
+        if len(self.trade_history) > 25:
+            self.trade_history.pop(0)  # Maintain only the last 25 entries
+
+    def get_trade_history(self):
+        """Retrieve the history of the last 25 trades analyzed"""
+        return self.trade_history
 
     def calculate_team_stats(self, team, top_x=None):
         """Calculate team statistics from roster data"""
