@@ -8,9 +8,9 @@ TEAM_MAPPINGS = {
     '420': 'Kevin O\'Leary',
     'J&J': 'Ligma Johnson',
     'BabyOil': 'P Diddy\'s Slip & Slide',
-    'PRO': 'President of Retarded Opera',
+    'PRO': 'President of Retarded Operations',
     'ROMO': 'Rudy Homo',
-    'Tribunal': 'Stevens Underaged Experien',
+    'Tribunal': 'Stevens Underaged Experience',
     'TRH': 'The Retirement Home',
     'MylS': 'Weinstein Wranglers'
 }
