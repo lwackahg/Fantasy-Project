@@ -473,7 +473,21 @@ def display_trade_analysis(analysis, teams):
             )
             
             # Create expanders for different sections
-            with st.expander("📊 Team Statistics", expanded=True):
+            # Display trade impact
+            with st.expander("📈 Trade Impact", expanded=True):
+                st.markdown("##### Receiving")
+                for player in team_data.get('incoming_players', []):
+                    st.write(f"- {player}")
+                
+                st.markdown("##### Trading Away")
+                for player in team_data.get('outgoing_players', []):
+                    st.write(f"- {player}")
+                
+                if 'value_change' in team_data:
+                    value_change = team_data['value_change']
+                    color = '#2ecc71' if value_change > 0 else '#e74c3c'
+                    st.markdown(f"**Net Value Change:** <span style='color: {color}'>{value_change:+.1f}</span>", unsafe_allow_html=True)
+                
                 # Create before/after trade stats tables with trend indicators
                 col1, col2 = st.columns(2)
                 
@@ -583,6 +597,9 @@ def display_trade_analysis(analysis, teams):
                             styler = styler.apply(style_column(col), axis=0, subset=[col])
                         
                         st.dataframe(styler, hide_index=True)
+                
+            
+            with st.expander("📊 Team Statistics", expanded=True):
                 
                 # Add trend plots
                 st.markdown("##### Performance Trends")
@@ -731,21 +748,7 @@ def display_trade_analysis(analysis, teams):
                                         hide_index=True
                                     )
             
-            # Display trade impact
-            with st.expander("📈 Trade Impact", expanded=True):
-                st.markdown("##### Receiving")
-                for player in team_data.get('incoming_players', []):
-                    st.write(f"- {player}")
-                
-                st.markdown("##### Trading Away")
-                for player in team_data.get('outgoing_players', []):
-                    st.write(f"- {player}")
-                
-                if 'value_change' in team_data:
-                    value_change = team_data['value_change']
-                    color = '#2ecc71' if value_change > 0 else '#e74c3c'
-                    st.markdown(f"**Net Value Change:** <span style='color: {color}'>{value_change:+.1f}</span>", unsafe_allow_html=True)
-
+            
 @handle_error
 def display_trade_analysis_page():
     """Display the trade analysis page"""
@@ -875,32 +878,113 @@ def display_team_stats_analysis():
     """Display team statistics analysis page"""
     st.write("## Team Statistics Analysis")
     
-    # Get available data ranges
-    available_ranges = [k for k, v in st.session_state.data_ranges.items() if v is not None]
+    # Get available teams
+    teams = get_all_teams()
+    if not teams:
+        st.error("No team data available. Please upload data files first.")
+        return
     
-    # Initialize session state for persistent values if not exists
-    if 'top_n_players' not in st.session_state:
-        st.session_state.top_n_players = 10
+    # Team selection
+    team = st.selectbox("Select Team to Analyze", teams)
     
-    # Select team to analyze
-    team = st.selectbox(
-        "Select Team to Analyze",
-        options=sorted(st.session_state.data['Status'].unique()),
-        help="Choose a team to analyze their statistics"
-    )
+    # Number of top players to analyze
+    n_top_players = st.number_input("Number of top players to analyze", min_value=1, max_value=20, value=10)
     
-    # Number input for top players
-    n_top_players = st.number_input(
-        "Number of top players to analyze",
-        min_value=1,
-        max_value=20,
-        value=st.session_state.top_n_players,
-        help="Select how many top players to show in the analysis"
-    )
-    st.session_state.top_n_players = n_top_players
-    
-    # Analyze team statistics
-    st.session_state.stats_analyzer.analyze_team_stats(team, n_top_players)
+    if team and n_top_players:
+        # Create two columns for metrics selection
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("Per Game Metrics")
+            show_mean = st.checkbox("Mean FP/G", value=True)
+            show_median = st.checkbox("Median FP/G", value=True)
+            show_std = st.checkbox("Std Dev", value=False)
+            show_gp = st.checkbox("Avg GP", value=False)
+        
+        with col2:
+            st.write("Total Points")
+            show_total = st.checkbox("Total FPts", value=False)
+        
+        # Collect selected metrics
+        selected_metrics = []
+        if show_mean:
+            selected_metrics.append('mean_fpg')
+        if show_median:
+            selected_metrics.append('median_fpg')
+        if show_std:
+            selected_metrics.append('std_fpg')
+        if show_gp:
+            selected_metrics.append('avg_gp')
+        if show_total:
+            selected_metrics.append('total_fpts')
+        
+        if not selected_metrics:
+            st.warning("Please select at least one metric to display")
+            return
+        
+        # Display team performance trends
+        st.write("### Team Performance Trends")
+        stats = {}
+        
+        for time_range, data in st.session_state.data_ranges.items():
+            if data is not None:
+                team_data = data[data['Status'].str.contains(team, case=False)]
+                if not team_data.empty:
+                    stats[time_range] = calculate_team_stats(team_data, n_top_players)
+        
+        if stats:
+            fig = plot_performance_trends(stats, selected_metrics, f"{team} Performance Trends")
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Display detailed statistics table
+            st.write("### Team Statistics")
+            stats_df = pd.DataFrame([
+                {
+                    'Time Range': tr,
+                    'Mean FP/G': s['mean_fpg'],
+                    'Median FP/G': s['median_fpg'],
+                    'Std Dev': s['std_fpg'],
+                    'Total FPts': s['total_fpts'],
+                    'Avg GP': s['avg_gp']
+                }
+                for tr, s in stats.items()
+            ])
+            
+            st.dataframe(
+                stats_df.style.format({
+                    'Mean FP/G': '{:.1f}',
+                    'Median FP/G': '{:.1f}',
+                    'Std Dev': '{:.1f}',
+                    'Total FPts': '{:.1f}',
+                    'Avg GP': '{:.1f}'
+                }).set_properties(**{
+                    'background-color': 'rgb(17, 23, 29)',
+                    'color': 'white'
+                }),
+                hide_index=True
+            )
+            
+            # Display top players
+            st.write(f"### Top {n_top_players} Players by FP/G")
+            for time_range in ['60 Days', '30 Days', '14 Days', '7 Days']:
+                if time_range in stats:
+                    with st.expander(f"{time_range}"):
+                        team_data = st.session_state.data_ranges[time_range]
+                        if team_data is not None:
+                            players = team_data[team_data['Status'].str.contains(team, case=False)]
+                            if not players.empty:
+                                players = players.nlargest(n_top_players, 'FP/G')
+                                st.dataframe(
+                                    players[['Player', 'Status', 'FP/G', 'FPts', 'GP']].style.format({
+                                        'FP/G': '{:.1f}',
+                                        'FPts': '{:.1f}',
+                                        'GP': '{:.0f}'
+                                    }).set_properties(**{
+                                        'background-color': 'rgb(17, 23, 29)',
+                                        'color': 'white'
+                                    }),
+                                    hide_index=True
+                                )
 
 @handle_error
 def display_player_performance(player_name):
@@ -976,78 +1060,110 @@ def get_team_name(team_id):
 def plot_performance_trends(data, selected_metrics, title="Performance Trends"):
     """Create a performance trend plot with visible data points"""
     fig = go.Figure()
-    time_ranges = ['60 Days', '30 Days', '14 Days', '7 Days']
-    x_positions = list(range(len(time_ranges)))
     
-    # Define contrasting colors for before/after trade
-    before_color = '#20c9bb'  # Bright turquoise
-    after_color = '#FF0000'   # Bright red
+    # Define colors for different metric groups
+    colors = {
+        'mean_fpg': '#00ffff',      # Cyan
+        'median_fpg': '#00ff99',    # Mint green
+        'std_fpg': '#ff6666',       # Light red
+        'avg_gp': '#cc99ff',        # Light purple
+        'total_fpts': '#ffcc00'     # Gold
+    }
     
+    # Group metrics by scale
+    fpg_metrics = ['mean_fpg', 'median_fpg']
+    std_metrics = ['std_fpg']
+    gp_metrics = ['avg_gp']
+    total_metrics = ['total_fpts']
+    
+    # Get time ranges and sort them
+    time_ranges = list(data.keys())
+    time_ranges.sort(key=lambda x: int(x.split()[0]), reverse=True)
+    
+    # Create traces for each metric
     for metric in selected_metrics:
-        values = []
-        hover_texts = []
+        values = [data[tr][metric] for tr in time_ranges]
         
-        for time_range in time_ranges:
-            if time_range in data:
-                value = data[time_range].get(metric)
-                values.append(value)
-                hover_texts.append(f"{time_range}:<br>{metric}: {value:.1f}")
-            else:
-                values.append(None)
-                hover_texts.append(f"No data for {time_range}")
-        
-        # Determine if this is before or after trade data
-        is_before = 'Before Trade' in metric
-        line_color = before_color if is_before else after_color
-        line_width = 3 if is_before else 2  # Make before trade line thicker
-        
-        # Add both line and markers
-        fig.add_trace(go.Scatter(
-            x=x_positions,
-            y=values,
-            name=metric,
-            mode='lines+markers+text',  # Explicitly show both lines and markers
-            line=dict(
-                width=line_width,
-                color=line_color,
-                dash='dot' if is_before else None  # Add dot style for before trade
-            ),
-            marker=dict(
-                size=10,
-                symbol='circle',
-                color=line_color,
-                line=dict(width=2, color='white')  # Add white border to markers
-            ),
-            text=[f"{val:.1f}" for val in values],
-            textposition="top center" if is_before else "bottom center",
-            textfont=dict(color=line_color),
-            hovertext=hover_texts,
-            hoverinfo='text'
-        ))
+        # Determine which y-axis to use
+        if metric in fpg_metrics:
+            yaxis = 'y'
+            showlegend = True
+        elif metric in std_metrics:
+            yaxis = 'y2'
+            showlegend = True
+        elif metric in gp_metrics:
+            yaxis = 'y3'
+            showlegend = True
+        else:  # total_fpts
+            yaxis = 'y4'
+            showlegend = True
+            
+        # Create the trace
+        fig.add_trace(
+            go.Scatter(
+                x=time_ranges,
+                y=values,
+                name=metric.replace('_', ' ').title(),
+                line=dict(color=colors[metric]),
+                yaxis=yaxis,
+                showlegend=showlegend,
+                mode='lines+markers+text',
+                text=[f'{v:.1f}' for v in values],
+                textposition='top center',
+                textfont=dict(color=colors[metric])
+            )
+        )
     
+    # Update layout with multiple y-axes
     fig.update_layout(
-        xaxis=dict(
-            ticktext=time_ranges,
-            tickvals=x_positions,
-            title="Time Range",
-            showgrid=True,
-            gridcolor='rgba(128,128,128,0.2)',
-            tickfont=dict(color='white')
+        title=title,
+        plot_bgcolor='rgb(17, 23, 29)',
+        paper_bgcolor='rgb(17, 23, 29)',
+        font=dict(color='white'),
+        showlegend=True,
+        legend=dict(
+            bgcolor='rgba(0,0,0,0)',
+            bordercolor='rgba(0,0,0,0)'
         ),
         yaxis=dict(
-            title="Value",
-            showgrid=True,
-            gridcolor='rgba(128,128,128,0.2)',
-            tickfont=dict(color='white')
+            title='Fantasy Points per Game',
+            titlefont=dict(color='#00ffff'),
+            tickfont=dict(color='#00ffff'),
+            gridcolor='rgba(128, 128, 128, 0.2)',
+            side='left',
+            showgrid=True
         ),
-        title=title,
-        hovermode='x unified',
-        showlegend=True,
-        height=400,
-        margin=dict(l=50, r=50, t=50, b=50),
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='white')
+        yaxis2=dict(
+            title='Standard Deviation',
+            titlefont=dict(color='#ff6666'),
+            tickfont=dict(color='#ff6666'),
+            anchor='free',
+            overlaying='y',
+            side='right',
+            position=1.0,
+            showgrid=False
+        ),
+        yaxis3=dict(
+            title='Games Played',
+            titlefont=dict(color='#cc99ff'),
+            tickfont=dict(color='#cc99ff'),
+            anchor='free',
+            overlaying='y',
+            side='right',
+            position=0.85,
+            showgrid=False
+        ),
+        yaxis4=dict(
+            title='Total Fantasy Points',
+            titlefont=dict(color='#ffcc00'),
+            tickfont=dict(color='#ffcc00'),
+            anchor='free',
+            overlaying='y',
+            side='right',
+            position=0.70,
+            showgrid=False
+        ),
+        margin=dict(r=150)  # Add right margin for multiple y-axes
     )
     
     return fig
@@ -1083,6 +1199,58 @@ def get_fairness_color(fairness_score: float) -> str:
         return '#e67e22'  # Orange
     else:
         return '#e74c3c'  # Red
+
+@handle_error
+def display_league_statistics():
+    """Display league statistics analysis page"""
+    st.write("## League Statistics Analysis")
+    
+    # Check if data is available
+    if 'data' not in st.session_state or st.session_state.data.empty:
+        st.error("No league data available. Please upload data files first.")
+        return
+    
+    # Display overall league metrics
+    st.write("### Overall League Metrics")
+    league_data = st.session_state.data
+    
+    # Calculate league-wide statistics
+    league_stats = {
+        'Total Players': len(league_data),
+        'Average FP/G': league_data['FP/G'].mean(),
+        'Median FP/G': league_data['FP/G'].median(),
+        'Standard Deviation': league_data['FP/G'].std(),
+        'Total Fantasy Points': league_data['FPts'].sum(),
+        'Average Games Played': league_data['GP'].mean()
+    }
+    
+    # Display statistics
+    stats_df = pd.DataFrame.from_dict(league_stats, orient='index', columns=['Value'])
+    st.dataframe(
+        stats_df.style.format({'Value': '{:.1f}'}).set_properties(**{
+            'background-color': 'rgb(17, 23, 29)',
+            'color': 'white'
+        }),
+        hide_index=False
+    )
+    
+    # Plot distribution of FP/G
+    st.write("### Distribution of Fantasy Points per Game")
+    fig = go.Figure()
+    fig.add_trace(go.Histogram(
+        x=league_data['FP/G'],
+        nbinsx=30,
+        marker_color='rgba(0, 204, 150, 0.8)'
+    ))
+    fig.update_layout(
+        title="FP/G Distribution",
+        xaxis_title="Fantasy Points per Game",
+        yaxis_title="Frequency",
+        plot_bgcolor='rgb(17, 23, 29)',
+        paper_bgcolor='rgb(17, 23, 29)',
+        font=dict(color='white')
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
 @handle_error
 def main():
@@ -1125,7 +1293,8 @@ def main():
         # Navigation
         pages = {
             "Trade Analysis": display_trade_analysis_page,
-            "Team Statistics": display_team_stats_analysis
+            "Team Statistics": display_team_stats_analysis,
+            "League Statistics": display_league_statistics
         }
         page = st.selectbox(
             "Navigation",
