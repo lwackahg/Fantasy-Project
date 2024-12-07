@@ -28,8 +28,6 @@ from collections import Counter
 # Third-party imports
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import numpy as np
 
 # Local application imports
@@ -37,6 +35,8 @@ from data_import import DataImporter
 from trade_analysis import TradeAnalyzer
 from statistical_analysis import StatisticalAnalyzer
 from config.team_mappings import TEAM_MAPPINGS
+from utils.visualization_utils import get_trend_color, get_fairness_color, plot_performance_trends, plot_player_trend
+from utils.analysis_utils import calculate_team_stats, calculate_player_value, calculate_trade_fairness
 
 # Application Configuration Constants
 PAGE_TITLE: str = "Fantasy Basketball Trade Analyzer"
@@ -45,10 +45,10 @@ LAYOUT: str = "wide"
 INITIAL_SIDEBAR_STATE: str = "expanded"
 
 # Data Processing Constants
-REQUIRED_COLUMNS: List[str] = ['Player', 'Team', 'FP/G']
+REQUIRED_COLUMNS: List[str] = ['Player', 'Team', 'FP/G', 'Status']
 NUMERIC_COLUMNS: List[str] = [
     'FPts', 'FP/G', 'PTS', 'OREB', 'DREB', 'REB', 
-    'AST', 'STL', 'BLK', 'TOV', 'MIN'
+    'AST', 'STL', 'BLK', 'TOV'
 ]
 
 # Analysis Weight Constants
@@ -59,12 +59,6 @@ TIME_RANGES: Dict[str, float] = {
     '60 Days': 0.1   # Oldest data weighted lowest
 }
 
-# UI Color Constants
-ERROR_COLOR: str = "#e74c3c"     # Red for errors and negative trends
-SUCCESS_COLOR: str = "#2ecc71"   # Green for success and positive trends
-WARNING_COLOR: str = "#f39c12"   # Yellow for warnings and neutral trends
-NEUTRAL_COLOR: str = "#95a5a6"   # Gray for neutral or inactive states
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -74,9 +68,6 @@ logger = logging.getLogger(__name__)
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from pathlib import Path
 import numpy as np
 from collections import Counter
 from config.team_mappings import TEAM_MAPPINGS
@@ -84,17 +75,12 @@ from config.team_mappings import TEAM_MAPPINGS
 from data_import import DataImporter
 from trade_analysis import TradeAnalyzer
 from statistical_analysis import StatisticalAnalyzer
+from visualization import DataVisualizer
 
-# Set page config
-st.set_page_config(
-    page_title=PAGE_TITLE,
-    page_icon=PAGE_ICON,
-    layout=LAYOUT,
-    initial_sidebar_state=INITIAL_SIDEBAR_STATE
-)
-
-def init_session_state() -> None:
-    """Initialize Streamlit session state variables for application state management.
+# Initialize Streamlit session state variables for application state management.
+def init_session_state():
+    """
+    Initialize session state variables for the application.
     
     This function sets up the initial state for the application, including:
     - Data storage for player statistics across different time ranges
@@ -105,18 +91,102 @@ def init_session_state() -> None:
     The session state persists across reruns of the app, ensuring data consistency
     during user interactions.
     """
-    defaults = {
-        'data_ranges': None,      # Stores player data across different time periods
-        'data': None,             # Current active dataset
-        'trade_history': [],      # List of previously analyzed trades
-        'debug_mode': False,      # Toggle for additional debugging information
-        'trade_analyzer': None,   # Instance of TradeAnalyzer class
-        'stats_analyzer': StatisticalAnalyzer()  # Instance for statistical calculations
-    }
+    if 'data_importer' not in st.session_state:
+        st.session_state.data_importer = DataImporter()
+    if 'data_ranges' not in st.session_state:
+        st.session_state.data_ranges = {}
+    if 'current_range' not in st.session_state:
+        st.session_state.current_range = None
+    if 'stats_analyzer' not in st.session_state:
+        st.session_state.stats_analyzer = StatisticalAnalyzer()
+    if 'trade_analyzer' not in st.session_state:
+        st.session_state.trade_analyzer = TradeAnalyzer()  # Initialize TradeAnalyzer   
+    if 'visualizer' not in st.session_state:
+        st.session_state.visualizer = None
+    if 'debug_mode' not in st.session_state:
+        st.session_state.debug_mode = False
+    if 'trade_history' not in st.session_state:
+        st.session_state.trade_history = []
+    if 'DataVisualizer' not in st.session_state:
+        st.session_state.DataVisualizer = DataVisualizer
+def handle_file_upload():
+    """Handle file upload and data processing"""
+    uploaded_files = st.file_uploader(
+        "Upload your player statistics CSV files",
+        type='csv',
+        accept_multiple_files=True,
+        help="Upload CSV files with player statistics. Files should be named with the format: 'name-(days).csv'"
+    )
     
-    for key, default_value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = default_value
+    if uploaded_files:
+        with st.spinner("Processing uploaded files..."):
+            # Save uploaded files temporarily
+            file_paths = []
+            for file in uploaded_files:
+                temp_path = Path(file.name)
+                temp_path.write_bytes(file.getvalue())
+                file_paths.append(str(temp_path))
+                
+            try:
+                # Import the files
+                data_ranges = st.session_state.data_importer.import_multiple_files(file_paths)
+                
+                if data_ranges:
+                    st.session_state.data_ranges = data_ranges
+                    st.success(f"Successfully loaded data for {len(data_ranges)} time ranges!")
+                    
+                    # Initialize visualizer with the first available range
+                    first_range = next(iter(data_ranges.values()))
+                    st.session_state.visualizer = DataVisualizer(first_range)
+                    
+                    if st.session_state.debug_mode:
+                        st.write("### Loaded Data Ranges")
+                        for range_key, data in data_ranges.items():
+                            st.write(f"- {range_key}: {len(data)} players")
+                    
+                else:
+                    st.error("No valid data was found in the uploaded files.")
+                    
+            except Exception as e:
+                st.error(f"Error processing files: {str(e)}")
+                logging.error(f"File processing error: {str(e)}")
+                
+            finally:
+                # Clean up temporary files
+                for file_path in file_paths:
+                    try:
+                        Path(file_path).unlink()
+                    except Exception as e:
+                        logging.error(f"Error cleaning up {file_path}: {str(e)}")
+
+def select_time_range():
+    """Allow user to select time range for analysis"""
+    if st.session_state.data_ranges:
+        available_ranges = st.session_state.data_importer.get_available_ranges()
+        selected_range = st.selectbox(
+            "Select Time Range for Analysis",
+            available_ranges,
+            index=0 if available_ranges else None,
+            help="Choose the time range for player statistics analysis"
+        )
+        
+        if selected_range and selected_range != st.session_state.current_range:
+            st.session_state.current_range = selected_range
+            data = st.session_state.data_ranges[selected_range]
+            st.session_state.visualizer = DataVisualizer(data)
+            
+            # Display data summary
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Players", len(data))
+            with col2:
+                st.metric("Teams", data['Team'].nunique())
+            with col3:
+                st.metric("Avg FP/G", f"{data['FP/G'].mean():.1f}")
+            
+            if st.session_state.debug_mode:
+                with st.expander("View Data Details"):
+                    st.dataframe(data.describe())
 
 def load_csv_file(file: Path) -> Optional[pd.DataFrame]:
     """Load and process a single CSV file containing player statistics.
@@ -257,277 +327,6 @@ def handle_error(func):
             if st.session_state.debug_mode:
                 st.exception(e)
     return wrapper
-
-@handle_error
-def calculate_team_stats(team_data: pd.DataFrame, top_x: Optional[int] = None) -> Dict[str, float]:
-    """Calculate comprehensive statistics for a team's roster.
-    
-    This function analyzes team performance by calculating various statistical
-    measures including scoring, efficiency, and consistency metrics.
-    
-    Args:
-        team_data (pd.DataFrame): DataFrame containing team player statistics
-        top_x (Optional[int]): Number of top players to consider (e.g., top 8)
-        
-    Returns:
-        Dict[str, float]: Dictionary containing calculated statistics:
-            - avg_fp: Average fantasy points per game
-            - total_fp: Total fantasy points
-            - consistency: Measure of scoring consistency
-            - efficiency: Points per minute played
-            - depth: Roster depth score
-            
-    Example:
-        >>> team_df = pd.DataFrame(...)
-        >>> stats = calculate_team_stats(team_df, top_x=8)
-        >>> print(stats['avg_fp'])
-    """
-    if team_data.empty:
-        return {
-            'avg_fp': 0.0,
-            'total_fp': 0.0,
-            'consistency': 0.0,
-            'efficiency': 0.0,
-            'depth': 0.0
-        }
-    
-    # Sort by fantasy points per game
-    team_data = team_data.sort_values('FP/G', ascending=False)
-    
-    # Consider only top X players if specified
-    if top_x is not None:
-        team_data = team_data.head(top_x)
-    
-    # Calculate basic statistics
-    stats = {
-        'avg_fp': team_data['FP/G'].mean(),
-        'total_fp': team_data['FPts'].sum(),
-        'consistency': team_data['FP/G'].std() / team_data['FP/G'].mean(),
-        'efficiency': (team_data['FPts'].sum() / team_data['MIN'].sum()) if team_data['MIN'].sum() > 0 else 0,
-        'depth': len(team_data[team_data['FP/G'] > team_data['FP/G'].mean()])
-    }
-    
-    return stats
-
-@handle_error
-def calculate_player_value(player_data: Dict[str, pd.DataFrame]) -> float:
-    """Calculate a player's overall value based on performance across time ranges.
-    
-    This function computes a weighted value score that considers:
-    1. Recent performance (higher weight for recent games)
-    2. Consistency across time periods
-    3. Minutes played and availability
-    
-    Args:
-        player_data (Dict[str, pd.DataFrame]): Player statistics across different time ranges
-        
-    Returns:
-        float: Calculated player value score
-        
-    The calculation weighs recent performance more heavily while also
-    considering long-term consistency and reliability.
-    """
-    if not player_data:
-        return 0.0
-    
-    value = 0.0
-    total_weight = 0.0
-    
-    for time_range, data in player_data.items():
-        if time_range not in TIME_RANGES or data.empty:
-            continue
-            
-        weight = TIME_RANGES[time_range]
-        avg_fp = data['FP/G'].mean()
-        games_played = len(data)
-        
-        # Calculate weighted value considering:
-        # 1. Fantasy points per game
-        # 2. Games played (availability)
-        # 3. Time range weight
-        period_value = avg_fp * (games_played / 10) * weight
-        
-        value += period_value
-        total_weight += weight
-    
-    # Normalize the value
-    return value / total_weight if total_weight > 0 else 0.0
-
-@handle_error
-def calculate_trade_fairness(
-    before_stats: Dict[str, Dict[str, float]],
-    after_stats: Dict[str, Dict[str, float]],
-    team_data: Dict[str, pd.DataFrame]
-) -> Dict[str, Dict[str, float]]:
-    """Calculate the fairness and impact of a proposed trade.
-    
-    This function evaluates trade fairness by analyzing:
-    1. Team strength before and after the trade
-    2. Value differential between traded players
-    3. Impact on team composition and depth
-    
-    Args:
-        before_stats: Team statistics before the trade
-        after_stats: Projected team statistics after the trade
-        team_data: Current team rosters and player statistics
-        
-    Returns:
-        Dict containing for each team:
-            - fairness_score: Overall trade fairness (0-1)
-            - value_change: Net change in team value
-            - depth_impact: Impact on team depth
-            - risk_score: Risk assessment of the trade
-    
-    The fairness calculation considers multiple factors including:
-    - Short-term and long-term player value
-    - Team needs and roster composition
-    - Schedule and injury risk factors
-    """
-    results = {}
-    
-    for team in before_stats.keys():
-        # Calculate value changes
-        value_before = before_stats[team]['avg_fp'] * before_stats[team]['depth']
-        value_after = after_stats[team]['avg_fp'] * after_stats[team]['depth']
-        value_change = value_after - value_before
-        
-        # Calculate depth impact
-        depth_before = before_stats[team]['depth']
-        depth_after = after_stats[team]['depth']
-        depth_impact = depth_after - depth_before
-        
-        # Calculate efficiency change
-        efficiency_change = after_stats[team]['efficiency'] - before_stats[team]['efficiency']
-        
-        # Calculate risk score based on consistency changes
-        consistency_change = after_stats[team]['consistency'] - before_stats[team]['consistency']
-        risk_score = abs(consistency_change) * (1 + abs(depth_impact) / 10)
-        
-        # Calculate overall fairness score (0-1)
-        fairness_score = 1.0 - min(1.0, abs(value_change) / (value_before + 1e-6))
-        
-        results[team] = {
-            'fairness_score': fairness_score,
-            'value_change': value_change,
-            'depth_impact': depth_impact,
-            'risk_score': risk_score
-        }
-    
-    return results
-
-@handle_error
-def get_trend_color(value: float, is_positive_good: bool = True) -> str:
-    """Determine the color for visualizing trend changes.
-    
-    Args:
-        value: The change in value to visualize
-        is_positive_good: If True, positive changes are green (default: True)
-        
-    Returns:
-        Hex color code for the trend visualization
-        
-    Color Scheme:
-        - Green: Positive/beneficial changes
-        - Red: Negative/detrimental changes
-        - Yellow: Neutral or minimal changes
-    """
-    if abs(value) < 0.05:  # Minimal change threshold
-        return WARNING_COLOR
-        
-    if is_positive_good:
-        return SUCCESS_COLOR if value > 0 else ERROR_COLOR
-    else:
-        return ERROR_COLOR if value > 0 else SUCCESS_COLOR
-
-@handle_error
-def get_fairness_color(fairness_score: float) -> str:
-    """Get the color for visualizing trade fairness scores.
-    
-    Args:
-        fairness_score: Trade fairness score (0-1)
-        
-    Returns:
-        Hex color code based on the fairness level
-        
-    Color Ranges:
-        - Green (>= 0.8): Very fair trade
-        - Yellow (0.6-0.8): Moderately fair trade
-        - Red (< 0.6): Potentially unfair trade
-    """
-    if fairness_score >= 0.8:
-        return SUCCESS_COLOR
-    elif fairness_score >= 0.6:
-        return WARNING_COLOR
-    else:
-        return ERROR_COLOR
-
-@handle_error
-def display_team_comparison(team_data: Dict[str, pd.DataFrame], team_name: str) -> None:
-    """Display a comprehensive comparison of team statistics.
-    
-    This function creates an interactive visualization showing:
-    1. Key performance metrics
-    2. Player distribution charts
-    3. Statistical trends
-    
-    Args:
-        team_data: Dictionary containing team statistics
-        team_name: Name of the team to display
-        
-    The display includes:
-    - Bar charts for key metrics
-    - Distribution plots for player values
-    - Trend lines for important statistics
-    """
-    st.subheader(f"Team Analysis: {team_name}")
-    
-    # Calculate and display key metrics
-    stats = calculate_team_stats(team_data[team_name])
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("Avg Fantasy Points", f"{stats['avg_fp']:.1f}")
-    with col2:
-        st.metric("Team Depth", f"{stats['depth']}")
-    with col3:
-        st.metric("Efficiency", f"{stats['efficiency']:.2f}")
-    
-    # Create distribution plot
-    fig = px.histogram(
-        team_data[team_name],
-        x='FP/G',
-        title='Player Value Distribution',
-        nbins=20
-    )
-    st.plotly_chart(fig)
-
-@handle_error
-def display_trade_analysis(analysis: Dict[str, Dict[str, float]], teams: List[str]) -> None:
-    """Display the trade analysis results.
-    
-    Args:
-        analysis: Dictionary containing analysis results for each team
-        teams: List of team names involved in the trade
-    """
-    # Calculate overall trade fairness
-    fairness_scores = [data['fairness_score'] for data in analysis.values()]
-    min_fairness = min(fairness_scores)
-    
-    # Display overall fairness
-    st.markdown("## Trade Analysis Results")
-    st.markdown(f"### Overall Trade Fairness: {min_fairness:.1%}")
-    
-    # Display individual team fairness scores
-    cols = st.columns(len(teams))
-    for col, team in zip(cols, teams):
-        with col:
-            fairness = analysis[team]['fairness_score']
-            color = get_fairness_color(fairness)
-            st.markdown(
-                f"**{team}**\n\n"
-                f"<span style='color: {color}; font-size: 24px;'>{fairness:.1%}</span>",
-                unsafe_allow_html=True
-            )
 
 @handle_error
 def display_league_statistics() -> None:
@@ -997,155 +796,6 @@ def get_team_name(team_id: str) -> str:
     return TEAM_MAPPINGS.get(team_id, team_id)
 
 @handle_error
-def plot_performance_trends(data: Dict[str, Dict[str, float]], selected_metrics: List[str], title: str) -> go.Figure:
-    """Create a performance trend plot with visible data points"""
-    fig = go.Figure()
-    
-    # Define colors for different metric groups
-    colors = {
-        'mean_fpg': '#00ffff',      # Cyan
-        'median_fpg': '#00ff99',    # Mint green
-        'std_fpg': '#ff6666',       # Light red
-        'avg_gp': '#cc99ff',        # Light purple
-        'total_fpts': '#ffcc00'     # Gold
-    }
-    
-    # Group metrics by scale
-    fpg_metrics = ['mean_fpg', 'median_fpg']
-    std_metrics = ['std_fpg']
-    gp_metrics = ['avg_gp']
-    total_metrics = ['total_fpts']
-    
-    # Get time ranges and sort them
-    time_ranges = list(data.keys())
- 
-
-    # Ensure time_ranges only contains valid time strings
-    valid_time_ranges = [tr for tr in time_ranges if tr in ['60 Days', '30 Days', '14 Days', '7 Days']]
-    valid_time_ranges.sort(key=lambda x: int(x.split()[0]), reverse=True)
-    
-    # Create traces for each metric
-    for metric in selected_metrics:
-        values = [data[tr][metric] for tr in time_ranges]
-        
-        # Determine which y-axis to use
-        if metric in fpg_metrics:
-            yaxis = 'y'
-            showlegend = True
-        elif metric in std_metrics:
-            yaxis = 'y2'
-            showlegend = True
-        elif metric in gp_metrics:
-            yaxis = 'y3'
-            showlegend = True
-        else:  # total_fpts
-            yaxis = 'y4'
-            showlegend = True
-            
-        # Create the trace
-        fig.add_trace(
-            go.Scatter(
-                x=time_ranges,
-                y=values,
-                name=metric.replace('_', ' ').title(),
-                line=dict(color=colors[metric]),
-                yaxis=yaxis,
-                showlegend=showlegend,
-                mode='lines+markers+text',
-                text=[f'{v:.1f}' for v in values],
-                textposition="top center",
-                textfont=dict(color=colors[metric])
-            )
-        )
-    
-    # Update layout with multiple y-axes
-    fig.update_layout(
-        title=title,
-        plot_bgcolor='rgb(17, 23, 29)',
-        paper_bgcolor='rgb(17, 23, 29)',
-        font=dict(color='white'),
-        showlegend=True,
-        legend=dict(
-            bgcolor='rgba(0,0,0,0)',
-            bordercolor='rgba(0,0,0,0)'
-        ),
-        yaxis=dict(
-            title='Fantasy Points per Game',
-            titlefont=dict(color='#00ffff'),
-            tickfont=dict(color='#00ffff'),
-            gridcolor='rgba(128, 128, 128, 0.2)',
-            side='left',
-            showgrid=True
-        ),
-        yaxis2=dict(
-            title='Standard Deviation',
-            titlefont=dict(color='#ff6666'),
-            tickfont=dict(color='#ff6666'),
-            anchor='free',
-            overlaying='y',
-            side='right',
-            position=1.0,
-            showgrid=False
-        ),
-        yaxis3=dict(
-            title='Games Played',
-            titlefont=dict(color='#cc99ff'),
-            tickfont=dict(color='#cc99ff'),
-            anchor='free',
-            overlaying='y',
-            side='right',
-            position=0.85,
-            showgrid=False
-        ),
-        yaxis4=dict(
-            title='Total Fantasy Points',
-            titlefont=dict(color='#ffcc00'),
-            tickfont=dict(color='#ffcc00'),
-            anchor='free',
-            overlaying='y',
-            side='right',
-            position=0.70,
-            showgrid=False
-        ),
-        margin=dict(r=150)  # Add right margin for multiple y-axes
-    )
-    
-    return fig
-
-@handle_error
-def plot_player_trend(players_data: Dict[str, Dict[str, float]]) -> go.Figure:
-    """Create performance trend plots for multiple players."""
-    fig = go.Figure()
-
-    # Loop through each player's data
-    for player, data in players_data.items():
-        time_ranges = ['60 Days', '30 Days', '14 Days', '7 Days']
-        if player in data.index:
-            for time_range in time_ranges:
-                if time_range in data:
-                    fig.add_trace(
-                        go.Scatter(
-                            x=[time_range] * len(data[time_range]),  # X-axis is the time range
-                            y=data[time_range]['FP/G'],  # Y-axis is the FP/G values
-                            mode='lines+markers',
-                            name=player
-                        )
-                    )
-
-    # Update layout
-    fig.update_layout(
-        title="Player Performance Trends",
-        xaxis_title="Time Range",
-        yaxis_title="FP/G",
-        plot_bgcolor='rgb(17, 23, 29)',
-        paper_bgcolor='rgb(17, 23, 29)',
-        font=dict(color='white'),
-        showlegend=True
-    )
-
-    return fig
-
-@handle_error
 def get_all_teams() -> List[str]:
     """Get a list of all teams from the data"""
     if not st.session_state.data_ranges:
@@ -1160,65 +810,76 @@ def get_all_teams() -> List[str]:
 
 @handle_error
 def main() -> None:
-    """Main application function"""
-    st.title("Fantasy Basketball Trade Analyzer")
+    """Main application entry point"""
+    st.set_page_config(
+        page_title=PAGE_TITLE,
+        page_icon=PAGE_ICON,
+        layout=LAYOUT,
+        initial_sidebar_state=INITIAL_SIDEBAR_STATE
+    )
+    
+    st.title(PAGE_TITLE)
     
     # Initialize session state
     init_session_state()
     
-    # Initialize or load data if not already loaded
-    if ('data_ranges' not in st.session_state or 
-        st.session_state.data_ranges is None or 
-        'data' not in st.session_state or 
-        st.session_state.data is None or
-        'trade_analyzer' not in st.session_state or
-        st.session_state.trade_analyzer is None):
-        
-        data_ranges, player_data = load_data()
-        st.session_state.data_ranges = data_ranges
-        st.session_state.data = player_data
-        
-        # Initialize analyzers with the loaded data
-        if data_ranges is not None and player_data is not None:
-            st.session_state.trade_analyzer = TradeAnalyzer(player_data)
-            st.session_state.stats_analyzer = StatisticalAnalyzer()
-    
-    if st.session_state.data_ranges is None or st.session_state.data is None:
-        st.error("Failed to load data. Please check the data files and try again.")
-        st.info("""
-        Please ensure you have CSV files in the data directory with the correct naming format:
-        - Files should end with (X).csv where X is the number of days
-        - Example: stats-(7).csv, data-(14).csv, export-(30).csv, any-name-(60).csv
-        """)
-        return
-    
-    # Sidebar
+    # Sidebar for data loading and configuration
     with st.sidebar:
-        st.title("Fantasy Trade Analyzer")
+        st.header("Data Configuration")
         
-        # Add debug mode toggle
-        st.session_state.debug_mode = st.toggle("Debug Mode", value=st.session_state.debug_mode)
-        
-        # Add clear trade history checkbox
-        clear_history = st.checkbox("Clear trade history before each run")
-        
-        # Clear trade history if checkbox is checked
-        if clear_history and st.session_state.trade_analyzer:
-            st.session_state.trade_analyzer.trade_history.clear()
-        
-        # Navigation
-        pages = {
-            "Trade Analysis": display_trade_analysis_page,
-            "Team Statistics": display_team_stats_analysis,
-            "League Statistics": display_league_statistics
-        }
-        page = st.selectbox(
-            "Navigation",
-            list(pages.keys())
+        # Debug mode toggle
+        st.session_state.debug_mode = st.checkbox(
+            "Debug Mode",
+            value=st.session_state.debug_mode,
+            help="Enable detailed logging and data inspection"
         )
+        
+        # File upload section
+        st.subheader("Data Import")
+        handle_file_upload()
+        
+        # Time range selection
+        if st.session_state.data_ranges:
+            st.subheader("Analysis Configuration")
+            select_time_range()
+            
+            st.write("### Available Time Ranges")
+            for range_key in st.session_state.data_importer.get_available_ranges():
+                st.write(f"- {range_key}")
     
-    # Display selected page
-    pages[page]()
+    # Main content area
+    if not st.session_state.data_ranges:
+        st.info("👈 Start by uploading your player statistics CSV files in the sidebar!")
+        st.write("""
+        ### File Format Requirements:
+        1. Files should be named with the format: `name-(days).csv`
+        2. Supported time ranges: 7, 14, 30, and 60 days
+        3. Required columns: Player, Team, Position, Status, FPts, FP/G, MIN
+        
+        ### Example Files:
+        - `stats-(7).csv`  - Last 7 days of player stats
+        - `players-(14).csv` - Last 14 days of player stats
+        - `fantasy-(30).csv` - Last 30 days of player stats
+        - `data-(60).csv` - Last 60 days of player stats
+        """)
+    else:
+        # Create tabs for different analysis views
+        tab1, tab2, tab3 = st.tabs(["Trade Analysis", "Team Analysis", "Player Analysis"])
+        
+        with tab1:
+            display_trade_analysis_page()
+            
+        with tab2:
+            display_team_stats_analysis()
+            
+        with tab3:
+            st.subheader("Player Analysis")
+            player_name = st.selectbox(
+                "Select a player to analyze",
+                sorted(st.session_state.data_ranges[st.session_state.current_range]['Player'].unique())
+            )
+            if player_name:
+                analyze_player_stats(player_name)
 
 if __name__ == "__main__":
     main()

@@ -25,8 +25,7 @@ class FantasyTradeAnalyzer:
         self.data_importer = DataImporter(data_source)
         self.data = None
         
-        # Optional: API key from environment
-        self.fantrax_api_key = os.getenv('FANTRAX_API_KEY')
+  
 
     def load_data(self, file_path=None):
         """
@@ -39,11 +38,7 @@ class FantasyTradeAnalyzer:
                 raise ValueError("CSV file path is required")
             self.data = self.data_importer.import_csv(file_path)
         
-        elif self.data_source == 'api':
-            if not self.fantrax_api_key:
-                raise ValueError("Fantrax API key not found")
-            self.data = self.data_importer.fetch_api_data(self.fantrax_api_key)
-        
+
         if self.data is None or self.data.empty:
             raise ValueError("Failed to load data")
 
