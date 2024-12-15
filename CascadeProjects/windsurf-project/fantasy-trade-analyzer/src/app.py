@@ -10,6 +10,7 @@ from config.team_mappings import TEAM_MAPPINGS
 from data_import import DataImporter
 from trade_analysis import TradeAnalyzer
 from statistical_analysis import StatisticalAnalyzer
+import matplotlib.pyplot as plt
 
 # Set page config
 st.set_page_config(
@@ -1017,26 +1018,142 @@ def display_team_stats_analysis():
         
         # Display top players
         st.write(f"### Top {n_top_players} Players by FP/G")
+
+        # Initialize a DataFrame to hold combined player stats
+        combined_stats = pd.DataFrame()
+
+        # Loop over time ranges to gather player data
         for time_range in ['60 Days', '30 Days', '14 Days', '7 Days']:
             if time_range in stats:
-                with st.expander(f"{time_range}"):
-                    team_data = st.session_state.data_ranges[time_range]
-                    if team_data is not None:
-                        players = team_data[team_data['Status'].str.contains(team, case=False)]
-                        if not players.empty:
-                            players = players.nlargest(n_top_players, 'FP/G')
-                            st.dataframe(
-                                players[['Player', 'Status', 'FP/G', 'FPts', 'GP']].style.format({
-                                    'FP/G': '{:.1f}',
-                                    'FPts': '{:.1f}',
-                                    'GP': '{:.0f}'
-                                }).set_properties(**{
-                                    'background-color': 'rgb(17, 23, 29)',
-                                    'color': 'white'
-                                }),
-                                hide_index=True
-                            )
-        
+                team_data = st.session_state.data_ranges[time_range]
+                if team_data is not None:
+                    players = team_data[team_data['Status'].str.contains(team, case=False)]
+                    if not players.empty:
+                        # Get the top players by FP/G
+                        top_players = players.nlargest(n_top_players, 'FP/G')
+                        
+                        # Prepare a temporary DataFrame to hold the current time range stats
+                        temp_df = top_players[['Player', 'Status', 'FP/G', 'FPts', 'GP']].copy()
+
+                        # Merge the current time range stats with combined stats
+                        if combined_stats.empty:
+                            temp_df.columns = [f"{col} ({time_range})" if col != 'Player' else 'Player' for col in temp_df.columns]
+                            combined_stats = temp_df
+                        else:
+                            # Prepare only the necessary columns for merging
+                            temp_columns = [f"{col} ({time_range})" for col in ['FP/G', 'FPts', 'GP']]
+                            temp_df.columns = [f"{col} ({time_range})" if col in ['FP/G', 'FPts', 'GP'] else col for col in temp_df.columns]
+                            # Keep only the Player column for merging with combined_stats
+                            combined_stats = combined_stats.merge(temp_df[['Player'] + temp_columns], on='Player', how='outer')
+
+        # Add Status column from the first time range if it exists
+        if 'Status (60 Days)' in combined_stats.columns:
+            combined_stats['Status'] = combined_stats['Status (60 Days)']
+
+        # Drop the individual Status columns for other time ranges
+        columns_to_drop = [f'Status ({tr})' for tr in ['60 Days', '30 Days', '14 Days', '7 Days']]
+        combined_stats.drop(columns=columns_to_drop, errors='ignore', inplace=True)
+
+        # Display the final DataFrame
+        st.dataframe(
+            combined_stats.style.format(
+                {
+                    **{f'FP/G ({tr})': '{:.1f}' for tr in ['60 Days', '30 Days', '14 Days', '7 Days']},
+                    **{f'FPts ({tr})': '{:.1f}' for tr in ['60 Days', '30 Days', '14 Days', '7 Days']},
+                    **{f'GP ({tr})': '{:.0f}' for tr in ['60 Days', '30 Days', '14 Days', '7 Days']}
+                }
+            ).set_properties(**{
+                'background-color': 'rgb(17, 23, 29)',
+                'color': 'white'
+            }),
+            hide_index=True
+        )
+
+        # After displaying the DataFrame of combined stats
+        st.write("### Select Player(s) to Compare Trend Lines")
+
+        # Enable multiple selection of players
+        player_names = combined_stats['Player'].unique()
+        selected_players = st.multiselect("Choose Player(s)", player_names)
+
+        # Color pickers for each selected player
+        player_colors = {}
+        gp_colors = {}  # Create a separate dict for GP colors
+        for player in selected_players:
+            player_colors[player] = st.color_picker(f"Select color for {player} - FP/G", "#FFFFFF")
+            gp_colors[player] = st.color_picker(f"Select color for {player} - GP", "#FF6347")  # Default set it to a tomato color
+
+        if selected_players:
+            # Initialize a list to collect trend data for all selected players
+            trend_data = {player: [] for player in selected_players}
+
+            # Collect trends for each selected player across the different time ranges
+            for player in selected_players:
+                for time_range in ['60 Days', '30 Days', '14 Days', '7 Days']:
+                    if time_range in stats:
+                        team_data = st.session_state.data_ranges[time_range]
+                        if team_data is not None:
+                            player_data = team_data[team_data['Player'] == player]
+                            if not player_data.empty:
+                                trend_data[player].append({
+                                    'Time Range': time_range,
+                                    'FP/G': player_data['FP/G'].values[0],
+                                    'GP': player_data['GP'].values[0]
+                                })
+
+            # Create a DataFrame for trend visualization
+            trend_dfs = {}
+            for player, trends in trend_data.items():
+                trend_dfs[player] = pd.DataFrame(trends)
+
+            # Plotting with Plotly
+            if all(len(df) > 0 for df in trend_dfs.values()):
+                fig = go.Figure()
+
+                # Adding traces for each player
+                for player in selected_players:
+                    if not trend_dfs[player].empty:
+                        time_ranges = trend_dfs[player]['Time Range']
+                        
+                        # FP/G on the primary y-axis
+                        fig.add_trace(go.Scatter(
+                            x=time_ranges,
+                            y=trend_dfs[player]['FP/G'],
+                            mode='lines+markers',
+                            name=f"{player} - FP/G",
+                            line=dict(color=player_colors[player]),
+                            marker=dict(symbol='circle')
+                        ))
+                        
+                        # GP on the secondary y-axis with different color
+                        fig.add_trace(go.Scatter(
+                            x=time_ranges,
+                            y=trend_dfs[player]['GP'],
+                            mode='lines+markers',
+                            name=f"{player} - GP",
+                            line=dict(color=gp_colors[player], dash='dot'),  # Different color for GP
+                            marker=dict(symbol='triangle-up'),
+                            yaxis='y2'
+                        ))
+
+                # Update layout for dual y-axis
+                fig.update_layout(
+                    title='Trends for Selected Players',
+                    xaxis=dict(title='Time Range'),
+                    yaxis=dict(title='FP/G', color='white'),
+                    yaxis2=dict(title='GP', overlaying='y', side='right', color='white'),
+                    template='plotly_dark',
+                    legend=dict(x=1, y=1, traceorder='normal', font=dict(size=12)),
+                    margin=dict(l=0, r=0, t=40, b=0)
+                )
+
+                # Show the plot
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.write("No trend data available for the selected players.")
+
+
+
        # Display trend lines for the top players
         st.write(f"### Performance Trends for Top {n_top_players} Players")
         for time_range in st.session_state.data_ranges.keys():  # Use keys from data_ranges dynamically
