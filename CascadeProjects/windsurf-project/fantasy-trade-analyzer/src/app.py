@@ -1154,56 +1154,7 @@ def display_team_stats_analysis():
 
 
 
-       # Display trend lines for the top players
-        st.write(f"### Performance Trends for Top {n_top_players} Players")
-        for time_range in st.session_state.data_ranges.keys():  # Use keys from data_ranges dynamically
-            if time_range in stats:
-                if stats:
-                    st.write("Stats data before plotting:", stats)
-                with st.expander(f"{time_range} Performance Trends"):
-                    team_data = st.session_state.data_ranges[time_range]
-                    if team_data is not None:
-                        players = team_data[team_data['Status'].str.contains(team, case=False)]
-                        if not players.empty:
-                            # Select the top n_top_players
-                            top_players = players.nlargest(n_top_players, 'FP/G')['Player'].tolist()
-
-                            # Iterate over the top players to display their data
-                            for top_player in top_players:
-                                player_data = team_data[team_data['Player'] == top_player]
-
-                                st.write(f"Player Data for {top_player}:")
-                                st.dataframe(player_data[['FP/G', 'FPts', 'GP']])
-
-                                if not player_data.empty:
-                                    # Prepare data for plotting
-                                    player_metrics = player_data[['FP/G', 'FPts', 'GP']].copy()
-
-                                    # Create a dictionary for plotting
-                                    player_metrics_dict = {
-                                    'mean_fpg': player_metrics['FP/G'].tolist(),  # You might want to check if it's the correct mapping
-                                    'median_fpg': player_metrics['FP/G'].tolist(),  # Adjust as applicable
-                                    'std_fpg': [],  # Placeholder if you don't have this data
-                                    'avg_gp': player_metrics['GP'].tolist(),
-                                    'total_fpts': player_metrics['FPts'].tolist()
-                                }
-
-                                    # Ensure metrics data is complete for plotting
-                                    if all(len(player_metrics_dict[key]) > 0 for key in player_metrics_dict):
-                                        try:
-                                            # Now include selected metrics in the call
-                                            fig = plot_performance_trends({top_player: player_metrics_dict}, selected_metrics, f"{top_player} Performance Trends")
-                                            st.plotly_chart(fig, use_container_width=True)
-                                        except Exception as e:
-                                            st.error(f"An error occurred while plotting: {e}")
-                                    else:
-                                        st.warning("Metrics data is incomplete for plotting.")
-                                else:
-                                    st.warning("Metrics data is incomplete for plotting.")
-                        else:
-                            st.warning("No data available for the selected players.")
-                    else:
-                        st.error("No team data available for this time range.")
+       
                 
 @handle_error
 def display_player_performance(player_name):
