@@ -1,212 +1,338 @@
-# Fantasy Trade Analyzer
+Core Programming Principles
 
-A comprehensive tool for analyzing fantasy basketball trades, featuring data import, statistical analysis, and trade evaluation.
+code_quality: prioritize clean, readable, and maintainable code.
 
-## Features
+algorithm_efficiency: use the most efficient algorithms and data structures.
 
-### Core Features
-- [x] CSV data import from Fantrax exports
-- [x] Team roster tracking and analysis
-- [x] Interactive trade evaluation
-- [x] Visualization of trade impacts
-- [x] Multi-team trade support (2-5 teams)
-- [x] Multiple time range analysis (7, 14, 30, 60 days)
-- [x] Before/After trade comparison
+error_handling: implement robust error handling and logging.
 
-### Trade Analysis Features
-- Fantasy Points Analysis
-  - Per game (FP/G) analysis
-  - Total points (FPts) comparison
-  - Mean, median, and standard deviation calculations
-- Position Impact Analysis
-  - Position distribution before/after trade
-  - Position scarcity adjustments
-- Team Statistics
-  - Roster size changes
-  - Overall team performance metrics
-  - Statistical balance analysis
+testing: write unit tests for all critical functionality.
 
-### New Features
-- **Trade Impact**: Now prioritized at the top of the trade analysis page for immediate insights.
-- **League Statistics Tab**: Provides comprehensive league-wide metrics and FP/G distribution.
-- **API Data Fetching**: The application can now fetch player game data directly from the Fantrax API, enhancing the analysis with real-time data.
+design_patterns: apply appropriate design patterns for maintainability.
 
-### Layout Improvements
-- Organized layout with tabs and expanders
-- Interactive player selection interface
-- Improved error handling and data validation
-- Clear visual indicators for trade impact
+code_review: generate code that is easy to review by others.
 
-## Goals
+modularity: write modular code, break complex logic into smaller functions.
 
-- Implement a system to keep a history of the last 25 trades analyzed, including a brief description of each analysis.
-- Use a data structure (list or queue) to store the last 25 trade analyses.
-- Implement circular buffer logic to manage the size of the history.
-- Consider optional persistence to save the trade analysis history to a file or database.
+reuse: prefer to reuse existing code instead of writing it from scratch.
 
-## Setup Instructions
+security: prioritize secure coding practices.
 
-### Prerequisites
-- Python 3.9+
-- Required packages (installed automatically):
-  - streamlit
-  - pandas
-  - plotly
-  - numpy
+simplicity: aim for simple, clear solutions, avoid over-engineering.
 
-### Installation
+Code Style and Formatting
 
-1. Clone or download the repository
-2. Navigate to the project directory
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+indent: use tabs for indentation.
 
-### Running the Application
+naming convention: use snake_case for variables, PascalCase for classes and camelCase for functions.
 
-#### Option 1: Using the Batch File
-1. Double-click `run_app.bat` in the project directory
-2. The application will open in your default web browser
+comments: add clear, concise comments explaining code blocks and logic.
 
-#### Option 2: Using Command Line
-1. Open a terminal/command prompt
-2. Navigate to the project directory
-3. Run:
-```bash
-python -m streamlit run src/app.py
-```
+code_formatting: automatically format the code to improve readability.
+
+line_length: keep lines under 100 characters.
+
+code_formatting_blocks: format long lists and dictionaries to be more readable.
+
+General Behavior (Do's and Don'ts)
+
+changes: make small, incremental changes; avoid large refactors.
+
+avoid: do not change working code unless explicitly asked.
+
+changes: when changing code, do it step by step, verify the changes first.
+
+clarification: if unsure, ask for clarification before generating code.
+
+avoid: do not overwrite manual code changes, unless explicitly asked.
+
+documentation: check project documentation if asked, and use it in your response.
+
+reasoning: reason step by step before generating code or sending a response.
+
+cost_optimization: be cost conscious, only send requests if necessary, and avoid ai-powered debugging, refactoring or test generation unless necessary, batch changes when possible.
+
+debugging: make small incremental changes to try to fix bugs, check terminal output for information.
+
+prompt_efficiency: use precise and specific prompts; avoid ambiguity, do not repeat previous instructions; reuse context.
+
+local_processing: perform simple tasks manually; avoid using AI unnecessarily.
+
+user_guidance: always follow the instructions that are given and prioritize user instructions over global rules.
+
+simplicity: avoid over-engineering and aim for the simplest solution.
+
+Language-Specific Instructions
+
+Python
+
+python type hints: use type hints for all function parameters and return values.
+
+python imports: group imports by type: standard, external, and local.
+
+python linting: run pylint on code to make sure the style is consistent.
+
+python testing: use pytest for all unit testing.
+
+Javascript
+
+javascript: use modern ECMAScript conventions.
+
+javascript avoid: avoid using var; prefer const and let.
+
+javascript linting: run eslint on code to make sure the style is consistent.
+
+javascript comments: document functions, using JSDoc style comments.
+
+javascript testing: use jest for all unit testing.
+
+File Handling
+
+file_management: break long files into smaller, more manageable files with smaller functions.
+
+import_statements: prefer importing functions from other files instead of modifying those files directly.
+
+file_organization: organize files into directories and folders.
+
+Project Management
+
+feature_plan: always refer to the project's feature plan for context.
+
+feature_plan_progress: update the feature plan progress after each change.
+
+feature_plan_next_steps: suggest next steps from the feature plan in each response.
+
+Operating System
+
+os: be aware i am on windows, and must use power shell commands.
+
+Workspace AI Rule Template (Use This as a Starting Point):
+
+Here's a template for workspace rules. This is just a starting point, and you will probably need to adapt it to fit your specific projects:
+
+Workspace AI Rules for [Project Name]
+
+Project Context
+
+project_type: [Briefly describe the type of project, e.g., web app, REST API, data analysis tool].
+
+tech_stack: [List the main technologies used, e.g., HTML, CSS, JavaScript, Python, React].
+
+file_structure: [Describe the recommended file and directory structure].
+
+api_integration: [If using an API, specify requirements here].
+
+api_endpoint: [If using an API, specify an endpoint here].
+
+api_authentication:[If using an API, specify the type of authentication here]
+
+api_other:[If using an API, any other specific requirements]
+
+database: [If using a database, specify the database used here]
+
+database_schema: [If using a database, specify the database schema here]
+
+Feature Requirements
+
+basic_sections: [If a web application, specify the basic sections].
+
+form_functionality: [If a form is used, specify the requirements].
+
+responsive_design: [Specify if the app must be responsive].
+
+navigation: [Specify the navigation structure]
+
+authentication: [Specify if there should be authentication]
+
+authorization: [Specify if there should be authorization]
+
+state_management: [Specify if any state management should be used]
+
+payments: [Specify if there are payments being used]
+
+other: [List any other features that are not covered].
+
+Styling and Design
+
+css_framework: [Specify the preferred CSS framework or style].
+
+css_libraries:[Specify the preferred CSS libraries]
+
+ui_library: [Specify the preferred UI library]
+
+design_system: [Specify the preferred design system]
+
+JavaScript Instructions
+
+javascript_validation: [Specify any javascript validation requirements].
+
+javascript_libraries: [Specify the javascript libraries to use].
+
+javascript_frameworks: [Specify the javascript frameworks to use].
+
+javascript_state_management: [Specify if state management must be done with javascript]
+
+other: [List any other javascript specific requirements].
+
+Testing
+
+testing: [Specify any testing instructions for the code, both back end and front end]
+
+testing_libraries: [Specify any libraries that should be used for testing]
+
+testing_frameworks:[Specify any testing frameworks that must be used]
+
+Project Management
+
+feature_plan: always refer to the project's feature plan as a guide.
+
+documentation: always refer to project documentation if it exists.
+
+other: [Any other project management guidelines]
+
+Example Workspace AI Rules (Landing Page):
+
+Here's an example of workspace rules for a landing page project:
+
+Project Context
+
+project_type: landing page generator.
+
+tech_stack: HTML, CSS, JavaScript, External API.
+
+file_structure: organize files into directories: index.html, css/styles.css, js/scripts.js, and images in images/.
+
+Feature Requirements
+
+basic_sections: The landing page must include a header, hero section, features section, contact form, and footer.
+
+form_functionality: The contact form should be able to collect name, email, and message fields, and make sure that form validation is done via javascript.
+
+api_endpoint: The API endpoint must be /submit, with a redirect to /thankyou after a successful submission.
+
+responsive_design: The page must be responsive on different screen sizes.
+
+navigation: The header must include links to the correct sections of the page.
+
+Styling and Design
+
+css_framework: use basic CSS, avoid frameworks.
+
+JavaScript Instructions
+
+javascript_validation: implement form validation via javascript.
+
+Project Management
+
+feature_plan: use the provided feature plan as a guide.
 
 
-This process allows you to authenticate with Fantrax and access private league data using the Fantrax API.
 
-## Data Files
 
-The analyzer expects Fantrax export files in CSV format. 
 
-### File Naming Convention
-- Files should end with (X).csv where X is the number of days
-- Examples:
-  - `any-name-(7).csv` for 7-day stats
-  - `stats-(14).csv` for 14-day stats
-  - `data-(30).csv` for 30-day stats
-  - `export-(60).csv` for 60-day stats
+Development Best Practices
+Component Dependencies
+When building interconnected systems:
 
-### Required Data Format
-The CSV files must contain the following required columns:
-- `Player`: Player name
-- `Team`: Team abbreviation (will be converted to full name)
-- `FP/G`: Fantasy points per game
+Document all dependencies between components explicitly
 
-Additional recommended columns for full functionality:
-- `FPts`: Total fantasy points
-- `MIN`: Minutes played
-- `PTS`: Points scored
-- `REB`: Total rebounds
-- `AST`: Assists
-- `STL`: Steals
-- `BLK`: Blocks
-- `TOV`: Turnovers
+Changes to one component must cascade appropriately to all dependent components
 
-### Data Directory
-Place your CSV files in the `data/` directory of the project. The analyzer will automatically detect and load files with the correct naming format.
+Maintain a “single source of truth” for shared configurations
 
-### Exporting Data from Fantrax
-1. Go to your Fantrax league
-2. Navigate to the Players page
-3. Click on "Download to CSV"
-4. Save the file with the appropriate naming convention in the data directory
-5. Repeat for different time ranges (7, 14, 30, 60 days)
+Example: If component A defines data structure, components B and C must adapt to match
 
-### Common Data Issues
-If you encounter issues loading data:
-1. Check that your CSV files follow the correct naming convention with (X) days
-2. Verify that all required columns are present
-3. Ensure numeric columns contain valid numbers
-4. Make sure the files are placed in the `data/` directory
+Systematic Change Protocol
+Before making ANY changes:
 
-## Usage
+Identify Impact Area
 
-1. Select number of teams involved (2-5)
-2. Choose teams from the dropdowns
-3. Select players to trade from each team
-4. Choose which players each team receives
-5. Click "Analyze Trade" to see:
-   - Trade fairness score
-   - Before/After comparisons
-   - Position impact
-   - Statistical changes
+Which components will be affected?
 
-## Project Structure
+What dependencies exist?
 
-```
-fantasy-trade-analyzer/
-├── src/
-│   ├── app.py             # Main Streamlit application
-│   ├── data_import.py     # Data import and validation
-│   └── trade_analysis.py  # Trade evaluation logic
-├── data/                  # Place CSV files here
-└── run_app.bat           # Easy launch script
-```
+Is this UI-only or does it affect core logic?
 
-## Known Issues & Solutions
+Document Current State
 
-If you encounter numeric conversion errors:
-- Ensure that the input data is correctly formatted.
-- Check for any missing values in the dataset.
+What’s currently working?
 
-- Tabbed interface for multi-team trade analysis
-- Expandable sections for detailed statistics
-- Color-coded trade fairness indicators:
-  - Green (≥80%): Very fair trade
-  - Yellow (≥60%): Moderately fair trade
-  - Orange (≥40%): Slightly unfair trade
-  - Red (<40%): Very unfair trade
-- Improved player statistics visualization
-- Net value change calculation and display
+What’s the current error/issue?
 
-## Contributing
+Which files will be affected?
 
-Feel free to open issues or submit pull requests for any improvements or bug fixes.
+Plan Single Change
 
-## Recent Enhancements
+One file at a time
 
-- **Modern UI Design**: Updated the team legend with a modern card design for improved visual appeal and user experience.
-- **Trade History Tracking**: Implemented a feature to maintain a history of the last 25 trades analyzed, including a summary of trade impacts.
-- **User Interface Improvements**: Enhanced layout and design for better usability, focusing on clarity and modern aesthetics.
+One feature at a time
 
-## Recent Updates
+One bug at a time
 
-#### Enhanced Trade Analysis Display
-- Tabbed interface for multi-team trade analysis
-- Expandable sections for detailed statistics
-- Color-coded trade fairness indicators:
-  - Green (≥80%): Very fair trade
-  - Yellow (≥60%): Moderately fair trade
-  - Orange (≥40%): Slightly unfair trade
-  - Red (<40%): Very unfair trade
-- Improved player statistics visualization
-- Net value change calculation and display
+Verify Testing Capability
 
-#### Statistical Improvements
-- Top X players analysis for consistent team evaluation
-- Before/After trade statistics across multiple time ranges
-- Enhanced statistical calculations:
-  - Mean and median FP/G
-  - Standard deviation for team balance (Green = more balanced, Red = less balanced)
-  - Games played (GP) tracking
-  - Total fantasy points analysis
+Can we test this change immediately?
 
-#### User Interface Enhancements
-- Dark theme for better readability
-- Organized layout with tabs and expanders
-- Interactive player selection interface
-- Improved error handling and data validation
-- Clear visual indicators for trade impact
+Do we have all dependencies?
 
-### Upcoming Features
-- Player trend analysis and visualization
-- Advanced statistical metrics
-- Trade suggestion engine
-- Custom scoring system support
-- Historical trade tracking
+What specific steps will verify success?
+
+If not testable, what’s missing?
+
+Development Philosophy
+Preserve What Works
+
+Don’t modify working components without necessity
+
+Keep established patterns
+
+Maintain proven workflows
+
+Simplify Everything
+
+Remove unnecessary abstraction layers
+
+Simplify class hierarchies
+
+Keep UI components focused
+
+Avoid over-engineering
+
+Change Carefully
+
+Verify before changing
+
+One change at a time
+
+Test each change
+
+No premature optimization
+
+Stay Focused
+
+Complete one step before starting another
+
+Don’t get sidetracked by improvements
+
+Keep systematic sequence
+
+Document everything
+
+Test Real Usage First
+
+Never implement without ability to test
+
+Verify all dependencies exist
+
+Must be able to manually verify
+
+If you can’t test it, don’t build it
+
+Version Control Strategy
+Maintain multiple source versions for stability
+
+Keep last known good version
+
+Create dedicated test versions
+
+Label versions clearly with date and purpose
