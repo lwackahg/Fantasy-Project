@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 
 def display_player_data(data_ranges, combined_data):
     """Display the player data in a clean and searchable format."""
@@ -33,3 +34,31 @@ def display_metrics(data):
         st.metric("Teams", data['Team'].nunique())
     with col3:
         st.metric("Avg FP/G", f"{data['FP/G'].mean():.1f}")
+
+def display_player_trends(player):
+    """Display trend lines for the selected player."""
+    all_data = []
+    
+    for key, data in st.session_state.data_ranges.items():
+        player_data = data[data['Player'] == player]
+        if not player_data.empty:
+            player_data['Time Range'] = key  # tag the data with the time range we are plotting
+            all_data.append(player_data)
+    
+    if all_data:
+        combined_data = pd.concat(all_data)
+        combined_data.sort_values(by='Timestamp', inplace=True)  # Use the new Timestamp column
+
+        # Plotting metrics trend
+        plt.figure(figsize=(12, 6))
+        plt.plot(combined_data['Timestamp'], combined_data['FPts'], label='Fantasy Points')
+        plt.title(f'{player} Fantasy Points Over Time')
+        plt.xlabel('Time')
+        plt.ylabel('Fantasy Points')
+        plt.xticks(rotation=45)
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        st.pyplot(plt)
+    else:
+        st.warning(f"No historical data available for {player}.")

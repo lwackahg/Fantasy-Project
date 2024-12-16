@@ -74,15 +74,23 @@ def load_data(data_dir: Path) -> tuple:
             df = clean_data(df)  # Clean the DataFrame
             
             if not df.empty:
-                # Store data by date specified in filename
+                # Extract timestamp from filename
+                timestamp_value = None
                 if "YTD" in file.name:
+                    # YTD data
+                    timestamp_value = 'Year to Date'
                     data_ranges['YTD'] = df
                 else:
                     match = re.search(r'\((\d+)\)', file.name)
                     if match:
                         days = match.group(1)
+                        timestamp_value = f'{days} Days'
                         data_ranges[f'{days} Days'] = df
                 
+                # Add a column to the DataFrame with the extracted timestamp
+                if timestamp_value:
+                    df['Timestamp'] = timestamp_value  # New column for the timestamp
+                    
                 # Combine the data into one DataFrame
                 combined_data = pd.concat([combined_data, df], ignore_index=True)
 
