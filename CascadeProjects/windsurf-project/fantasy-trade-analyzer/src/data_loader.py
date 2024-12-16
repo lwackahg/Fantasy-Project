@@ -2,10 +2,27 @@ import pandas as pd
 import re
 import streamlit as st
 from pathlib import Path
+import numpy as np
+
+TEAM_MAPPINGS = {
+    'Sar': 'Shaq\'s Anus Ripples',
+    '15': '15 Dream Team',
+    'DBD': 'Diddled By Diddy',
+    'EE': 'Epstein Experience',
+    'Fent': 'Give me the fentanyl',
+    'TRUMP': 'Kamala\'s Gunz',
+    '420': 'Kevin O\'Leary',
+    'J&J': 'Ligma Johnson',
+    'BabyOil': 'P Diddy\'s Slip & Slide',
+    'PRO': 'President of Retarded Opera',
+    'ROMO': 'Rudy Homo',
+    'Tribunal': 'Stevens Underaged Experien',
+    'TRH': 'The Retirement Home',
+    'MylS': 'Weinstein Wranglers'
+}
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """Clean the DataFrame by removing invalid entries and normalizing data."""
-    # Define numeric columns
     numeric_columns = ['FPts', 'FP/G', 'PTS', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'MIN']
     
     # Convert numeric columns and remove rows with invalid entries
@@ -17,7 +34,7 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     # Ensure that required columns exist
     required_columns = ['Player', 'Team', 'FP/G']
     if not all(col in df.columns for col in required_columns):
-        st.error("Missing required columns. Required: {}".format(required_columns))
+        print("Error: Missing required columns. Required: {}".format(required_columns))
         return pd.DataFrame()  # Return an empty DataFrame if required columns are missing
 
     # Clean up team names
@@ -29,7 +46,11 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 
     # Calculate GP (Games Played) based on provided logic
     if 'FPts' in df.columns and 'FP/G' in df.columns:
-        df['GP'] = df['FPts'] / df['FP/G']
+        df['GP'] = np.ceil(df['FPts'] / df['FP/G']).fillna(0).astype(int)  # Ceiling rounding and convert to int
+        
+    # Assign Fantasy Manager Names based on Status column
+    if 'Status' in df.columns:
+        df['Fantasy_Manager'] = df['Status'].map(TEAM_MAPPINGS).fillna('Unknown Manager')
 
     # Reset index if 'Player' is in DataFrame
     if 'Player' in df.columns:
@@ -37,41 +58,41 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-def load_data(data_dir: Path) -> dict:
+def load_data(data_dir: Path) -> tuple:
     """Load and clean player data from CSV files in the data directory."""
     data_ranges = {}
-    
+    combined_data = pd.DataFrame()  # Combined DataFrame for all player data
+
     try:
         csv_files = list(data_dir.glob("*.csv"))
         if not csv_files:
             st.error("No CSV files found in the data directory")
-            return data_ranges
+            return data_ranges, combined_data  # Return empty values if no CSVs
             
         for file in csv_files:
-            if "YTD" in file.name:
-                df = pd.read_csv(file)
-                df = clean_data(df)  # Clean the DataFrame
-                if not df.empty:  # Only store if DataFrame is not empty
-                    data_ranges['YTD'] = df
-            else:
-                match = re.search(r'\((\d+)\)', file.name)
-                if match:
-                    days = match.group(1)
-                    df = pd.read_csv(file)
-                    df = clean_data(df)  # Clean the DataFrame
-                    if not df.empty:  # Only store if DataFrame is not empty
-                        data_ranges[f'{days} Days'] = df
+            df = pd.read_csv(file)
+            df = clean_data(df)  # Clean the DataFrame
             
-        if not data_ranges:
+            if not df.empty:
+                # Store data by date specified in filename
+                if "YTD" in file.name:
+                    data_ranges['YTD'] = df
+                else:
+                    match = re.search(r'\((\d+)\)', file.name)
+                    if match:
+                        days = match.group(1)
+                        data_ranges[f'{days} Days'] = df
+                
+                # Combine the data into one DataFrame
+                combined_data = pd.concat([combined_data, df], ignore_index=True)
+
+        if combined_data.empty:
             st.error("No valid data files were loaded")
         else:
-            # Sort ranges and prepare to return
-            sorted_ranges = sorted(data_ranges.keys(), key=lambda x: (x != 'YTD', int(x.split()[0])))
-            sorted_data_ranges = {key: data_ranges[key] for key in sorted_ranges}
-            st.success(f"Successfully loaded data for ranges: {', '.join(sorted_data_ranges.keys())}")
-            return sorted_data_ranges
+            combined_data.set_index('Player', inplace=True)  # Setting Player as index for easier lookup
+
+        return data_ranges, combined_data  # Return both the dictionary and DataFrame
         
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
-
-    return data_ranges
+        return {}, pd.DataFrame()  # Return empty values on exception

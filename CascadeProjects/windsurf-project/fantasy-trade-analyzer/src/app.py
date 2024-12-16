@@ -4,6 +4,8 @@ from session_manager import init_session_state
 from data_loader import load_data
 from metrics import display_metrics
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT
+from player_data_display import display_player_data, display_metrics
+
 
 def main():
     """Main application entry point."""
@@ -22,7 +24,9 @@ def main():
     
     # Load data if not already loaded
     if not st.session_state.data_ranges:
-        st.session_state.data_ranges = load_data(data_dir)
+        data_ranges, combined_data = load_data(data_dir)
+        st.session_state.data_ranges = data_ranges
+        st.session_state.combined_data = combined_data
         
     if st.session_state.data_ranges:
         ranges = list(st.session_state.data_ranges.keys())
@@ -32,6 +36,7 @@ def main():
             st.session_state.current_range = selected_range
             data = st.session_state.data_ranges[selected_range]
             display_metrics(data)
-
+            display_player_data(st.session_state.data_ranges, st.session_state.combined_data)
+                
 if __name__ == "__main__":
     main()
