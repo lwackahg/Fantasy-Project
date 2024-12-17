@@ -26,6 +26,7 @@ Here are some effective strategies that have helped me when using Windsurf:
 - **One Step at a Time**: Tackle problems incrementally rather than all at once.
 - **Be Careful with Costs**: Monitor the usage of credits. Aim to solve simpler issues locally to avoid unnecessary API requests.
 - **Avoid Over Complicating Things**: Prioritize simpler solutions as they tend to produce fewer complications.
+- **Do Not Change Base Functionality**: When possible, avoid changing the base functionality of the given code.
 
 ---
 
@@ -44,7 +45,7 @@ These examples demonstrate how to effectively communicate with Windsurf, even wi
 
 ### Before responding:
 
-Review the complete README noted in this project’s project notes. You have read and write access to these folders and files. READ ALL OF IT. Note the philosophy and step by step approach as we systematically rebuild this app. Scan and read the critical files like main.py.
+Review the complete README noted in this project’s project notes. You have read and write access to these folders and files. READ ALL OF IT. Note the philosophy and step by step approach as we systematically rebuild this app. Scan and read the critical files like app.py.
 
 Complete the STOP AND VERIFY checklist:    - Identify Impact Area    - Note Current State    - Plan Single Change    - Verify Theme Generation (if applicable)
 

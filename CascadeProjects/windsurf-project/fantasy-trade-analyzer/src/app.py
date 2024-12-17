@@ -1,15 +1,28 @@
 import streamlit as st
 from pathlib import Path
-from session_manager import init_session_state
 from data_loader import load_data
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT
-from player_data_display import display_player_data, display_metrics, display_player_trends  # Import new function
+from player_data_display import (
+    display_player_data, 
+    display_metrics, 
+    display_player_trends,
+    display_team_scouting
+)
 
 
 def main():
     """Main application entry point."""
     st.set_page_config(page_title=PAGE_TITLE, page_icon=PAGE_ICON, layout=LAYOUT)
-    init_session_state()
+
+    # Initialize session state if needed
+    if 'data_ranges' not in st.session_state:
+        st.session_state.data_ranges = {}
+    if 'combined_data' not in st.session_state:
+        st.session_state.combined_data = None
+    if 'current_range' not in st.session_state:
+        st.session_state.current_range = None
+    if 'debug_manager' not in st.session_state:
+        st.session_state.debug_manager = type('DebugManager', (), {'debug_mode': False, 'toggle_debug': lambda: None})
 
     st.title(PAGE_TITLE)
     
@@ -19,7 +32,11 @@ def main():
             st.session_state.debug_manager.toggle_debug()
         
         # Sidebar navigation
-        page = st.selectbox("Select Page:", ["Home", "Player Trends"])  # Add new page option
+        st.sidebar.title("Navigation")
+        page = st.sidebar.radio(
+            "Go to",
+            ["Player Overview", "Player Trends", "Team Scouting", "Trade Analysis"]
+        )
 
     # Get data directory
     data_dir = Path(__file__).parent.parent / "data"
@@ -31,20 +48,28 @@ def main():
         st.session_state.combined_data = combined_data
 
     if st.session_state.data_ranges:
-        if page == "Home":
+        if page == "Player Overview":
             ranges = list(st.session_state.data_ranges.keys())
             selected_range = st.selectbox("Select Time Range", ranges, index=0 if ranges else None)
 
             if selected_range:
                 st.session_state.current_range = selected_range
                 data = st.session_state.data_ranges[selected_range]
-                display_metrics(data)
                 display_player_data(st.session_state.data_ranges, st.session_state.combined_data)
+                display_metrics(data)
 
         elif page == "Player Trends":
-            player = st.selectbox("Select Player to View Trends", st.session_state.combined_data.index.tolist())
-            if player:
-                display_player_trends(player)  # Call the function to display trends for the selected player
+            current_data = st.session_state.combined_data.reset_index()
+            selected_player = st.selectbox("Select Player to View Trends", current_data['Player'].unique().tolist())
+            if selected_player:
+                display_player_trends(selected_player, current_data)
+
+        elif page == "Team Scouting":
+            display_team_scouting(st.session_state.combined_data, st.session_state.data_ranges)
+
+        elif page == "Trade Analysis":
+            # Trade analysis page content
+            pass
 
 
 if __name__ == "__main__":
