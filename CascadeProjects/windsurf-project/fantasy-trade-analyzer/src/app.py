@@ -8,6 +8,7 @@ from player_data_display import (
     display_player_trends,
     display_team_scouting
 )
+from player_data_display import display_fantasy_managers_teams
 
 
 def main():
@@ -35,7 +36,7 @@ def main():
         st.sidebar.title("Navigation")
         page = st.sidebar.radio(
             "Go to",
-            ["Player Overview", "Player Trends", "Team Scouting", "Trade Analysis"]
+            ["Player Overview", "Player Trends", "Team Scouting", "Trade Analysis", "Fantasy Managers' Teams"]
         )
 
     # Get data directory
@@ -70,6 +71,9 @@ def main():
         elif page == "Trade Analysis":
             # Trade analysis page content
             pass
+
+        elif page == "Fantasy Managers' Teams":
+            display_fantasy_managers_teams(st.session_state.combined_data)
 
 
 if __name__ == "__main__":
