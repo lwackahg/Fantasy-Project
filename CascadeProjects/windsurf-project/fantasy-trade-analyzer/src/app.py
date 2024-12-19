@@ -6,9 +6,12 @@ from player_data_display import (
     display_player_data, 
     display_metrics, 
     display_player_trends,
-    display_team_scouting
+    display_team_scouting,
+    generate_trade_opportunities
 )
 from player_data_display import display_fantasy_managers_teams
+from trade_analysis import display_trade_analysis
+
 
 
 def main():
@@ -69,8 +72,19 @@ def main():
             display_team_scouting(st.session_state.combined_data, st.session_state.data_ranges)
 
         elif page == "Trade Analysis":
-            # Trade analysis page content
-            pass
+            # You need to define all_stats here based on the selected managers or players
+            selected_managers = st.multiselect("Select your team:", options=list(st.session_state.data_ranges.keys()))
+            if selected_managers:
+                all_stats = {manager: st.session_state.data_ranges[manager] for manager in selected_managers}
+                trade_suggestions = generate_trade_opportunities(all_stats, selected_managers)
+                
+                if trade_suggestions:
+                    for suggestion in trade_suggestions:
+                        player_name, targets, trade_details = suggestion
+                        if st.button(player_name):
+                            display_trade_analysis(player_name, trade_details)
+                else:
+                    st.warning("No trade suggestions available.")
 
         elif page == "Fantasy Managers' Teams":
             display_fantasy_managers_teams(st.session_state.combined_data)

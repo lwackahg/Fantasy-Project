@@ -325,6 +325,9 @@ def display_metrics(data):
 
 def display_team_rankings(all_stats):
     """Display rankings and trade analysis for fantasy managers' teams."""
+    import streamlit as st
+    import pandas as pd
+
     st.title("Team Rankings & Trade Analysis")
     
     if not all_stats:
@@ -341,17 +344,18 @@ def display_team_rankings(all_stats):
     # Calculate overall team metrics
     team_rankings = []
     for manager, stats_df in all_stats.items():
-        avg_fpg = stats_df['FP/G'].mean()
-        std_dev = stats_df['FP/G'].std()
-        consistency = std_dev / avg_fpg if avg_fpg > 0 else float('inf')
-        
-        team_rankings.append({
-            'Manager': manager,
-            'Average FP/G': round(avg_fpg, 2),
-            'Std Dev': round(std_dev, 2),
-            'Consistency Score': round(consistency, 3),
-            'Team Size': stats_df['Player'].nunique()
-        })
+        if not stats_df.empty:
+            avg_fpg = stats_df['FP/G'].mean()
+            std_dev = stats_df['FP/G'].std()
+            consistency = std_dev / avg_fpg if avg_fpg > 0 else float('inf')
+            
+            team_rankings.append({
+                'Manager': manager,
+                'Average FP/G': round(avg_fpg, 2),
+                'Std Dev': round(std_dev, 2),
+                'Consistency Score': round(consistency, 3),
+                'Team Size': stats_df['Player'].nunique()
+            })
     
     rankings_df = pd.DataFrame(team_rankings)
     
@@ -369,63 +373,238 @@ def display_team_rankings(all_stats):
     )
     
     # Detailed metrics for selected teams
-    for manager in selected_managers:
-        stats_df = all_stats.get(manager)
-        st.subheader(f"{manager}'s Team Metrics")
+    st.subheader("Team Performance Metrics")
+    
+    teams_per_row = 3
+    for i in range(0, len(selected_managers), teams_per_row):
+        # Create columns for this row
+        cols = st.columns(teams_per_row)
         
-        if stats_df is not None and not stats_df.empty:
-            team_metrics = stats_df.groupby('Time Range')['FP/G'].agg(['mean', 'median', 'std']).round(2)
-            team_metrics.columns = ['Mean FP/G', 'Median FP/G', 'Std Dev']
-            st.dataframe(team_metrics)
-        else:
-            st.write("No data available.")
+        # Process up to 3 teams for this row
+        for col_idx, manager in enumerate(selected_managers[i:i + teams_per_row]):
+            stats_df = all_stats.get(manager)
+            
+            with cols[col_idx]:
+                st.write(f"**{manager}'s Team**")
+                
+                if stats_df is not None and not stats_df.empty:
+                    team_metrics = stats_df.groupby('Time Range')['FP/G'].agg(['mean', 'median', 'std']).round(2)
+                    team_metrics.columns = ['Mean FP/G', 'Median FP/G', 'Std Dev']
+                    st.dataframe(
+                        team_metrics.style
+                        .highlight_max('Mean FP/G', color='green')
+                        .highlight_min('Mean FP/G', color='red')
+                        .format({
+                            'Mean FP/G': '{:.2f}',
+                            'Median FP/G': '{:.2f}',
+                            'Std Dev': '{:.2f}'
+                        })
+                    )
+                else:
+                    st.write("No data available.")
     
     # Trade Analysis Section
     st.subheader("Trade Opportunities")
-    trade_suggestions = generate_trade_opportunities(all_stats, selected_managers)
-    st.dataframe(trade_suggestions)
+    trade_data = generate_trade_opportunities(all_stats, selected_managers)
+
+    if trade_data:
+        # Create a mapping of players to their managers
+        player_to_manager = {}
+        for manager in selected_managers:
+            for player in all_stats[manager]['Player'].unique():
+                player_to_manager[player] = manager
+        
+        # Collect players for user selection
+        players = {name.split(" ➜")[0].replace("📈 ", "") for name, _, _ in trade_data}
+        selected_player = st.selectbox("Select a player to analyze trades:", options=list(players))
+        
+        # Filter trade suggestions for selected player
+        for name, _, details in trade_data:
+            player = name.split(" ➜")[0].replace("📈 ", "")
+            if player == selected_player and details:
+                # Find the manager who owns the selected player
+                player_manager = player_to_manager.get(selected_player)
+                if not player_manager:
+                    st.error(f"Could not find manager for {selected_player}")
+                    continue
+                
+                # Get player's performance across time ranges
+                player_stats = all_stats[player_manager]
+                player_by_range = player_stats[player_stats['Player'] == player].pivot_table(
+                    values='FP/G',
+                    index='Player',
+                    columns='Time Range',
+                    aggfunc='mean'
+                ).round(2)
+                
+                if player_by_range.empty:
+                    st.write(f"No data available for {selected_player}")
+                    continue
+                
+                # Get trade targets' performance across time ranges
+                trade_stats = []
+                for target, _ in details:
+                    # Find the manager who owns this target
+                    target_manager = None
+                    target_data = None
+                    for manager, stats_df in all_stats.items():
+                        if target in stats_df['Player'].values:
+                            target_manager = manager
+                            target_data = stats_df[stats_df['Player'] == target]
+                            break
+                            
+                    if target_data is not None and not target_data.empty:
+                        target_by_range = target_data.pivot_table(
+                            values='FP/G',
+                            index='Player',
+                            columns='Time Range',
+                            aggfunc='mean'
+                        ).round(2)
+                        trade_stats.append(target_by_range)
+                
+                # Combine player and trade target stats into one DataFrame
+                if trade_stats:
+                    combined_stats = pd.concat([player_by_range] + trade_stats)
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Display performance comparison
+                        st.write("### Performance Overview")
+                        st.write(f"**{selected_player}'s Performance by Time Range and Trade Targets**")
+                        st.write(f"(From {player_manager}'s Team)")
+                        
+                        # Format combined stats here
+                        styled_combined = combined_stats.style\
+                            .highlight_max(axis=0, color='green')\
+                            .highlight_min(axis=0, color='red')\
+                            .format("{:.2f}")
+                        
+                        st.dataframe(styled_combined)
+
+                    with col2:
+                        # Calculate and display performance differences
+                        st.write("### Performance Comparison")
+                        st.write(f"**{selected_player}'s Performance Comparison by Time Range and Trade Targets**")
+                        st.write(f"(From {player_manager}'s Team)")
+                        # Get the player's row for comparison
+                        player_row = player_by_range.loc[selected_player]
+                        # Calculate differences
+                        diff_df = combined_stats.sub(player_row, axis=1)
+                        styled_diff = diff_df.style\
+                            .highlight_max(axis=0, color='green')\
+                            .highlight_min(axis=0, color='red')\
+                            .format("{:.2f}")
+                        st.dataframe(styled_diff)
+
+                        # Show trade value summary
+                        st.write("### Trade Value Summary")
+                        for idx, row in diff_df.iterrows():
+                            if idx != selected_player:
+                                avg_diff = row.mean()
+                                recommendation = "✅ Favorable" if avg_diff > 0 else "⚠️ Unfavorable"
+                                st.write(f"{idx}: {recommendation} (Avg. diff: {avg_diff:.2f} FP/G)")
+                else:
+                    st.write("No comparable data available for trade targets.")
+                break
+        else:
+            st.write("No viable trade matches found for the selected player.")
 
 def generate_trade_opportunities(all_stats, selected_managers):
+    """
+    Generate trade suggestions based on player performance.
+    
+    Args:
+        all_stats (dict): Dictionary of team stats
+        selected_managers (list): List of selected manager names
+        
+    Returns:
+        list: List of trade suggestions with format (player_name, targets, trade_details)
+    """
     trade_suggestions = []
 
     for manager in selected_managers:
-        players = all_stats[manager]['Player'].unique()
-        player_stats = all_stats[manager]
+        if manager not in all_stats or all_stats[manager].empty:
+            continue
+            
+        # Get unique players for the manager
+        manager_stats = all_stats[manager]
+        players = manager_stats['Player'].unique()
 
         for player in players:
-            current_fpg = player_stats[player_stats['Player'] == player]['FP/G'].mean()
-
-            # Get potential trade targets based on performance
-            targets = get_possible_trade_targets(player, all_stats, selected_managers, current_fpg)
+            # Get player's current performance
+            player_stats = manager_stats[manager_stats['Player'] == player]
+            current_fpg = player_stats['FP/G'].mean()
             
-            trade_suggestions.append({
-                'Player Offered': player,
-                'Potential Trade Targets': ', '.join(targets)
-            })
+            if pd.isna(current_fpg):
+                continue
 
-    return pd.DataFrame(trade_suggestions)
+            # Find trade targets
+            targets = []
+            trade_details = []
+            
+            # Look for targets in other teams
+            for other_manager, other_stats in all_stats.items():
+                if other_manager == manager or other_stats.empty:
+                    continue
+                    
+                # Get potential targets from other team
+                for target in other_stats['Player'].unique():
+                    target_stats = other_stats[other_stats['Player'] == target]
+                    target_fpg = target_stats['FP/G'].mean()
+                    
+                    if pd.isna(target_fpg):
+                        continue
+                    
+                    # Add target if they meet performance criteria
+                    if 0.9 <= (target_fpg / current_fpg) <= 1.1:  # Within 10% of current player's performance
+                        targets.append(target)
+                        trade_details.append((target, target_fpg))
+
+            if targets:  # Only add suggestions if there are valid targets
+                name = f"📈 {player} ➜ Trade Suggestions"
+                trade_suggestions.append((name, targets, trade_details))
+
+    return trade_suggestions
 
 def get_possible_trade_targets(player, all_stats, selected_managers, current_fpg):
+    """
+    Find possible trade targets for a given player.
+    
+    Args:
+        player (str): Player name to find trades for
+        all_stats (dict): Dictionary of team stats
+        selected_managers (list): List of selected manager names
+        current_fpg (float): Current player's FP/G
+        
+    Returns:
+        list: List of potential trade targets
+    """
     targets = []
     
+    if pd.isna(current_fpg):
+        return targets
+
     for manager in selected_managers:
-        if player in all_stats[manager]['Player'].values:
-            continue  # Skip if the player is in the same team
-
-        # Fetch players from opposing teams
-        opposing_players = all_stats[manager]['Player']
-
-        # Suggest players who have better or comparable FP/G
-        for target in opposing_players:
-            target_fpg = all_stats[manager][all_stats[manager]['Player'] == target]['FP/G'].mean()
+        if manager not in all_stats or all_stats[manager].empty:
+            continue
             
-            # Implement your trade ratio or selection criteria
-            if target_fpg >= 0.9 * current_fpg:  # Example condition: target must be at least 90% of the offered player's performance
+        # Skip if looking at same team
+        if player in all_stats[manager]['Player'].values:
+            continue
+
+        # Get potential targets from this team
+        for target in all_stats[manager]['Player'].unique():
+            target_stats = all_stats[manager][all_stats[manager]['Player'] == target]
+            target_fpg = target_stats['FP/G'].mean()
+            
+            if pd.isna(target_fpg):
+                continue
+                
+            # Add target if they meet performance criteria
+            if 0.9 <= (target_fpg / current_fpg) <= 1.1:  # Within 10% of current player's performance
                 targets.append(target)
 
     return list(set(targets))  # Return unique targets
-# Sample usage
-# display_team_rankings(your_all_stats_data) 
 
 def display_fantasy_managers_teams(current_data):
     """Display metrics for each Fantasy Manager's team and allow selection of top N players."""
