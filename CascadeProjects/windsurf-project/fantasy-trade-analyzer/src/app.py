@@ -11,7 +11,7 @@ from player_data_display import (
 )
 from player_data_display import display_fantasy_managers_teams
 from trade_analysis import display_trade_analysis
-
+from download_csv import download_fantrax_csv
 
 
 def main():
@@ -34,6 +34,19 @@ def main():
     with st.sidebar:
         if st.checkbox("Enable Debug Mode", value=st.session_state.debug_manager.debug_mode):
             st.session_state.debug_manager.toggle_debug()
+        
+        # Data Download Section
+        st.sidebar.title("Data Management")
+        days_back = st.sidebar.slider("Days of Data to Download", min_value=7, max_value=90, value=30, step=1)
+        if st.sidebar.button("Download Latest Data"):
+            try:
+                with st.spinner(f'Downloading last {days_back} days of player data...'):
+                    data_dir = Path(__file__).parent.parent / "data"
+                    output_path = data_dir / f"Fantrax-Players-{days_back}.csv"
+                    download_fantrax_csv(days_back=days_back, output_path=str(output_path))
+                st.sidebar.success(f"Successfully downloaded data for the last {days_back} days!")
+            except Exception as e:
+                st.sidebar.error(f"Error downloading data: {str(e)}")
         
         # Sidebar navigation
         st.sidebar.title("Navigation")
