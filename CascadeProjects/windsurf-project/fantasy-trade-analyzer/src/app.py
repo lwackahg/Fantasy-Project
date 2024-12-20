@@ -1,6 +1,8 @@
 import streamlit as st
 from pathlib import Path
 from data_loader import load_data
+from trade_analysis import display_trade_analysis_page
+from trade_analyzer import TradeAnalyzer
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT
 from player_data_display import (
     display_player_data, 
@@ -10,7 +12,6 @@ from player_data_display import (
     generate_trade_opportunities
 )
 from player_data_display import display_fantasy_managers_teams
-from trade_analysis import display_trade_analysis
 
 
 def main():
@@ -26,6 +27,8 @@ def main():
         st.session_state.current_range = None
     if 'debug_manager' not in st.session_state:
         st.session_state.debug_manager = type('DebugManager', (), {'debug_mode': False, 'toggle_debug': lambda: None})
+    if 'trade_analyzer' not in st.session_state:
+        st.session_state.trade_analyzer = None
 
     st.title(PAGE_TITLE)
     
@@ -33,7 +36,6 @@ def main():
     with st.sidebar:
         if st.checkbox("Enable Debug Mode", value=st.session_state.debug_manager.debug_mode):
             st.session_state.debug_manager.toggle_debug()
-        
         
         # Sidebar navigation
         st.sidebar.title("Navigation")
@@ -50,6 +52,8 @@ def main():
         data_ranges, combined_data = load_data(data_dir)
         st.session_state.data_ranges = data_ranges
         st.session_state.combined_data = combined_data
+        if data_ranges:
+            st.session_state.trade_analyzer = TradeAnalyzer(data_ranges)
 
     if st.session_state.data_ranges:
         if page == "Player Overview":
@@ -72,19 +76,7 @@ def main():
             display_team_scouting(st.session_state.combined_data, st.session_state.data_ranges)
 
         elif page == "Trade Analysis":
-            # You need to define all_stats here based on the selected managers or players
-            selected_managers = st.multiselect("Select your team:", options=list(st.session_state.data_ranges.keys()))
-            if selected_managers:
-                all_stats = {manager: st.session_state.data_ranges[manager] for manager in selected_managers}
-                trade_suggestions = generate_trade_opportunities(all_stats, selected_managers)
-                
-                if trade_suggestions:
-                    for suggestion in trade_suggestions:
-                        player_name, targets, trade_details = suggestion
-                        if st.button(player_name):
-                            display_trade_analysis(player_name, trade_details)
-                else:
-                    st.warning("No trade suggestions available.")
+            display_trade_analysis_page()
 
         elif page == "Fantasy Managers' Teams":
             display_fantasy_managers_teams(st.session_state.combined_data)
