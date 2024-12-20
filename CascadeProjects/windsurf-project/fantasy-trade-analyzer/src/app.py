@@ -723,7 +723,7 @@ def display_trade_analysis(analysis, teams):
                                     )
                 
                 with col2:
-                    st.markdown("##### The Team'sPlayers After")
+                    st.markdown("##### The Team's Players After")
                     if 'after_stats' in team_data:
                         for time_range in ['60 Days', '30 Days', '14 Days', '7 Days']:
                             if time_range in team_data['after_stats']:
