@@ -753,7 +753,7 @@ def display_trade_analysis(analysis, teams):
 @handle_error
 def display_trade_analysis_page():
     """Display the trade analysis page"""
-    st.write("## Trade Analysis")
+    #st.write("## Trade Analysis")
     
     # Set current data based on selected range
     st.session_state.data = st.session_state.data_ranges['60 Days']
@@ -773,7 +773,7 @@ def display_trade_analysis_page():
 @handle_error
 def trade_setup():
     """Setup the trade with drag and drop interface"""
-    st.write("## Trade Setup")
+    #st.write("## Trade Setup")
     
     # Display team legend with improved styling
     st.write("## Team Legend")
@@ -813,7 +813,7 @@ def trade_setup():
     st.write("### Number of Top Players to Analyze")
     top_x = st.number_input("Select the number of top players to analyze", min_value=1, max_value=15, value=10, help="Choose how many top players to include in the analysis.")
 
-    st.write("### Select Teams to Trade Between")
+    st.write("### Select Teams to Trade Between (2 or more)")
     selected_teams = st.multiselect(
         "Choose teams involved in the trade",
         options=get_all_teams(),
@@ -872,6 +872,8 @@ def trade_setup():
     
     if active_teams:
         st.write("### Assign Players to Teams")
+        st.write("Legend for short form team names at the top of the page")
+
         for team, players in active_teams.items():
             if players:  # Only show teams with selected players
                 st.write(f"#### {get_team_name(team)}")
