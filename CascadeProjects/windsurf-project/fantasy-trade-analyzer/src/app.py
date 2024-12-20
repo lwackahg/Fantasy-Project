@@ -1464,7 +1464,9 @@ def display_league_statistics():
 @handle_error
 def main():
     """Main application function"""
-    st.title("Fantasy Basketball Trade Analyzer - Date that Data was Last Updated: Morning of Dec 20th/24")
+    st.title("Fantasy Basketball Trade Analyzer")
+    st.title("Date that Data was Last Updated: Morning of Dec 20th/24")
+
     
     # Initialize or load data if not already loaded
     if ('data_ranges' not in st.session_state or 
