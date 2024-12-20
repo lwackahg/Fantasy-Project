@@ -483,10 +483,10 @@ def display_trade_analysis(analysis, teams):
                 for player in team_data.get('outgoing_players', []):
                     st.write(f"- {player}")
                 
-                if 'value_change' in team_data:
-                    value_change = team_data['value_change']
-                    color = '#2ecc71' if value_change > 0 else '#e74c3c'
-                    st.markdown(f"**Net Value Change:** <span style='color: {color}'>{value_change:+.1f}</span>", unsafe_allow_html=True)
+                #if 'value_change' in team_data:
+                #    value_change = team_data['value_change']
+                #    color = '#2ecc71' if value_change > 0 else '#e74c3c'
+                 #   st.markdown(f"**Net Value Change:** <span style='color: {color}'>{value_change:+.1f}</span>", unsafe_allow_html=True)
                 
                 # Create before/after trade stats tables with trend indicators
                 col1, col2 = st.columns(2)
@@ -620,11 +620,11 @@ def display_trade_analysis(analysis, teams):
                         x=time_ranges,
                         y=before_values,
                         name='Before Trade',
-                        line=dict(color='#666666', dash='dot'),
+                        line=dict(color='#2d93e1', dash='dot'),
                         mode='lines+markers+text',
                         text=[f"{val:.1f}" for val in before_values],
                         textposition="top center",
-                        textfont=dict(color='#666666'),
+                        textfont=dict(color='#2d93e1'),
                         hovertemplate="%{x}<br>" +
                                     f"{metric.replace('_', ' ').title()}: %{{y:.2f}}<br>" +
                                     "<extra>Before Trade</extra>"
@@ -697,7 +697,7 @@ def display_trade_analysis(analysis, teams):
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    st.markdown("##### Players Before")
+                    st.markdown("##### The Team's Players Before")
                     if 'before_stats' in team_data:
                         for time_range in ['60 Days', '30 Days', '14 Days', '7 Days']:
                             if time_range in team_data['before_stats']:
@@ -723,7 +723,7 @@ def display_trade_analysis(analysis, teams):
                                     )
                 
                 with col2:
-                    st.markdown("##### Players After")
+                    st.markdown("##### The Team'sPlayers After")
                     if 'after_stats' in team_data:
                         for time_range in ['60 Days', '30 Days', '14 Days', '7 Days']:
                             if time_range in team_data['after_stats']:
@@ -849,7 +849,7 @@ def trade_setup():
             available_players.sort()
             
             # Debug logging
-            st.write(f"Debug: {team_name} available players", len(available_players))
+            #st.write(f"Debug: {team_name} available players", len(available_players))
             
             # Multi-select for players
             selected_players = st.multiselect(
@@ -861,14 +861,14 @@ def trade_setup():
             trade_teams[team] = selected_players
             
             # Debug logging
-            if selected_players:
-                st.write(f"Debug: {team_name} selected players", len(selected_players))
+            #if selected_players:
+            #    st.write(f"Debug: {team_name} selected players", len(selected_players))
 
     # Only show player assignment section if teams have selected players
     active_teams = {team: players for team, players in trade_teams.items() if players}
     
     # Debug logging
-    st.write("Debug: Active teams", len(active_teams))
+    #st.write("Debug: Active teams", len(active_teams))
     
     if active_teams:
         st.write("### Assign Players to Teams")
@@ -897,14 +897,14 @@ def trade_setup():
         # Add analyze button with unique key
         if st.button("Analyze Trade", key="analyze_trade_button", help="Click to see detailed trade analysis"):
             # Debug logging
-            st.write("Debug: Starting trade analysis")
-            st.write("Debug: Trade teams data", trade_teams)
+            #st.write("Debug: Starting trade analysis")
+            #st.write("Debug: Trade teams data", trade_teams)
             
             analysis = st.session_state.trade_analyzer.evaluate_trade_fairness(trade_teams, top_x)
             
             # Debug logging
-            st.write("Debug: Analysis complete")
-            st.write("Debug: Analysis results", bool(analysis))
+            #st.write("Debug: Analysis complete")
+            #st.write("Debug: Analysis results", bool(analysis))
             
             display_trade_analysis(analysis, selected_teams)
             
