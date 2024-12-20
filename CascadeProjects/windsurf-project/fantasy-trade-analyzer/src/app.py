@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 # Set page config
 st.set_page_config(
-    page_title="Fantasy Basketball Trade Analyzer",
+    page_title="Fantasy Basketball Trade Analyzer - Date that Data was Last Updated: Before Games on Dec 20th/24",
     page_icon="🏀",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -1492,7 +1492,7 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        st.title("Fantasy Trade Analyzer")
+        st.title("Fantasy Trade Analyzer - Date that Data was Last Updated: Before Games on Dec 20th/24 ")
         
         # Add debug mode toggle
         st.session_state.debug_mode = st.toggle("Debug Mode", value=st.session_state.debug_mode)
