@@ -1,7 +1,7 @@
 """Module for statistical analysis functionality"""
 import streamlit as st
 import pandas as pd
-from src.visualization import plot_performance_trends, display_stats_table
+from visualization import plot_performance_trends, display_stats_table
 
 class StatisticalAnalyzer:
     """Class for analyzing player and team statistics"""
