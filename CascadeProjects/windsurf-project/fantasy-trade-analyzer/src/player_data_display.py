@@ -325,80 +325,67 @@ def display_metrics(data):
 
 def display_team_rankings(all_stats):
     """Display rankings and trade analysis for fantasy managers' teams."""
-    import streamlit as st
-    import pandas as pd
-
+    
     st.title("Team Rankings & Trade Analysis")
     
     if not all_stats:
         st.write("No team data available for analysis.")
         return
     
-    # Team selection
     selected_managers = st.multiselect("Select your team:", options=list(all_stats.keys()))
     
     if not selected_managers:
         st.write("Please select at least one team.")
         return
     
-    # Calculate overall team metrics
-    team_rankings = []
-    for manager, stats_df in all_stats.items():
-        if not stats_df.empty:
-            avg_fpg = stats_df['FP/G'].mean()
-            std_dev = stats_df['FP/G'].std()
-            consistency = std_dev / avg_fpg if avg_fpg > 0 else float('inf')
-            
-            team_rankings.append({
-                'Manager': manager,
-                'Average FP/G': round(avg_fpg, 2),
-                'Std Dev': round(std_dev, 2),
-                'Consistency Score': round(consistency, 3),
-                'Team Size': stats_df['Player'].nunique()
-            })
-    
+    def calculate_team_metrics(stats_df):
+        avg_fpg = stats_df['FP/G'].mean()
+        std_dev = stats_df['FP/G'].std()
+        consistency = std_dev / avg_fpg if avg_fpg > 0 else float('inf')
+        return {
+            'Average FP/G': round(avg_fpg, 2),
+            'Std Dev': round(std_dev, 2),
+            'Consistency Score': round(consistency, 3),
+            'Team Size': stats_df['Player'].nunique()
+        }
+
+    team_rankings = [
+        {'Manager': manager, **calculate_team_metrics(stats_df)}
+        for manager, stats_df in all_stats.items() if not stats_df.empty
+    ]
+
     rankings_df = pd.DataFrame(team_rankings)
-    
-    # Display team rankings
     st.subheader("Team Rankings")
-    st.dataframe(
-        rankings_df.sort_values('Average FP/G', ascending=False)
-        .style.highlight_max(subset=['Average FP/G'], color='green')
-        .highlight_min(subset=['Consistency Score'], color='red')
+    styled_rankings = rankings_df.style\
         .format({
             'Average FP/G': '{:.2f}',
             'Std Dev': '{:.2f}',
-            'Consistency Score': '{:.3f}'
-        })
-    )
+            'Consistency Score': '{:.3f}',
+            'Team Size': '{:d}'
+        })\
+        .highlight_max(subset=['Average FP/G'], color='green')\
+        .highlight_min(subset=['Consistency Score'], color='red')
+    
+    st.dataframe(styled_rankings)
     
     # Detailed metrics for selected teams
     st.subheader("Team Performance Metrics")
-    
     teams_per_row = 3
+    
     for i in range(0, len(selected_managers), teams_per_row):
-        # Create columns for this row
         cols = st.columns(teams_per_row)
-        
-        # Process up to 3 teams for this row
         for col_idx, manager in enumerate(selected_managers[i:i + teams_per_row]):
-            stats_df = all_stats.get(manager)
-            
+            stats_df = all_stats.get(manager, pd.DataFrame())
             with cols[col_idx]:
                 st.write(f"**{manager}'s Team**")
-                
-                if stats_df is not None and not stats_df.empty:
+                if not stats_df.empty:
                     team_metrics = stats_df.groupby('Time Range')['FP/G'].agg(['mean', 'median', 'std']).round(2)
                     team_metrics.columns = ['Mean FP/G', 'Median FP/G', 'Std Dev']
                     st.dataframe(
                         team_metrics.style
                         .highlight_max('Mean FP/G', color='green')
                         .highlight_min('Mean FP/G', color='red')
-                        .format({
-                            'Mean FP/G': '{:.2f}',
-                            'Median FP/G': '{:.2f}',
-                            'Std Dev': '{:.2f}'
-                        })
+                        .format('{:.2f}')
                     )
                 else:
                     st.write("No data available.")
@@ -408,95 +395,51 @@ def display_team_rankings(all_stats):
     trade_data = generate_trade_opportunities(all_stats, selected_managers)
 
     if trade_data:
-        # Create a mapping of players to their managers
-        player_to_manager = {}
-        for manager in selected_managers:
-            for player in all_stats[manager]['Player'].unique():
-                player_to_manager[player] = manager
-        
-        # Collect players for user selection
+        player_to_manager = {player: manager for manager in selected_managers for player in all_stats[manager]['Player'].unique()}
         players = {name.split(" ➜")[0].replace("📈 ", "") for name, _, _ in trade_data}
         selected_player = st.selectbox("Select a player to analyze trades:", options=list(players))
         
-        # Filter trade suggestions for selected player
         for name, _, details in trade_data:
             player = name.split(" ➜")[0].replace("📈 ", "")
             if player == selected_player and details:
-                # Find the manager who owns the selected player
                 player_manager = player_to_manager.get(selected_player)
                 if not player_manager:
                     st.error(f"Could not find manager for {selected_player}")
                     continue
                 
-                # Get player's performance across time ranges
                 player_stats = all_stats[player_manager]
                 player_by_range = player_stats[player_stats['Player'] == player].pivot_table(
-                    values='FP/G',
-                    index='Player',
-                    columns='Time Range',
-                    aggfunc='mean'
+                    values='FP/G', index='Player', columns='Time Range', aggfunc='mean'
                 ).round(2)
-                
+
                 if player_by_range.empty:
                     st.write(f"No data available for {selected_player}")
                     continue
                 
-                # Get trade targets' performance across time ranges
-                trade_stats = []
-                for target, _ in details:
-                    # Find the manager who owns this target
-                    target_manager = None
-                    target_data = None
-                    for manager, stats_df in all_stats.items():
-                        if target in stats_df['Player'].values:
-                            target_manager = manager
-                            target_data = stats_df[stats_df['Player'] == target]
-                            break
-                             
-                    if target_data is not None and not target_data.empty:
-                        target_by_range = target_data.pivot_table(
-                            values='FP/G',
-                            index='Player',
-                            columns='Time Range',
-                            aggfunc='mean'
-                        ).round(2)
-                        trade_stats.append(target_by_range)
+                trade_stats = [
+                    all_stats[manager][all_stats[manager]['Player'] == target].pivot_table(
+                        values='FP/G', index='Player', columns='Time Range', aggfunc='mean'
+                    ).round(2)
+                    for target, _ in details
+                    for manager in all_stats if target in all_stats[manager]['Player'].values
+                ]
                 
-                # Combine player and trade target stats into one DataFrame
                 if trade_stats:
                     combined_stats = pd.concat([player_by_range] + trade_stats)
                     col1, col2 = st.columns(2)
                     
                     with col1:
-                        # Display performance comparison
                         st.write("### Performance Overview")
-                        st.write(f"**{selected_player}'s Performance by Time Range and Trade Targets**")
-                        st.write(f"(From {player_manager}'s Team)")
-                        
-                        # Format combined stats here
-                        styled_combined = combined_stats.style\
-                            .highlight_max(axis=0, color='green')\
-                            .highlight_min(axis=0, color='red')\
-                            .format("{:.2f}")
-                        
-                        st.dataframe(styled_combined)
+                        st.write(f"**{selected_player}'s Performance by Time Range and Trade Targets** (From {player_manager}'s Team)")
+                        st.dataframe(combined_stats.style.highlight_max(axis=0, color='green').highlight_min(axis=0, color='red').format("{:.2f}"))
 
                     with col2:
-                        # Calculate and display performance differences
                         st.write("### Performance Comparison")
-                        st.write(f"**{selected_player}'s Performance Comparison by Time Range and Trade Targets**")
-                        st.write(f"(From {player_manager}'s Team)")
-                        # Get the player's row for comparison
+                        st.write(f"**{selected_player}'s Performance Comparison by Time Range and Trade Targets** (From {player_manager}'s Team)")
                         player_row = player_by_range.loc[selected_player]
-                        # Calculate differences
                         diff_df = combined_stats.sub(player_row, axis=1)
-                        styled_diff = diff_df.style\
-                            .highlight_max(axis=0, color='green')\
-                            .highlight_min(axis=0, color='red')\
-                            .format("{:.2f}")
-                        st.dataframe(styled_diff)
+                        st.dataframe(diff_df.style.highlight_max(axis=0, color='green').highlight_min(axis=0, color='red').format("{:.2f}"))
 
-                        # Show trade value summary
                         st.write("### Trade Value Summary")
                         for idx, row in diff_df.iterrows():
                             if idx != selected_player:
