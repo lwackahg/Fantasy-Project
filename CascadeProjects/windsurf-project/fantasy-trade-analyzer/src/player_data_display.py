@@ -291,7 +291,7 @@ def display_player_trends(player, current_data):
             st.pyplot(fig)
 
     else:
-        st.warning(f"No historical data available for {player}.")
+        st.write(f"No historical data available for {player}.")
 
 def display_player_data(data_ranges, combined_data):
     """Display the player data in a clean and searchable format."""
@@ -307,11 +307,11 @@ def display_player_data(data_ranges, combined_data):
                 st.write(f"Data for **{search_query}**:")
                 st.dataframe(filtered_data)
             else:
-                st.warning("Player not found.")
+                st.write("Player not found.")
         else:
             st.dataframe(combined_data)
     else:
-        st.warning("No data available to display.")
+        st.write("No data available to display.")
 
 def display_metrics(data):
     """Display basic statistics as metrics in the Streamlit app."""
@@ -331,14 +331,14 @@ def display_team_rankings(all_stats):
     st.title("Team Rankings & Trade Analysis")
     
     if not all_stats:
-        st.warning("No team data available for analysis.")
+        st.write("No team data available for analysis.")
         return
     
     # Team selection
     selected_managers = st.multiselect("Select your team:", options=list(all_stats.keys()))
     
     if not selected_managers:
-        st.warning("Please select at least one team.")
+        st.write("Please select at least one team.")
         return
     
     # Calculate overall team metrics
@@ -452,7 +452,7 @@ def display_team_rankings(all_stats):
                             target_manager = manager
                             target_data = stats_df[stats_df['Player'] == target]
                             break
-                            
+                             
                     if target_data is not None and not target_data.empty:
                         target_by_range = target_data.pivot_table(
                             values='FP/G',
@@ -501,7 +501,7 @@ def display_team_rankings(all_stats):
                         for idx, row in diff_df.iterrows():
                             if idx != selected_player:
                                 avg_diff = row.mean()
-                                recommendation = "✅ Favorable" if avg_diff > 0 else "⚠️ Unfavorable"
+                                recommendation = "Favorable" if avg_diff > 0 else "Unfavorable"
                                 st.write(f"{idx}: {recommendation} (Avg. diff: {avg_diff:.2f} FP/G)")
                 else:
                     st.write("No comparable data available for trade targets.")

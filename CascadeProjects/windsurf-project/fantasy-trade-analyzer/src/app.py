@@ -52,8 +52,8 @@ def main():
         data_ranges, combined_data = load_data(data_dir)
         st.session_state.data_ranges = data_ranges
         st.session_state.combined_data = combined_data
-        if data_ranges:
-            st.session_state.trade_analyzer = TradeAnalyzer(data_ranges)
+        if combined_data is not None:
+            st.session_state.trade_analyzer = TradeAnalyzer(combined_data)
 
     if st.session_state.data_ranges:
         if page == "Player Overview":
