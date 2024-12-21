@@ -191,6 +191,7 @@ def display_trade_results(analysis_results: Dict[str, Dict[str, Any]]):
             # Display the combined table with HTML rendering
             st.markdown("### Trade Metrics")
             st.markdown(combined_df.to_html(escape=False, index=False), unsafe_allow_html=True)
+
             st.write("---")
 
             # Visualization Section 
@@ -216,19 +217,20 @@ def display_trade_results(analysis_results: Dict[str, Dict[str, Any]]):
                     st.write("#### Trade Details") 
                     
                     # Create columns for Receiving and Trading Away players
-                    cols = st.columns(2)
-                    with cols[0]:
+                    cols = st.columns([1, 1])  # Adjusting the ratio can help
+                    
+                    with cols[1]:
                         st.write("**Receiving Players**")
                         st.write(", ".join(results.get('incoming_players', [])) or "None")
                     
-                    with cols[1]:
+                    with cols[0]:
                         st.write("**Trading Away Players**")
                         st.write(", ".join(results.get('outgoing_players', [])) or "None")
                     
                     st.write("---") 
 
                     # Create columns for Before Trade and After Trade Data
-                    trade_cols = st.columns(2)
+                    trade_cols = st.columns([1, 1])  # Adjusted ratios here as well
                     
                     with trade_cols[0]: 
                         st.write("#### Before Trade Data")

@@ -2,7 +2,7 @@ import streamlit as st
 from pathlib import Path
 from data_loader import load_data
 from trade_analysis import display_trade_analysis_page
-from trade_analyzer import TradeAnalyzer
+from trade_options import TradeAnalyzer
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT
 from player_data_display import (
     display_player_data, 
@@ -29,6 +29,8 @@ def main():
         st.session_state.debug_manager = type('DebugManager', (), {'debug_mode': False, 'toggle_debug': lambda: None})
     if 'trade_analyzer' not in st.session_state:
         st.session_state.trade_analyzer = None
+    if 'trade_analysis' not in st.session_state:
+        st.session_state.trade_analysis = None
 
     st.title(PAGE_TITLE)
     

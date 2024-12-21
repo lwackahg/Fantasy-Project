@@ -1,4 +1,4 @@
-"""Trade analyzer module for Fantasy Basketball Trade Analyzer."""
+"""Checks for Trade Options, Not the actual Trade Analyzer"""
 import pandas as pd
 from typing import Dict, List, Any, Optional, Tuple
 import numpy as np

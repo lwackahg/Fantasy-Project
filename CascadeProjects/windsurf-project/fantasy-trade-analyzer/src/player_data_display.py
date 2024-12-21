@@ -323,84 +323,79 @@ def display_metrics(data):
     with col3:
         st.metric("Avg FP/G", f"{data['FP/G'].mean():.1f}")
 
-def display_team_rankings(all_stats):
-    """Display rankings and trade analysis for fantasy managers' teams."""
-    
-    st.title("Team Rankings & Trade Analysis")
-    
-    if not all_stats:
-        st.write("No team data available for analysis.")
-        return
-    
-    selected_managers = st.multiselect("Select your team:", options=list(all_stats.keys()))
-    
-    if not selected_managers:
-        st.write("Please select at least one team.")
-        return
-    
-    def calculate_team_metrics(stats_df):
-        avg_fpg = stats_df['FP/G'].mean()
-        std_dev = stats_df['FP/G'].std()
-        consistency = std_dev / avg_fpg if avg_fpg > 0 else float('inf')
-        return {
-            'Average FP/G': round(avg_fpg, 2),
-            'Std Dev': round(std_dev, 2),
-            'Consistency Score': round(consistency, 3),
-            'Team Size': stats_df['Player'].nunique()
-        }
+def display_team_rankings(all_stats): 
+    """Display rankings and trade analysis for fantasy managers' teams.""" 
+     
+    st.title("Team Rankings and Trade Opportunities") 
+     
+    if not all_stats: 
+        st.write("No team data available for analysis.") 
+        return 
+     
+    selected_managers = st.multiselect("Select your team:", options=list(all_stats.keys())) 
+     
+    if not selected_managers: 
+        st.write("Please select at least one team.") 
+        return 
+     
+    def calculate_team_metrics(stats_df): 
+        avg_fpg = stats_df['FP/G'].mean() 
+        if avg_fpg > 0:
+            consistency = (stats_df['FP/G'].std() / avg_fpg) if avg_fpg else float('inf')
+        else:
+            consistency = float('inf')
+        return {'Average FP/G': round(avg_fpg, 2), 'Std Dev': round(stats_df['FP/G'].std(), 2), 
+                'Consistency Score': round(consistency, 3), 'Team Size': stats_df['Player'].nunique()}
 
-    team_rankings = [
-        {'Manager': manager, **calculate_team_metrics(stats_df)}
-        for manager, stats_df in all_stats.items() if not stats_df.empty
-    ]
-
-    rankings_df = pd.DataFrame(team_rankings)
-    st.subheader("Team Rankings")
-    styled_rankings = rankings_df.style\
-        .format({
-            'Average FP/G': '{:.2f}',
-            'Std Dev': '{:.2f}',
-            'Consistency Score': '{:.3f}',
-            'Team Size': '{:d}'
-        })\
+    team_rankings = pd.DataFrame(
+        [{**{'Manager': manager}, **calculate_team_metrics(stats_df)} for manager, stats_df in all_stats.items() if not stats_df.empty]
+    )
+    
+    st.subheader("Team Rankings") 
+    styled_rankings = team_rankings.style\
+        .format({'Average FP/G': '{:.2f}', 'Std Dev': '{:.2f}', 'Consistency Score': '{:.3f}', 'Team Size': '{:d}'})\
         .highlight_max(subset=['Average FP/G'], color='green')\
-        .highlight_min(subset=['Consistency Score'], color='red')
-    
-    st.dataframe(styled_rankings)
-    
-    # Detailed metrics for selected teams
-    st.subheader("Team Performance Metrics")
-    teams_per_row = 3
-    
-    for i in range(0, len(selected_managers), teams_per_row):
-        cols = st.columns(teams_per_row)
-        for col_idx, manager in enumerate(selected_managers[i:i + teams_per_row]):
-            stats_df = all_stats.get(manager, pd.DataFrame())
-            with cols[col_idx]:
-                st.write(f"**{manager}'s Team**")
-                if not stats_df.empty:
-                    team_metrics = stats_df.groupby('Time Range')['FP/G'].agg(['mean', 'median', 'std']).round(2)
-                    team_metrics.columns = ['Mean FP/G', 'Median FP/G', 'Std Dev']
-                    st.dataframe(
-                        team_metrics.style
-                        .highlight_max('Mean FP/G', color='green')
-                        .highlight_min('Mean FP/G', color='red')
-                        .format('{:.2f}')
-                    )
-                else:
-                    st.write("No data available.")
-    
-    # Trade Analysis Section
+        .highlight_min(subset=['Consistency Score'], color='green')
+
+    st.dataframe(styled_rankings) 
+     
+    # Detailed metrics for selected teams 
+    st.title("Team Performance Metrics") 
+    teams_per_row = 3 
+     
+    for i in range(0, len(selected_managers), teams_per_row): 
+        cols = st.columns(teams_per_row) 
+        for col_idx, manager in enumerate(selected_managers[i:i + teams_per_row]): 
+            if col_idx < len(cols):  # Check to prevent out-of-bounds
+                stats_df = all_stats.get(manager, pd.DataFrame()) 
+                with cols[col_idx]: 
+                    st.write(f"**{manager}'s Team**") 
+                    if not stats_df.empty: 
+                        team_metrics = stats_df.groupby('Time Range')['FP/G'].agg(['mean', 'median', 'std']).round(2)
+                        team_metrics.columns = ['Mean FP/G', 'Median FP/G', 'Std Dev'] 
+                        st.dataframe(team_metrics.style.highlight_max(axis=0, color='green').highlight_min(axis=0, color='red').format('{:.2f}')) 
+                    else: 
+                        st.write("No data available.") 
+     
+    # Assume all_stats and selected_managers are already defined
     st.subheader("Trade Opportunities")
     trade_data = generate_trade_opportunities(all_stats, selected_managers)
+
+    def get_user_max_difference():
+        # User specifies the maximum acceptable FP/G difference
+        max_difference = st.number_input("Maximum FP/G Difference:", min_value=0.0, value=4.0, format="%.2f")
+        return max_difference
+
+    max_difference = get_user_max_difference()
 
     if trade_data:
         player_to_manager = {player: manager for manager in selected_managers for player in all_stats[manager]['Player'].unique()}
         players = {name.split(" ➜")[0].replace("📈 ", "") for name, _, _ in trade_data}
         selected_player = st.selectbox("Select a player to analyze trades:", options=list(players))
-        
+
         for name, _, details in trade_data:
             player = name.split(" ➜")[0].replace("📈 ", "")
+            
             if player == selected_player and details:
                 player_manager = player_to_manager.get(selected_player)
                 if not player_manager:
@@ -415,37 +410,36 @@ def display_team_rankings(all_stats):
                 if player_by_range.empty:
                     st.write(f"No data available for {selected_player}")
                     continue
-                
-                trade_stats = [
+
+                trade_stats = pd.concat([
                     all_stats[manager][all_stats[manager]['Player'] == target].pivot_table(
                         values='FP/G', index='Player', columns='Time Range', aggfunc='mean'
                     ).round(2)
                     for target, _ in details
                     for manager in all_stats if target in all_stats[manager]['Player'].values
-                ]
-                
-                if trade_stats:
-                    combined_stats = pd.concat([player_by_range] + trade_stats)
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        st.write("### Performance Overview")
-                        st.write(f"**{selected_player}'s Performance by Time Range and Trade Targets** (From {player_manager}'s Team)")
-                        st.dataframe(combined_stats.style.highlight_max(axis=0, color='green').highlight_min(axis=0, color='red').format("{:.2f}"))
+                ], axis=0)
 
-                    with col2:
-                        st.write("### Performance Comparison")
-                        st.write(f"**{selected_player}'s Performance Comparison by Time Range and Trade Targets** (From {player_manager}'s Team)")
-                        player_row = player_by_range.loc[selected_player]
-                        diff_df = combined_stats.sub(player_row, axis=1)
-                        st.dataframe(diff_df.style.highlight_max(axis=0, color='green').highlight_min(axis=0, color='red').format("{:.2f}"))
+                # Calculate the difference for each time range and filter based on user-defined maximum difference
+                if not trade_stats.empty:
+                    player_fp_g = player_by_range.iloc[0]  # Assuming single row for the selected player
+                    difference_df = trade_stats.sub(player_fp_g, axis=1)
 
-                        st.write("### Trade Value Summary")
-                        for idx, row in diff_df.iterrows():
-                            if idx != selected_player:
-                                avg_diff = row.mean()
-                                recommendation = "Favorable" if avg_diff > 0 else "Unfavorable"
-                                st.write(f"{idx}: {recommendation} (Avg. diff: {avg_diff:.2f} FP/G)")
+                    # Create a mask to filter based on maximum difference for each time range
+                    # Check if any time range difference is within the user-specified limit
+                    acceptable_mask = (difference_df.abs() <= max_difference).any(axis=1)
+                    acceptable_trades = trade_stats[acceptable_mask]
+
+                    if not acceptable_trades.empty:
+                        
+
+                        
+                        st.write("### Performance Comparison ")
+                        st.write(f"**{selected_player}'s Performance Comparison by Time Range and atleast 1 range is withing the specified FP/G difference**")
+                        st.dataframe(acceptable_trades.style.highlight_max(axis=0, color='green').highlight_min(axis=0, color='red').format("{:.2f}"))
+                            
+                        
+                    else:
+                        st.write("No comparable trade targets found within the specified FP/G difference for any time range.")
                 else:
                     st.write("No comparable data available for trade targets.")
                 break
