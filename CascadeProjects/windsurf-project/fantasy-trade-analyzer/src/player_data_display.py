@@ -6,6 +6,8 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.express as px
+
 
 # Define constants for time range ordering
 TIME_RANGE_ORDER = ['7 Days', '14 Days', '30 Days', '60 Days', 'YTD']
@@ -244,54 +246,55 @@ def display_player_trends(player, current_data):
     """Display comprehensive trend analysis for a selected player."""
     all_data = []
 
+    # Collect player data from session state
     for key, data in st.session_state.data_ranges.items():
         data_with_player = data.reset_index()
         player_data = data_with_player[data_with_player['Player'] == player]
         if not player_data.empty:
             player_data['Time Range'] = key
             all_data.append(player_data)
-    
+
     if all_data:
         combined_data = pd.concat(all_data)
-        
+
         st.subheader(f'Performance Trends for {player}')
-        
+
         # Time range sorting
-        x_axis_sort_order = st.selectbox("Select Time Range Order:", ["Ascending", "Descending"])
+        sort_order = st.selectbox("Select Time Range Order:", ["Ascending", "Descending"])
         combined_data = combined_data.sort_values(by='Time Range', 
-            key=lambda x: pd.Categorical(x, TIME_RANGE_ORDER),
-            ascending=x_axis_sort_order == "Ascending")
-        
-        # Store the sorted data for later use
-        if 'trend_data' not in st.session_state:
-            st.session_state.trend_data = {}
-        st.session_state.trend_data[player] = combined_data
+            key=lambda x: pd.Categorical(x, TIME_RANGE_ORDER), 
+            ascending=sort_order == "Ascending")
+
+        # Store the sorted data for later use in session state
+        st.session_state.trend_data = {
+            "player": player,
+            "data": combined_data
+        }
 
         # Metric selection with defaults
         available_metrics = ['FPts', 'FP/G', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'MIN', 'GP']
-        y_axis_metrics = st.multiselect("Select Metrics to Plot:", available_metrics, default=['FP/G', 'FPts'])
+        y_axis_metrics = st.multiselect("Select Metrics to Plot:", available_metrics, default=['FP/G'])
 
         if y_axis_metrics:
-            # Create plot with custom styling
-            fig, ax1 = plt.subplots(figsize=(12, 6))
-            color_map = {'FP/G': 'blue', 'FPts': 'orange', 'GP': 'green'}
+            # Create a new DataFrame for charting
+            plot_data = combined_data[['Time Range'] + y_axis_metrics]
+            plot_data.set_index('Time Range', inplace=True)
 
-            for y_metric in y_axis_metrics:
-                color = color_map.get(y_metric, None)
-                ax1.plot(combined_data['Time Range'], combined_data[y_metric], 
-                        marker='o', label=y_metric, color=color)
+            # Create a Plotly line chart
+            fig = px.line(plot_data, x=plot_data.index, y=y_axis_metrics, markers=True, title=f'Performance Trends for {player}')
+            fig.update_traces(marker=dict(size=8))  # Customize marker size
 
-            ax1.set_xlabel('Time Range')
-            ax1.set_ylabel('Value')
-            ax1.set_title(f'{player} Metrics by Time Range')
-            ax1.tick_params(axis='x', rotation=45)
-            ax1.legend()
-            ax1.grid(True, alpha=0.3)
-            plt.tight_layout()
-            st.pyplot(fig)
+            # Show the Plotly chart in Streamlit
+            st.plotly_chart(fig)
+
+            st.write(f"Current Metrics for {player}:")
+            st.dataframe(plot_data)
+
+        else:
+            st.warning("Please select at least one metric to plot.")
 
     else:
-        st.write(f"No historical data available for {player}.")
+        st.error(f"No historical data available for {player}.")
 
 def display_player_data(data_ranges, combined_data):
     """Display the player data in a clean and searchable format."""
