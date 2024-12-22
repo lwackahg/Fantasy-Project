@@ -383,6 +383,9 @@ def display_team_rankings(all_stats):
     # Assume all_stats and selected_managers are already defined
     st.subheader("Trade Opportunities")
     trade_data = generate_trade_opportunities(all_stats, selected_managers)
+    st.write("First Select the Maximum FP/G Difference you are willing to accept")
+    st.write("Then Select a Player to Analyze Opportunities")
+
 
     def get_user_max_difference():
         # User specifies the maximum acceptable FP/G difference
@@ -582,6 +585,8 @@ def display_fantasy_managers_teams(current_data):
         
         with tab1:
             st.title("Fantasy Managers' Teams")
+            st.write("Red and Green highlight indicates high and low performance for each player.")
+
             # Define constant number of columns (3 per row)
             num_columns = 3
             
@@ -633,6 +638,7 @@ def display_fantasy_managers_teams(current_data):
                             .format("{:.2f}")
                         
                         st.write("Player Performance Breakdown:")
+
                         st.dataframe(styled_stats)
         
         with tab2:

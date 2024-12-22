@@ -43,7 +43,7 @@ def main():
         st.sidebar.title("Navigation")
         page = st.sidebar.radio(
             "Go to",
-            ["Player Overview", "Player Trends", "Team Scouting", "Trade Analysis", "Fantasy Managers' Teams"]
+            ["Trade Analysis" , "Team Details & Opportunities", "Team Scouting", "Player Trends", "Player Full Data"]
         )
 
     # Get data directory
@@ -58,7 +58,7 @@ def main():
             st.session_state.trade_analyzer = TradeAnalyzer(combined_data)
 
     if st.session_state.data_ranges:
-        if page == "Player Overview":
+        if page == "Player Full Data":
             ranges = list(st.session_state.data_ranges.keys())
             selected_range = st.selectbox("Select Time Range", ranges, index=0 if ranges else None)
 
@@ -80,7 +80,7 @@ def main():
         elif page == "Trade Analysis":
             display_trade_analysis_page()
 
-        elif page == "Fantasy Managers' Teams":
+        elif page == "Team Details & Opportunities":
             display_fantasy_managers_teams(st.session_state.combined_data)
 
 

@@ -210,39 +210,55 @@ def display_trade_results(analysis_results: Dict[str, Dict[str, Any]]):
                               labels={display_name: f"{display_name} Value"})
                 st.plotly_chart(fig, use_container_width=True)
 
-            # Time Range Analysis 
+            # Let's assume results is already defined
             time_range_tabs = st.tabs(time_ranges) 
             for time_tab, time_range in zip(time_range_tabs, time_ranges): 
                 with time_tab: 
                     st.write("#### Trade Details") 
+
+                    # Define players
+                    outgoing_players = results.get('outgoing_players', [])
+                    incoming_players = results.get('incoming_players', [])
                     
                     # Create columns for Receiving and Trading Away players
-                    cols = st.columns([1, 1])  # Adjusting the ratio can help
-                    
+                    cols = st.columns([1, 1]) 
+
                     with cols[1]:
                         st.write("**Receiving Players**")
-                        st.write(", ".join(results.get('incoming_players', [])) or "None")
+                        st.write(", ".join(incoming_players) or "None")
                     
                     with cols[0]:
                         st.write("**Trading Away Players**")
-                        st.write(", ".join(results.get('outgoing_players', [])) or "None")
+                        st.write(", ".join(outgoing_players) or "None")
                     
                     st.write("---") 
 
                     # Create columns for Before Trade and After Trade Data
-                    trade_cols = st.columns([1, 1])  # Adjusted ratios here as well
+                    trade_cols = st.columns([1, 1]) 
                     
                     with trade_cols[0]: 
                         st.write("#### Before Trade Data")
                         if time_range in results.get('pre_trade_rosters', {}):
                             roster_df_before = pd.DataFrame(results['pre_trade_rosters'][time_range]) 
-                            st.dataframe(roster_df_before, hide_index=True)
+                            
+                            # Highlight outgoing players
+                            def highlight_outgoing(row):
+                                return ['background-color: yellow' if row['Player'] in outgoing_players else '' for _ in row]
+
+                            styled_roster_before = roster_df_before.style.apply(highlight_outgoing, axis=1)
+                            st.dataframe(styled_roster_before, hide_index=True)
 
                     with trade_cols[1]: 
                         st.write("#### After Trade Data")
                         if time_range in results.get('post_trade_rosters', {}):
                             roster_df_after = pd.DataFrame(results['post_trade_rosters'][time_range]) 
-                            st.dataframe(roster_df_after, hide_index=True)
+                            
+                            # Highlight incoming players
+                            def highlight_incoming(row):
+                                return ['background-color: green' if row['Player'] in incoming_players else '' for _ in row]
+
+                            styled_roster_after = roster_df_after.style.apply(highlight_incoming, axis=1)
+                            st.dataframe(styled_roster_after, hide_index=True)
 
 
 def format_change(value, inverse=False):
