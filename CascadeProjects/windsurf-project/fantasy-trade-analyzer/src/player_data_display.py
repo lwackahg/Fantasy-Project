@@ -609,7 +609,7 @@ def display_fantasy_managers_teams(current_data):
                         team_metrics = stats_df.groupby('Time Range')['FP/G'].agg(['mean', 'median', 'std']).round(2)
                         team_metrics.columns = ['Mean FP/G', 'Median FP/G', 'Std Dev']
                         st.write("Team Metrics by Time Range:")
-                        st.dataframe(team_metrics)
+                        st.table(team_metrics)
 
                         # Create player performance table
                         player_performance = stats_df.pivot(index='Player', columns='Time Range', values='FP/G')
