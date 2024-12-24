@@ -7,6 +7,7 @@ import plotly.express as px
 from debug import debug_manager
 from data_loader import TEAM_MAPPINGS
 
+
 def get_team_name(team_id: str) -> str:
     """Get full team name from team ID."""
     return TEAM_MAPPINGS.get(team_id, team_id)

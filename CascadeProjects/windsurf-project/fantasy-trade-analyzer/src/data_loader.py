@@ -3,6 +3,8 @@ import re
 import streamlit as st
 from pathlib import Path
 import numpy as np
+import os 
+import time 
 
 TEAM_MAPPINGS = {
     'Sar': 'Shaq\'s Anus Ripples',
@@ -104,3 +106,19 @@ def load_data(data_dir: Path) -> tuple:
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
         return {}, pd.DataFrame()  # Return empty values on exception
+
+def csv_time():
+    path = "data/"
+    files = os.listdir(path)
+    oldest_timestamp = None  # Initialize to None to track the oldest timestamp
+
+    for file in files:
+        if file.endswith(".csv"):
+            timestamp = os.path.getmtime(os.path.join(path, file))
+            if oldest_timestamp is None or timestamp < oldest_timestamp:
+                oldest_timestamp = timestamp  # Update if this timestamp is older
+
+    if oldest_timestamp is not None:
+        # Convert to local time and format with AM/PM
+        return time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime(oldest_timestamp))  # Format to include AM/PM
+    return "No CSV files found."  # Return a message if no CSV files are present
