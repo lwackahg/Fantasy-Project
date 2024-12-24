@@ -52,7 +52,7 @@ def trade_setup():
         "Number of Top Players to Analyze",
         min_value=1,
         max_value=14,
-        value=9,
+        value=14,
         help="Select the number of top players to analyze"
     )
     
