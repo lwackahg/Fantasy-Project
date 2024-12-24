@@ -108,11 +108,11 @@ def load_data():
 
         # Store the timestamp in session state
         if oldest_timestamp is not None:
-            # Check if running on Streamlit Cloud
-            is_streamlit_cloud = os.environ.get('STREAMLIT_RUNTIME_ENV') == 'cloud'
+            # Check if running on localhost
+            is_local = st.get_option('server.address') == 'localhost'
             
-            # Only adjust timestamp if running on Streamlit Cloud
-            if is_streamlit_cloud:
+            # Only adjust timestamp if not running locally
+            if not is_local:
                 oldest_timestamp = oldest_timestamp - (5 * 3600)  # Subtract 5 hours in seconds
             
             st.session_state.csv_timestamp = time.strftime("%Y-%m-%d %I:%M:%S %p", 
