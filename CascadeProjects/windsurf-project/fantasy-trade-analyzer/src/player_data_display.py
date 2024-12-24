@@ -376,7 +376,7 @@ def display_team_rankings(all_stats):
                     if not stats_df.empty: 
                         team_metrics = stats_df.groupby('Time Range')['FP/G'].agg(['mean', 'median', 'std']).round(2)
                         team_metrics.columns = ['Mean FP/G', 'Median FP/G', 'Std Dev'] 
-                        st.dataframe(team_metrics.style.highlight_max(axis=0, color='green').highlight_min(axis=0, color='red').format('{:.2f}')) 
+                        st.table(team_metrics.style.highlight_max(axis=0, color='green').highlight_min(axis=0, color='red').format('{:.2f}')) 
                     else: 
                         st.write("No data available.") 
      
