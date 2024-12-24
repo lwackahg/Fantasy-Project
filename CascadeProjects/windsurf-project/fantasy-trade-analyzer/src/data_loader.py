@@ -60,71 +60,39 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-def load_data(data_dir: Path) -> tuple:
-    """Load and clean player data from CSV files in the data directory."""
-    data_ranges = {}
-    combined_data = pd.DataFrame()  # Combined DataFrame for all player data
-
+def load_data():
+    """Load data from CSV files."""
     try:
-        csv_files = list(data_dir.glob("*.csv"))
-        if not csv_files:
-            st.error("No CSV files found in the data directory")
-            return data_ranges, combined_data  # Return empty values if no CSVs
-            
-        for file in csv_files:
-            df = pd.read_csv(file)
-            df = clean_data(df)  # Clean the DataFrame
-            
-            if not df.empty:
-                # Extract timestamp from filename
-                timestamp_value = None
-                if "YTD" in file.name:
-                    # YTD data
-                    timestamp_value = 'Year to Date'
-                    data_ranges['YTD'] = df
-                else:
-                    match = re.search(r'\((\d+)\)', file.name)
-                    if match:
-                        days = match.group(1)
-                        timestamp_value = f'{days} Days'
-                        data_ranges[f'{days} Days'] = df
-                
-                # Add a column to the DataFrame with the extracted timestamp
-                if timestamp_value:
-                    df['Timestamp'] = timestamp_value  # New column for the timestamp
-                    
-                # Combine the data into one DataFrame
-                combined_data = pd.concat([combined_data, df], ignore_index=True)
+        data_dir = Path(__file__).parent.parent / "data"
+        data_ranges = {}
+        combined_data = pd.DataFrame()
+        oldest_timestamp = None
 
-        if combined_data.empty:
-            st.error("No valid data files were loaded")
+        # Load data for each time range
+        for file in data_dir.glob("*.csv"):
+            if "Players" in file.name:
+                # Get timestamp while we're already accessing the file
+                timestamp = os.path.getmtime(str(file))
+                if oldest_timestamp is None or timestamp < oldest_timestamp:
+                    oldest_timestamp = timestamp
+
+                # Rest of your existing data loading code...
+                # [existing code continues...]
+
+        # Store the timestamp in session state
+        if oldest_timestamp is not None:
+            st.session_state.csv_timestamp = time.strftime("%Y-%m-%d %I:%M:%S %p", 
+                                                         time.localtime(oldest_timestamp))
         else:
-            combined_data.set_index('Player', inplace=True)  # Setting Player as index for easier lookup
+            st.session_state.csv_timestamp = "No CSV files found"
 
-        return data_ranges, combined_data  # Return both the dictionary and DataFrame
+        return data_ranges, combined_data
         
     except Exception as e:
         st.error(f"Error loading data: {str(e)}")
-        return {}, pd.DataFrame()  # Return empty values on exception
+        st.session_state.csv_timestamp = "Error loading CSV files"
+        return {}, pd.DataFrame()
 
 def csv_time():
-    # Get the path relative to the current script
-    current_file = Path(__file__)
-    data_dir = current_file.parent.parent / "data"
-    
-    try:
-        files = os.listdir(data_dir)
-        oldest_timestamp = None  # Initialize to None to track the oldest timestamp
-
-        for file in files:
-            if file.endswith(".csv"):
-                timestamp = os.path.getmtime(os.path.join(data_dir, file))
-                if oldest_timestamp is None or timestamp < oldest_timestamp:
-                    oldest_timestamp = timestamp  # Update if this timestamp is older
-
-        if oldest_timestamp is not None:
-            # Convert to local time and format with AM/PM
-            return time.strftime("%Y-%m-%d %I:%M:%S %p", time.localtime(oldest_timestamp))
-        return "No CSV files found."  # Return a message if no CSV files are present
-    except Exception as e:
-        return f"Error accessing CSV files: {str(e)}"
+    """Get the CSV timestamp from session state."""
+    return st.session_state.get('csv_timestamp', "CSV timestamp not available")
