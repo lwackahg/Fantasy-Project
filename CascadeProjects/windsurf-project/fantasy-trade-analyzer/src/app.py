@@ -19,6 +19,7 @@ from player_data_display import display_fantasy_managers_teams
 def main():
     """Main application entry point."""
     st.set_page_config(page_title=PAGE_TITLE, page_icon=PAGE_ICON, layout=LAYOUT, menu_items=MENUITEMS)
+    # Load data
 
     # Initialize session state if needed
     if 'data_ranges' not in st.session_state:
@@ -66,7 +67,7 @@ def main():
 
     # Load data if not already loaded
     if not st.session_state.data_ranges:
-        data_ranges, combined_data = load_data(data_dir)
+        data_ranges, combined_data = load_data()  # Remove the data_dir parameter
         st.session_state.data_ranges = data_ranges
         st.session_state.combined_data = combined_data
         if combined_data is not None:

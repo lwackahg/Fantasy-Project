@@ -68,23 +68,48 @@ def load_data():
         combined_data = pd.DataFrame()
         oldest_timestamp = None
 
-        # Load data for each time range
-        for file in data_dir.glob("*.csv"):
-            if "Players" in file.name:
-                # Get timestamp while we're already accessing the file
-                timestamp = os.path.getmtime(str(file))
-                if oldest_timestamp is None or timestamp < oldest_timestamp:
-                    oldest_timestamp = timestamp
+        csv_files = list(data_dir.glob("*.csv"))
+        if not csv_files:
+            st.error("No CSV files found in the data directory")
+            st.session_state.csv_timestamp = "No CSV files found"
+            return data_ranges, combined_data
 
-                # Rest of your existing data loading code...
-                # [existing code continues...]
+        for file in csv_files:
+            # Get timestamp while we're already accessing the file
+            timestamp = os.path.getmtime(str(file))
+            if oldest_timestamp is None or timestamp < oldest_timestamp:
+                oldest_timestamp = timestamp
+
+            df = pd.read_csv(file)
+            df = clean_data(df)  # Clean the DataFrame
+            
+            if not df.empty:
+                # Extract timestamp from filename
+                timestamp_value = None
+                if "YTD" in file.name:
+                    timestamp_value = 'Year to Date'
+                    data_ranges['YTD'] = df
+                else:
+                    match = re.search(r'\((\d+)\)', file.name)
+                    if match:
+                        days = match.group(1)
+                        timestamp_value = f'{days} Days'
+                        data_ranges[f'{days} Days'] = df
+                
+                if timestamp_value:
+                    df['Timestamp'] = timestamp_value
+                    
+                combined_data = pd.concat([combined_data, df], ignore_index=True)
+
+        if combined_data.empty:
+            st.error("No valid data files were loaded")
+        else:
+            combined_data.set_index('Player', inplace=True)
 
         # Store the timestamp in session state
         if oldest_timestamp is not None:
             st.session_state.csv_timestamp = time.strftime("%Y-%m-%d %I:%M:%S %p", 
                                                          time.localtime(oldest_timestamp))
-        else:
-            st.session_state.csv_timestamp = "No CSV files found"
 
         return data_ranges, combined_data
         
