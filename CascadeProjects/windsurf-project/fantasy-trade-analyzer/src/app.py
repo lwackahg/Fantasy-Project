@@ -34,6 +34,8 @@ def main():
         st.session_state.trade_analyzer = None
     if 'trade_analysis' not in st.session_state:
         st.session_state.trade_analysis = None
+    if 'csv_timestamp' not in st.session_state:
+        st.session_state.csv_timestamp = "CSV timestamp not available"
 
     st.title(":rainbow[" +  PAGE_TITLE + "]")
     
