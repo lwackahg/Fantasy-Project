@@ -87,7 +87,7 @@ def load_data():
                 # Extract timestamp from filename
                 timestamp_value = None
                 if "YTD" in file.name:
-                    timestamp_value = 'Year to Date'
+                    timestamp_value = 'YTD'
                     data_ranges['YTD'] = df
                 else:
                     match = re.search(r'\((\d+)\)', file.name)

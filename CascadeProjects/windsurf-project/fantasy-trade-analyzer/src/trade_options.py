@@ -35,6 +35,7 @@ class TradeAnalyzer:
     def calculate_team_metrics(self, team_data: pd.DataFrame) -> Dict[str, Dict[str, float]]:
         """Calculate performance metrics for a team for different time ranges."""
         time_ranges = {
+            'YTD': 'YTD',
             '60 Days': 60,
             '30 Days': 30,
             '14 Days': 14,
@@ -46,7 +47,10 @@ class TradeAnalyzer:
         
         for range_name, days in time_ranges.items():
             # Filter data for time range
-            range_data = team_data[team_data['Timestamp'] == f'{days} Days'].copy()
+            if range_name == 'YTD':
+                range_data = team_data[team_data['Timestamp'] == 'YTD'].copy()
+            else:
+                range_data = team_data[team_data['Timestamp'] == f'{days} Days'].copy()
             
             if range_data.empty:
                 metrics_by_range[range_name] = {
@@ -82,7 +86,7 @@ class TradeAnalyzer:
             team_data = self.data[self.data['Status'] == team].copy()
             
             # Calculate pre-trade rosters for each time range
-            time_ranges = ['60 Days', '30 Days', '14 Days', '7 Days']
+            time_ranges = ['YTD', '60 Days', '30 Days', '14 Days', '7 Days']
             pre_trade_rosters = {}
             post_trade_rosters = {}
             
