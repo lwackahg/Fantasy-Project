@@ -193,11 +193,11 @@ def display_team_scouting(current_data, data_ranges):
         comparison_metrics = st.multiselect(
             "Select Stats to Compare:",
             available_metrics,
-            default=['FP/G', 'FPts']
+            default=['FP/G']
         )
         
         # Add N-best selector
-        n_best = st.slider("Show Top N Players:", min_value=1, max_value=len(team_players), value=5)
+        n_best = st.slider("Show Top N Players:", min_value=1, max_value=len(team_players), value=9)
         
         if comparison_metrics:
             st.subheader(f"Top {n_best} Players Analysis")
@@ -263,7 +263,7 @@ def display_player_trends(player, current_data):
         sort_order = st.selectbox("Select Time Range Order:", ["Ascending", "Descending"])
         combined_data = combined_data.sort_values(by='Time Range', 
             key=lambda x: pd.Categorical(x, TIME_RANGE_ORDER), 
-            ascending=sort_order == "Ascending")
+            ascending=sort_order == "Descending")
 
         # Store the sorted data for later use in session state
         st.session_state.trend_data = {
