@@ -50,32 +50,68 @@ class TradeAnalyzer:
             if range_name == 'YTD':
                 range_data = team_data[team_data['Timestamp'] == 'YTD'].copy()
             else:
-                range_data = team_data[team_data['Timestamp'] == f'{days} Days'].copy()
+                range_data = team_data[team_data['Days'] <= days].copy()
             
-            if range_data.empty:
-                metrics_by_range[range_name] = {
-                    'mean_fpg': 0.0,
-                    'median_fpg': 0.0,
-                    'std_dev': 0.0,
-                    'total_fpts': 0.0,
-                    'avg_gp': 0.0
-                }
+            if len(range_data) == 0:
                 continue
                 
+            # Calculate metrics
             metrics = {
                 'mean_fpg': range_data['FP/G'].mean(),
                 'median_fpg': range_data['FP/G'].median(),
                 'std_dev': range_data['FP/G'].std(),
-                'total_fpts': range_data['FPts'].sum(),
-                'avg_gp': range_data['GP'].mean() if 'GP' in range_data.columns else 0.0
+                'total_fpts': range_data['FP/G'].sum(),
+                'avg_gp': range_data['GP'].mean(),
+                'consistency_score': self._calculate_consistency_score(range_data),
+                'upside_potential': self._calculate_upside_potential(range_data),
+                'injury_risk': self._calculate_injury_risk(range_data)
             }
             
-            metrics_by_range[range_name] = {
-                k: float(v) if not pd.isna(v) else 0.0 
-                for k, v in metrics.items()
-            }
-        
+            metrics_by_range[range_name] = metrics
+            
         return metrics_by_range
+        
+    def _calculate_consistency_score(self, data: pd.DataFrame) -> float:
+        """Calculate a consistency score based on standard deviation and games played."""
+        if len(data) == 0:
+            return 0.0
+        std_dev = data['FP/G'].std()
+        avg_gp = data['GP'].mean()
+        max_std = data['FP/G'].max() - data['FP/G'].min()
+        
+        # Normalize std_dev (lower is better)
+        std_score = 1 - (std_dev / max_std if max_std > 0 else 0)
+        # Normalize GP (higher is better)
+        gp_score = avg_gp / data['GP'].max() if data['GP'].max() > 0 else 0
+        
+        # Combine scores (70% weight on consistency, 30% on games played)
+        return (0.7 * std_score + 0.3 * gp_score) * 100
+        
+    def _calculate_upside_potential(self, data: pd.DataFrame) -> float:
+        """Calculate upside potential based on peak performances."""
+        if len(data) == 0:
+            return 0.0
+        
+        # Calculate the 90th percentile of FP/G
+        percentile_90 = np.percentile(data['FP/G'], 90)
+        mean_fpg = data['FP/G'].mean()
+        
+        # Upside is the ratio of 90th percentile to mean
+        return (percentile_90 / mean_fpg - 1) * 100 if mean_fpg > 0 else 0
+        
+    def _calculate_injury_risk(self, data: pd.DataFrame) -> float:
+        """Calculate injury risk based on games played and recent history."""
+        if len(data) == 0:
+            return 0.0
+            
+        avg_gp = data['GP'].mean()
+        max_possible_gp = data['GP'].max()
+        
+        # Risk increases as games played decreases
+        risk_score = 1 - (avg_gp / max_possible_gp if max_possible_gp > 0 else 0)
+        
+        # Scale to 0-100
+        return risk_score * 100
     
     def evaluate_trade_fairness(self, trade_teams: Dict[str, Dict[str, str]], num_top_players: int = 10) -> Dict[str, Dict[str, Any]]:
         """Evaluate the fairness of a trade between teams."""
