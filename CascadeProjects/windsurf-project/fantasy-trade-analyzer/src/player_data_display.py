@@ -214,31 +214,114 @@ def display_player_trends(current_data):
 
         trend_averages.columns = trend_averages.columns.map(lambda x: x[1])  # Flatten MultiIndex
         
-        # Calculate trend using preferred columns
-        trend_averages['Trend'] = (- ((trend_averages['14 Days'] - trend_averages['7 Days']) * 0.66) - (trend_averages['60 Days'] - trend_averages['30 Days'])).round(2)
-        
+        # Prompt user for trend calculation method
+        user_choice = st.radio("Choose a method for trend calculation", ('Standard', 'Exponential', 'Custom'))
+
+        if user_choice == 'Standard':
+            trend_averages = standard_weighted_trend(trend_averages)
+        elif user_choice == 'Exponential':
+            trend_averages = exponential_weighted_trend(trend_averages)
+        elif user_choice == 'Custom':
+            weight_14d = st.number_input("Enter weight for 14 Days", value=1.0)
+            weight_60d = st.number_input("Enter weight for 60 Days", value=1.0)
+            weight_ytd = st.number_input("Enter weight for YTD", value=1.5)
+            trend_averages = custom_weighted_trend(trend_averages, weight_14d, weight_60d, weight_ytd)
+
         # Reorder the columns according to TIME_RANGE_ORDER
         ordered_columns = TIME_RANGE_ORDER + ['Trend']
         trend_averages = trend_averages[ordered_columns]  # Select and order columns
 
-        # Identify uptrending and downtrending players
-        uptrending_players = trend_averages[trend_averages['Trend'] > 0].sort_values(by='Trend', ascending=False)
-        downtrending_players = trend_averages[trend_averages['Trend'] < 0].sort_values(by='Trend')
+        # Define rigid YTD performance intervals
+        bins = range(0, int(trend_averages['YTD'].max()) + 10, 10)
+        labels = [f"{i}-{i+9}" for i in bins[:-1]]
+        trend_averages['YTD Group'] = pd.cut(trend_averages['YTD'], bins=bins, labels=labels, right=False)
 
-        # Display results
-        st.subheader("Uptrending Players")
-        if not uptrending_players.empty:
-            st.dataframe(uptrending_players)
-        else:
-            st.write("No players are currently trending up.")
+        # Identify injured players (having 0 in any Time Range)
+        injured_players = trend_averages[(trend_averages[TIME_RANGE_ORDER] == 0).any(axis=1)]
+        healthy_players = trend_averages[(trend_averages[TIME_RANGE_ORDER] != 0).all(axis=1)]
 
-        st.subheader("Downtrending Players")
-        if not downtrending_players.empty:
-            st.dataframe(downtrending_players)
-        else:
-            st.write("No players are currently trending down.")
+        # Identify uptrending and downtrending players from healthy players
+        uptrending_players = healthy_players[healthy_players['Trend'] > 0]
+        downtrending_players = healthy_players[healthy_players['Trend'] < 0]
+
+        # Sort by YTD Group and then by Trend
+        uptrending_players = uptrending_players.sort_values(by=['YTD Group', 'Trend'], ascending=[True, False])
+        downtrending_players = downtrending_players.sort_values(by=['YTD Group', 'Trend'])
+
+        # Display results for uptrending and downtrending players side by side
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("Uptrending Players, Sell High")
+            for group in labels[::-1]:  # Descending order
+                group_uptrending = uptrending_players[uptrending_players['YTD Group'] == group]
+                if not group_uptrending.empty:
+                    st.write(f"**YTD FP/G = {group}:**")
+                    st.dataframe(group_uptrending.drop(columns=['YTD Group']))
+
+        with col2:
+            st.subheader("Downtrending Players, Buy Low")
+            for group in labels[::-1]:  # Descending order
+                group_downtrending = downtrending_players[downtrending_players['YTD Group'] == group]
+                if not group_downtrending.empty:
+                    st.write(f"**YTD FP/G = {group}:**")
+                    st.dataframe(group_downtrending.drop(columns=['YTD Group']))
+            
+            # Display injured players at the bottom
+            st.subheader("Injured Players")
+            if not injured_players.empty:
+                st.dataframe(injured_players.drop(columns=['YTD Group']))
+            else:
+                st.write("No injured players identified.")
     else:
         st.error("No player data available for trend analysis.")
+
+
+def standard_weighted_trend(trend_averages, weight_14d=1, weight_60d=1, weight_ytd=1.5):
+    trend_averages['14 Days Diff'] = trend_averages['14 Days'] - trend_averages['7 Days']
+    trend_averages['60 Days Diff'] = trend_averages['60 Days'] - trend_averages['30 Days']
+    trend_averages['YTD Diff'] = trend_averages['YTD'] - trend_averages['60 Days']
+    
+    trend_averages['Trend'] = (
+        (weight_14d * trend_averages['14 Days Diff']) +
+        (weight_60d * trend_averages['60 Days Diff']) +
+        (weight_ytd * trend_averages['YTD Diff'])
+    ).round(2)
+
+    return trend_averages
+
+
+def exponential_weighted_trend(trend_averages):
+    trend_averages['14 Days Diff'] = trend_averages['14 Days'] - trend_averages['7 Days']
+    trend_averages['60 Days Diff'] = trend_averages['60 Days'] - trend_averages['30 Days']
+    trend_averages['YTD Diff'] = trend_averages['YTD'] - trend_averages['60 Days']
+    
+    # Applying exponential weights (decay factor)
+    weight_14d = 0.6
+    weight_60d = 0.3
+    weight_ytd = 1.0
+    
+    trend_averages['Trend'] = (
+        (weight_14d * trend_averages['14 Days Diff']) +
+        (weight_60d * trend_averages['60 Days Diff']) +
+        (weight_ytd * trend_averages['YTD Diff'])
+    ).round(2)
+
+    return trend_averages
+
+
+def custom_weighted_trend(trend_averages, weight_14d, weight_60d, weight_ytd):
+    trend_averages['14 Days Diff'] = trend_averages['14 Days'] - trend_averages['7 Days']
+    trend_averages['60 Days Diff'] = trend_averages['60 Days'] - trend_averages['30 Days']
+    trend_averages['YTD Diff'] = trend_averages['YTD'] - trend_averages['60 Days']
+    
+    trend_averages['Trend'] = (
+        (weight_14d * trend_averages['14 Days Diff']) +
+        (weight_60d * trend_averages['60 Days Diff']) +
+        (weight_ytd * trend_averages['YTD Diff'])
+    ).round(2)
+
+    return trend_averages
 
 
 def display_player_data(data_ranges, combined_data):

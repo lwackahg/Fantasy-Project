@@ -88,9 +88,7 @@ def main():
 
         elif page == ":blue[Player Trends]":
             current_data = st.session_state.combined_data.reset_index()
-            selected_player = st.selectbox("Select Player to View Trends", current_data['Player'].unique().tolist())
-            if selected_player:
-                display_player_trends(current_data)
+            display_player_trends(current_data)
 
         elif page == ":blue[Team Scouting]":
             display_team_scouting(st.session_state.combined_data, st.session_state.data_ranges)

@@ -47,7 +47,7 @@ These examples demonstrate how to effectively communicate with Windsurf, even wi
 
 Review the complete README noted in this project’s project notes. You have read and write access to these folders and files. READ ALL OF IT. Note the philosophy and step by step approach as we systematically rebuild this app. Scan and read the critical files like app.py.
 
-Complete the STOP AND VERIFY checklist:    - Identify Impact Area    - Note Current State    - Plan Single Change    - Verify Theme Generation (if applicable)
+(if applicable) Complete the STOP AND VERIFY checklist:    - Identify Impact Area    - Note Current State    - Plan Single Change    - Verify Theme Generation 
 
 Confirm we’re on Step [current step] and not jumping ahead
 
