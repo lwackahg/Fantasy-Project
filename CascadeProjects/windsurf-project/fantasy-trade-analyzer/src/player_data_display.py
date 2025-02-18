@@ -17,48 +17,51 @@ def get_ordered_time_ranges(ascending=True):
 
 
 def get_available_time_ranges(data_ranges):
-    """Return sorted time ranges actually present in the data."""
+    """Return sorted time ranges present in the data."""
     return sorted(data_ranges.keys(),
                   key=lambda x: TIME_RANGE_ORDER.index(x) if x in TIME_RANGE_ORDER else len(TIME_RANGE_ORDER))
 
 
-def calculate_player_stats(data_ranges, player, metrics):
-    """
-    Calculate player statistics across different time ranges.
-    Returns both the detailed stats DataFrame and a DataFrame with standard deviations.
-    """
-    stats, std_devs = [], {metric: [] for metric in metrics}
-    metric_values = {metric: [] for metric in metrics}
+def calculate_standard_deviation(metric_values):
+    """Calculate standard deviations for given metric values."""
+    return {metric: np.std(values) if values else 0 for metric, values in metric_values.items()}
 
-    # Collect values for metrics to calculate std dev
+
+def collect_player_data(data_ranges, player, metrics):
+    """Collect player data for given metrics across all time ranges."""
+    metric_values = {metric: [] for metric in metrics}
+    stats = []
+
     for range_name, df in data_ranges.items():
         player_data = df[df['Player'] == player]
+
         if not player_data.empty:
+            stats_row = {'Player': player, 'Time Range': range_name}
             for metric in metrics:
                 value = player_data[metric].iloc[0]
+                stats_row[metric] = value
                 metric_values[metric].append(value)
-
-    # Calculate standard deviations
-    std_devs = {metric: np.std(metric_values[metric]) if metric_values[metric] else 0 for metric in metrics}
-
-    # Collect stats
-    for range_name, df in data_ranges.items():
-        player_data = df[df['Player'] == player]
-        if not player_data.empty:
-            row_data = {'Player': player, 'Time Range': range_name}
-            row_data.update({metric: player_data[metric].iloc[0] for metric in metrics})
-            stats.append(row_data)
+            stats.append(stats_row)
 
     stats_df = pd.DataFrame(stats)
-    stats_df['Time Range'] = pd.Categorical(stats_df['Time Range'], TIME_RANGE_ORDER)
-    stats_df.sort_values('Time Range', inplace=True)
-
+    std_devs = calculate_standard_deviation(metric_values)
+    
+    # Converting std_devs to a DataFrame
     std_dev_df = pd.DataFrame([{ 
         'Player': player, 
         **{f'{metric}_STD': std_devs[metric] for metric in metrics}
     }])
-
+    
     return stats_df, std_dev_df
+
+
+def display_comparison_table(comparison_data, metric):
+    """Display styled comparison table for the given metric."""
+    styled_table = comparison_data.style.highlight_max(axis=1, color='green')\
+        .highlight_min(axis=1, color='red')\
+        .format("{:.2f}")\
+        .set_properties(border='1px solid #ddd')
+    st.dataframe(styled_table)
 
 
 def display_player_comparison(data_ranges, selected_players, metrics):
@@ -66,16 +69,12 @@ def display_player_comparison(data_ranges, selected_players, metrics):
     if not selected_players or not metrics:
         return
 
-    # Store DataFrames for later use
-    if 'comparison_data' not in st.session_state:
-        st.session_state.comparison_data = {}
-
     for metric in metrics:
         st.subheader(f"{metric} Comparison")
-
         all_stats, all_std_devs = [], []
+
         for player in selected_players:
-            stats_df, std_dev_df = calculate_player_stats(data_ranges, player, [metric])
+            stats_df, std_dev_df = collect_player_data(data_ranges, player, [metric])
             all_stats.append(stats_df)
             all_std_devs.append(std_dev_df)
 
@@ -86,17 +85,9 @@ def display_player_comparison(data_ranges, selected_players, metrics):
             pivot_table = combined_stats.pivot(index='Player', columns='Time Range', values=metric)
             pivot_table['STD_DEV'] = combined_std_devs[f'{metric}_STD'].values
 
-            # Ensure columns are in the correct order
             ordered_cols = [col for col in TIME_RANGE_ORDER if col in pivot_table.columns] + ['STD_DEV']
-            pivot_table = pivot_table[ordered_cols]
-
-            st.session_state.comparison_data[metric] = pivot_table
-            styled_table = pivot_table.style.highlight_max(axis=1, color='green')\
-                .highlight_min(axis=1, color='red')\
-                .format("{:.2f}")\
-                .set_properties(border='1px solid #ddd')
-
-            st.dataframe(styled_table)
+            st.session_state.comparison_data[metric] = pivot_table[ordered_cols]
+            display_comparison_table(pivot_table, metric)
 
 
 def calculate_team_metrics(data_ranges, players, metrics, n_best=None):
@@ -104,7 +95,7 @@ def calculate_team_metrics(data_ranges, players, metrics, n_best=None):
     all_stats, all_std_devs = [], []
 
     for player in players:
-        stats_df, std_dev_df = calculate_player_stats(data_ranges, player, metrics)
+        stats_df, std_dev_df = collect_player_data(data_ranges, player, metrics)
         all_stats.append(stats_df)
         all_std_devs.append(std_dev_df)
 
@@ -113,26 +104,21 @@ def calculate_team_metrics(data_ranges, players, metrics, n_best=None):
 
     combined_stats = pd.concat(all_stats)
     combined_std_devs = pd.concat(all_std_devs)
-    available_ranges = get_available_time_ranges(data_ranges)
 
     metric_tables = {}
     for metric in metrics:
         pivot = combined_stats.pivot(index='Player', columns='Time Range', values=metric)
-        pivot['Avg'] = pivot.mean(axis=1)
-        pivot.sort_values('Avg', ascending=False, inplace=True)
-        if n_best:
-            pivot = pivot.head(n_best)
-
-        totals = pivot[available_ranges].sum()
-        averages = pivot[available_ranges].mean()
-        std_devs = pivot[available_ranges].std()
+        pivot['Avg'] = pivot.mean(axis=1).sort_values(ascending=False).head(n_best) if n_best else pivot.mean(axis=1)
+        totals = pivot.sum()
+        averages = pivot.mean()
+        std_devs = pivot.std()
 
         metric_tables[metric] = {
             'individual': pivot,
             'totals': totals,
             'averages': averages,
             'std_devs': std_devs,
-            'available_ranges': available_ranges
+            'available_ranges': get_available_time_ranges(data_ranges)
         }
 
     return metric_tables
@@ -498,7 +484,7 @@ def display_fantasy_managers_teams(current_data):
         team_players = df[df['Fantasy_Manager'] == manager]['Player'].unique()
         stats = {}
         for player in team_players:
-            stats_df, _ = calculate_player_stats(st.session_state.data_ranges, player, ['FP/G'])
+            stats_df, _ = collect_player_data(st.session_state.data_ranges, player, ['FP/G'])
             stats[player] = stats_df if not stats_df.empty else None
         
         all_stats[manager] = pd.concat([v for v in stats.values() if v is not None], ignore_index=True)
