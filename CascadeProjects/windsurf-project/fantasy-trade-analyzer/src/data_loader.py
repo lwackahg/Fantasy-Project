@@ -25,7 +25,7 @@ TEAM_MAPPINGS = {
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """Clean the DataFrame by removing invalid entries and normalizing data."""
-    numeric_columns = ['FPts', 'FP/G', 'PTS', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'MIN']
+    numeric_columns = ['FPts', 'FP/G', 'PTS', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TO', 'TF', 'EJ', '3D', '2D', 'GP']
     
     # Convert numeric columns and remove rows with invalid entries
     for col in numeric_columns:
@@ -34,7 +34,7 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
             df = df[df[col].notna()]  # Remove rows where conversion failed
 
     # Ensure that required columns exist
-    required_columns = ['Player', 'Team', 'FP/G']
+    required_columns = ['Player', 'Status', 'FP/G']
     if not all(col in df.columns for col in required_columns):
         print("Error: Missing required columns. Required: {}".format(required_columns))
         return pd.DataFrame()  # Return an empty DataFrame if required columns are missing
@@ -45,6 +45,14 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 
     # Remove rows with missing or invalid player names
     df = df[df['Player'].notna() & (df['Player'] != '')]
+
+    # Drop RkOv, Opponent and Roster Status columns
+    if 'RkOv' in df.columns:
+        df = df.drop(columns=['RkOv'])
+    if 'Opponent' in df.columns:
+        df = df.drop(columns=['Opponent'])
+    if 'Roster Status' in df.columns:
+        df = df.drop(columns=['Roster Status'])
 
     # Calculate GP (Games Played) based on provided logic
     if 'FPts' in df.columns and 'FP/G' in df.columns:
