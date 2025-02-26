@@ -14,7 +14,7 @@ TEAM_MAPPINGS = {
     'Fent': 'Give me the fentanyl',
     'TRUMP': 'Kamala\'s Gunz',
     '420': 'Kevin O\'Leary',
-    'J&J': 'Ligma Johnson',
+    'J&J': 'Tauras\' Torn Johnson',
     'BabyOil': 'P Diddy\'s Slip & Slide',
     'PRO': 'President of Retarded Opera',
     'ROMO': 'Rudy Homo',
