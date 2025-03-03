@@ -5,6 +5,8 @@ from pathlib import Path
 import numpy as np
 import os
 import time
+import csv
+from functools import lru_cache
 
 TEAM_MAPPINGS = {
     'Sar': 'Shaq\'s Anus Ripples',
@@ -136,3 +138,179 @@ def load_data():
 def csv_time():
     """Get the CSV timestamp from session state."""
     return st.session_state.get('csv_timestamp', "CSV timestamp not available")
+
+@lru_cache(maxsize=1)
+def load_schedule_data():
+    """
+    Load and parse the schedule data from CSV file.
+    Cached to improve performance on repeated calls.
+    
+    Returns:
+        pd.DataFrame: Processed schedule data with proper columns
+    """
+    try:
+        # Get path to schedule.csv
+        schedule_path = Path(__file__).parent.parent / "data" / "schedule" / "schedule.csv"
+        
+        if not os.path.exists(schedule_path):
+            st.error("Schedule data file not found.")
+            return None
+        
+        # Process the data using a more robust approach
+        data = []
+        current_period = None
+        current_date_range = None
+        
+        # Read the file using csv module which handles quotes properly
+        with open(schedule_path, 'r', newline='') as file:
+            csv_reader = csv.reader(file)
+            
+            for row in csv_reader:
+                # Skip empty rows
+                if not row or all(cell.strip() == '' for cell in row):
+                    continue
+                
+                # Check if this is a scoring period line
+                if row[0].startswith("Scoring Period"):
+                    current_period = row[0].strip()
+                    continue
+                
+                # Check if this is a date range line
+                if row[0].startswith("(") and ")" in row[0]:
+                    current_date_range = row[0].strip('()"')
+                    continue
+                
+                # Process matchup line - we expect 4 columns: Team1, Score1, Team2, Score2
+                if len(row) >= 4:
+                    team1 = row[0].strip()
+                    score1_str = row[1].strip()
+                    team2 = row[2].strip()
+                    score2_str = row[3].strip()
+                    
+                    # Only add valid matchups (both teams have names)
+                    if team1 and team2 and not (team1.startswith("(") or team2.startswith("(")):
+                        # Convert scores to integers, handling commas in numbers
+                        try:
+                            score1 = int(score1_str.replace(",", ""))
+                        except ValueError:
+                            # If we can't convert to int, it might be a date or other text
+                            # Just set to 0 and continue without warning
+                            score1 = 0
+                        
+                        try:
+                            score2 = int(score2_str.replace(",", ""))
+                        except ValueError:
+                            score2 = 0
+                        
+                        # Add to data
+                        data.append({
+                            "Scoring Period": current_period,
+                            "Date Range": current_date_range,
+                            "Team 1": team1,
+                            "Score 1": score1,
+                            "Score 1 Display": score1_str,
+                            "Team 2": team2,
+                            "Score 2": score2,
+                            "Score 2 Display": score2_str,
+                            "Matchup": f"{team1} - {score1_str} vs {team2} - {score2_str}"
+                        })
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(data)
+        
+        if df.empty:
+            st.error("No data was parsed from the schedule file.")
+            return None
+        
+        # Add winner column
+        df["Winner"] = df.apply(
+            lambda row: row["Team 1"] if row["Score 1"] > row["Score 2"] 
+            else (row["Team 2"] if row["Score 2"] > row["Score 1"] else "Tie"),
+            axis=1
+        )
+        
+        # Extract period number for sorting
+        df["Period Number"] = df["Scoring Period"].apply(
+            lambda x: int(re.search(r"Scoring Period (\d+)", x).group(1)) if re.search(r"Scoring Period (\d+)", x) else 0
+        )
+        
+        # Sort by period
+        df = df.sort_values("Period Number")
+        
+        return df
+    
+    except Exception as e:
+        st.error(f"Error loading schedule data: {str(e)}")
+        import traceback
+        st.error(traceback.format_exc())
+        return None
+
+def calculate_team_stats(schedule_df):
+    """
+    Calculate performance statistics for each team.
+    
+    Args:
+        schedule_df (pd.DataFrame): The schedule data
+        
+    Returns:
+        pd.DataFrame: Team statistics
+    """
+    # Initialize stats dictionary
+    team_stats = {}
+    
+    # Get all unique teams first
+    all_teams = set(schedule_df["Team 1"].unique()) | set(schedule_df["Team 2"].unique())
+    
+    # Initialize team entries
+    for team in all_teams:
+        team_stats[team] = {
+            "Wins": 0,
+            "Losses": 0,
+            "Ties": 0,
+            "Points For": 0,
+            "Points Against": 0,
+            "Total Matchups": 0
+        }
+    
+    # Process each matchup - use vectorized operations where possible
+    for _, row in schedule_df.iterrows():
+        team1 = row["Team 1"]
+        team2 = row["Team 2"]
+        score1 = row["Score 1"]
+        score2 = row["Score 2"]
+        
+        # Update team1 stats
+        team_stats[team1]["Points For"] += score1
+        team_stats[team1]["Points Against"] += score2
+        team_stats[team1]["Total Matchups"] += 1
+        
+        # Update team2 stats
+        team_stats[team2]["Points For"] += score2
+        team_stats[team2]["Points Against"] += score1
+        team_stats[team2]["Total Matchups"] += 1
+        
+        # Update win/loss/tie records
+        if score1 > score2:
+            team_stats[team1]["Wins"] += 1
+            team_stats[team2]["Losses"] += 1
+        elif score2 > score1:
+            team_stats[team2]["Wins"] += 1
+            team_stats[team1]["Losses"] += 1
+        else:
+            team_stats[team1]["Ties"] += 1
+            team_stats[team2]["Ties"] += 1
+    
+    # Convert to DataFrame
+    stats_df = pd.DataFrame.from_dict(team_stats, orient="index")
+    
+    # Calculate win percentage
+    stats_df["Win %"] = stats_df.apply(
+        lambda row: round(row["Wins"] / row["Total Matchups"] * 100, 1) if row["Total Matchups"] > 0 else 0,
+        axis=1
+    )
+    
+    # Calculate average points
+    stats_df["Avg Points For"] = round(stats_df["Points For"] / stats_df["Total Matchups"], 1)
+    stats_df["Avg Points Against"] = round(stats_df["Points Against"] / stats_df["Total Matchups"], 1)
+    
+    return stats_df
