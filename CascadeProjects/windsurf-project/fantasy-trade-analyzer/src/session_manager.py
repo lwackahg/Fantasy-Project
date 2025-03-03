@@ -16,3 +16,10 @@ def init_session_state():
         st.session_state.schedule_selected_period = "All Periods"
     if 'schedule_selected_team' not in st.session_state:
         st.session_state.schedule_selected_team = "All Teams"
+    # Initialize schedule swap variables
+    if 'schedule_swap_team1' not in st.session_state:
+        st.session_state.schedule_swap_team1 = None
+    if 'schedule_swap_team2' not in st.session_state:
+        st.session_state.schedule_swap_team2 = None
+    if 'schedule_swap_performed' not in st.session_state:
+        st.session_state.schedule_swap_performed = False
