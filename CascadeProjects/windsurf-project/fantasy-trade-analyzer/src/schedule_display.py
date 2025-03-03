@@ -1,6 +1,8 @@
 import streamlit as st
 from data_loader import load_schedule_data, calculate_team_stats
-from schedule_analysis import swap_team_schedules, compare_team_stats
+from schedule_analysis import swap_team_schedules, compare_team_stats, calculate_all_schedule_swaps
+import plotly.express as px
+import pandas as pd
 
 def display_schedule_page():
     """
@@ -19,6 +21,14 @@ def display_schedule_page():
         st.session_state.schedule_swap_team2 = None
     if 'schedule_swap_performed' not in st.session_state:
         st.session_state.schedule_swap_performed = False
+    if 'all_swaps_calculated' not in st.session_state:
+        st.session_state.all_swaps_calculated = False
+    if 'all_swaps_data' not in st.session_state:
+        st.session_state.all_swaps_data = None
+    if 'all_swaps_original_stats' not in st.session_state:
+        st.session_state.all_swaps_original_stats = None
+    if 'all_swaps_summary' not in st.session_state:
+        st.session_state.all_swaps_summary = None
     
     st.title("Fantasy League Schedule")
     st.write("View the complete schedule and results for all fantasy matchups.")
@@ -223,63 +233,56 @@ def display_schedule_swap(schedule_df):
     Args:
         schedule_df (pd.DataFrame): The complete schedule data
     """
-    st.subheader("Schedule Swap Analysis")
-    st.write("See how standings would change if two teams swapped schedules.")
+    st.header("Schedule Swap Analysis")
+    st.write("Simulate what would happen if two teams swapped their entire schedules.")
     
-    st.markdown("## Schedule Swap Analysis")
-    
-    st.markdown("""
-    This feature allows you to simulate what would happen if two teams swapped schedules.
-    
-    **How it works:**
-    1. Team A takes Team B's schedule (faces Team B's opponents)
-    2. Team B takes Team A's schedule (faces Team A's opponents)
-    3. Team A uses Team B's original scores, and Team B uses Team A's original scores
-    4. Standings are recalculated based on these new matchups
-    
-    This helps answer the question: "How would Team A have performed with Team B's schedule and scores?"
-    """)
-    
-    # Get all teams for selection
-    all_teams = set(schedule_df["Team 1"].unique()) | set(schedule_df["Team 2"].unique())
-    all_teams = sorted(list(all_teams))
+    # Get all unique teams
+    teams = list(set(schedule_df["Team 1"].unique()) | set(schedule_df["Team 2"].unique()))
+    # Remove any non-team entries (like scoring period headers)
+    teams = [team for team in teams if not str(team).startswith("Scoring Period")]
     
     # Create two columns for team selection
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns([2, 2, 1])
     
     with col1:
-        # Get index for team1 if it exists in session state
-        team1_index = 0
-        if st.session_state.schedule_swap_team1 in all_teams:
-            team1_index = all_teams.index(st.session_state.schedule_swap_team1)
-            
+        # Select first team
         team1 = st.selectbox(
-            "Select First Team",
-            all_teams,
-            index=team1_index,
-            key="swap_team1_select"
+            "Select Team 1",
+            options=teams,
+            index=0 if st.session_state.schedule_swap_team1 is None else teams.index(st.session_state.schedule_swap_team1),
+            key="team1_select"
         )
         st.session_state.schedule_swap_team1 = team1
     
     with col2:
-        # Filter out team1 from options for team2
-        team2_options = [team for team in all_teams if team != team1]
+        # Select second team
+        # Filter out the first team from options
+        team2_options = [team for team in teams if team != team1]
         
-        # Get index for team2 if it exists in session state and is not team1
-        team2_index = 0
-        if st.session_state.schedule_swap_team2 in team2_options:
-            team2_index = team2_options.index(st.session_state.schedule_swap_team2)
-            
         team2 = st.selectbox(
-            "Select Second Team",
-            team2_options,
-            index=team2_index,
-            key="swap_team2_select"
+            "Select Team 2",
+            options=team2_options,
+            index=0 if st.session_state.schedule_swap_team2 is None or st.session_state.schedule_swap_team2 == team1 else 
+                  team2_options.index(st.session_state.schedule_swap_team2) if st.session_state.schedule_swap_team2 in team2_options else 0,
+            key="team2_select"
         )
         st.session_state.schedule_swap_team2 = team2
     
-    # Button to perform the swap analysis
-    if st.button("Analyze Schedule Swap"):
+    with col3:
+        # Add analyze button
+        analyze_button = st.button("Analyze Schedule Swap", use_container_width=True)
+    
+    # Add a button to calculate all possible swaps
+    all_swaps_col1, all_swaps_col2 = st.columns([3, 1])
+    
+    with all_swaps_col2:
+        calculate_all_button = st.button("Calculate All Swaps", use_container_width=True)
+    
+    with all_swaps_col1:
+        st.write("Calculate all possible team schedule swaps to find the most impactful combinations.")
+    
+    # Handle the analyze button for a single swap
+    if analyze_button:
         st.session_state.schedule_swap_performed = True
         
         with st.spinner("Analyzing schedule swap..."):
@@ -357,6 +360,14 @@ def display_schedule_swap(schedule_df):
                     new_wins = int(team_data["New Record"].split("-")[0])
                     win_diff = new_wins - old_wins
                     
+                    # Calculate standings position change
+                    original_standings = original_stats.sort_values("Win %", ascending=False).index.tolist()
+                    new_standings = new_stats.sort_values("Win %", ascending=False).index.tolist()
+                    
+                    old_position = original_standings.index(team1) + 1
+                    new_position = new_standings.index(team1) + 1
+                    position_change = old_position - new_position
+                    
                     # Create metrics for key stats
                     st.metric(
                         label="Record", 
@@ -371,6 +382,22 @@ def display_schedule_swap(schedule_df):
                         label="Win %", 
                         value=f"{team_data['New Win %']:.1f}%", 
                         delta=f"{win_pct_change:+.1f}%"
+                    )
+                    
+                    # Standings position
+                    position_text = f"#{new_position}"
+                    position_delta = None
+                    if position_change > 0:
+                        position_delta = f"Up {position_change} spots"
+                    elif position_change < 0:
+                        position_delta = f"Down {abs(position_change)} spots"
+                    else:
+                        position_delta = "No change"
+                        
+                    st.metric(
+                        label="Standings Position", 
+                        value=position_text,
+                        delta=position_delta
                     )
                     
                     # Points change
@@ -394,6 +421,14 @@ def display_schedule_swap(schedule_df):
                     new_wins = int(team_data["New Record"].split("-")[0])
                     win_diff = new_wins - old_wins
                     
+                    # Calculate standings position change
+                    original_standings = original_stats.sort_values("Win %", ascending=False).index.tolist()
+                    new_standings = new_stats.sort_values("Win %", ascending=False).index.tolist()
+                    
+                    old_position = original_standings.index(team2) + 1
+                    new_position = new_standings.index(team2) + 1
+                    position_change = old_position - new_position
+                    
                     # Create metrics for key stats
                     st.metric(
                         label="Record", 
@@ -408,6 +443,22 @@ def display_schedule_swap(schedule_df):
                         label="Win %", 
                         value=f"{team_data['New Win %']:.1f}%", 
                         delta=f"{win_pct_change:+.1f}%"
+                    )
+                    
+                    # Standings position
+                    position_text = f"#{new_position}"
+                    position_delta = None
+                    if position_change > 0:
+                        position_delta = f"Up {position_change} spots"
+                    elif position_change < 0:
+                        position_delta = f"Down {abs(position_change)} spots"
+                    else:
+                        position_delta = "No change"
+                        
+                    st.metric(
+                        label="Standings Position", 
+                        value=position_text,
+                        delta=position_delta
                     )
                     
                     # Points change
@@ -436,8 +487,16 @@ def display_schedule_swap(schedule_df):
                     if not team1_matchups.empty:
                         # Clean up the display
                         display_df = team1_matchups.copy()
-                        display_df = display_df[["Team 1", "Score 1", "Team 2", "Score 2", "Winner"]]
-                        display_df.columns = ["Team", "Score", "Opponent", "Opp Score", "Winner"]
+                        
+                        # Skip scoring period rows
+                        display_df = display_df[~display_df["Team 1"].astype(str).str.contains("Scoring Period")]
+                        
+                        # Include scoring period in the display
+                        display_df = display_df[["Scoring Period", "Team 1", "Score 1", "Team 2", "Score 2", "Winner"]]
+                        display_df.columns = ["Period", "Team", "Score", "Opponent", "Opp Score", "Winner"]
+                        
+                        # Extract period number for better display
+                        display_df["Period"] = display_df["Period"].str.replace("Scoring Period ", "Period ")
                         
                         # Highlight rows where team1 won
                         st.dataframe(
@@ -455,8 +514,16 @@ def display_schedule_swap(schedule_df):
                     if not team2_matchups.empty:
                         # Clean up the display
                         display_df = team2_matchups.copy()
-                        display_df = display_df[["Team 1", "Score 1", "Team 2", "Score 2", "Winner"]]
-                        display_df.columns = ["Team", "Score", "Opponent", "Opp Score", "Winner"]
+                        
+                        # Skip scoring period rows
+                        display_df = display_df[~display_df["Team 1"].astype(str).str.contains("Scoring Period")]
+                        
+                        # Include scoring period in the display
+                        display_df = display_df[["Scoring Period", "Team 1", "Score 1", "Team 2", "Score 2", "Winner"]]
+                        display_df.columns = ["Period", "Team", "Score", "Opponent", "Opp Score", "Winner"]
+                        
+                        # Extract period number for better display
+                        display_df["Period"] = display_df["Period"].str.replace("Scoring Period ", "Period ")
                         
                         # Highlight rows where team2 won
                         st.dataframe(
@@ -471,6 +538,174 @@ def display_schedule_swap(schedule_df):
             else:
                 st.error("Failed to perform schedule swap analysis.")
     
-    # Display instructions if no swap has been performed yet
-    if not st.session_state.schedule_swap_performed:
-        st.info("Select two teams and click 'Analyze Schedule Swap' to see how the standings would change if these teams swapped schedules.")
+    # Handle the calculate all swaps button
+    if calculate_all_button:
+        with st.spinner("Calculating all possible schedule swaps... This may take a moment."):
+            # Calculate all swaps
+            all_swaps, original_stats, summary_df = calculate_all_schedule_swaps(schedule_df)
+            
+            # Store results in session state
+            st.session_state.all_swaps_calculated = True
+            st.session_state.all_swaps_data = all_swaps
+            st.session_state.all_swaps_original_stats = original_stats
+            st.session_state.all_swaps_summary = summary_df
+    
+    # Display all swaps summary if calculated
+    if st.session_state.all_swaps_calculated and st.session_state.all_swaps_summary is not None:
+        st.subheader("All Possible Schedule Swaps")
+        
+        # Create tabs for different views
+        all_swaps_tab1, all_swaps_tab2 = st.tabs(["Most Impactful Swaps", "Filter by Team"])
+        
+        with all_swaps_tab1:
+            # Display the most impactful swaps
+            summary_df = st.session_state.all_swaps_summary
+            
+            # Create a more user-friendly display DataFrame
+            display_df = pd.DataFrame()
+            display_df["Team Pair"] = summary_df.apply(lambda row: f"{row['Team 1']} & {row['Team 2']}", axis=1)
+            display_df["Team 1"] = summary_df["Team 1"]
+            display_df["Team 1 Win % Change"] = summary_df["Team 1 Win % Change"].apply(lambda x: f"{x:+.1f}%")
+            display_df["Team 1 Position Change"] = summary_df["Team 1 Position Change"].apply(
+                lambda x: f"↑ {x}" if x > 0 else (f"↓ {abs(x)}" if x < 0 else "—")
+            )
+            display_df["Team 2"] = summary_df["Team 2"]
+            display_df["Team 2 Win % Change"] = summary_df["Team 2 Win % Change"].apply(lambda x: f"{x:+.1f}%")
+            display_df["Team 2 Position Change"] = summary_df["Team 2 Position Change"].apply(
+                lambda x: f"↑ {x}" if x > 0 else (f"↓ {abs(x)}" if x < 0 else "—")
+            )
+            display_df["Total Impact"] = summary_df["Total Absolute Change"].apply(lambda x: f"{x:.1f}%")
+            
+            # Show the top 10 most impactful swaps
+            st.write("Top 10 most impactful schedule swaps (based on total win percentage change):")
+            st.dataframe(display_df.head(10), use_container_width=True)
+            
+            # Create a bar chart of the top swaps
+            top_pairs = summary_df.head(10)
+            
+            # Prepare data for the chart
+            chart_data = []
+            for _, row in top_pairs.iterrows():
+                chart_data.append({
+                    "Team": row["Team 1"],
+                    "Win % Change": row["Team 1 Win % Change"],
+                    "Pair": f"{row['Team 1']} & {row['Team 2']}"
+                })
+                chart_data.append({
+                    "Team": row["Team 2"],
+                    "Win % Change": row["Team 2 Win % Change"],
+                    "Pair": f"{row['Team 1']} & {row['Team 2']}"
+                })
+            
+            chart_df = pd.DataFrame(chart_data)
+            
+            # Create the chart
+            fig = px.bar(
+                chart_df, 
+                x="Team", 
+                y="Win % Change", 
+                color="Pair",
+                title="Win Percentage Changes for Top 10 Most Impactful Swaps",
+                labels={"Win % Change": "Win % Change", "Team": "Team", "Pair": "Team Pair"},
+                height=500
+            )
+            
+            # Update layout
+            fig.update_layout(
+                xaxis_title="Team",
+                yaxis_title="Win % Change",
+                legend_title="Team Pair",
+                barmode="group"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with all_swaps_tab2:
+            # Add a filter by team dropdown
+            filter_team = st.selectbox(
+                "Filter by Team",
+                options=teams,
+                index=0
+            )
+            
+            # Filter the summary data to only show swaps involving the selected team
+            filtered_summary = summary_df[
+                (summary_df["Team 1"] == filter_team) | 
+                (summary_df["Team 2"] == filter_team)
+            ]
+            
+            # Create a display DataFrame
+            filter_display_df = pd.DataFrame()
+            filter_display_df["Swap Partner"] = filtered_summary.apply(
+                lambda row: row["Team 2"] if row["Team 1"] == filter_team else row["Team 1"], 
+                axis=1
+            )
+            
+            # Get the selected team's win % change
+            filter_display_df["Win % Change"] = filtered_summary.apply(
+                lambda row: row["Team 1 Win % Change"] if row["Team 1"] == filter_team else row["Team 2 Win % Change"],
+                axis=1
+            )
+            
+            # Format win % change
+            filter_display_df["Win % Change (formatted)"] = filter_display_df["Win % Change"].apply(lambda x: f"{x:+.1f}%")
+            
+            # Get position change
+            filter_display_df["Position Change"] = filtered_summary.apply(
+                lambda row: row["Team 1 Position Change"] if row["Team 1"] == filter_team else row["Team 2 Position Change"],
+                axis=1
+            )
+            
+            # Format position change
+            filter_display_df["Position Change (formatted)"] = filter_display_df["Position Change"].apply(
+                lambda x: f"↑ {x}" if x > 0 else (f"↓ {abs(x)}" if x < 0 else "—")
+            )
+            
+            # Get partner win % change
+            filter_display_df["Partner Win % Change"] = filtered_summary.apply(
+                lambda row: row["Team 2 Win % Change"] if row["Team 1"] == filter_team else row["Team 1 Win % Change"],
+                axis=1
+            )
+            
+            # Format partner win % change
+            filter_display_df["Partner Win % Change (formatted)"] = filter_display_df["Partner Win % Change"].apply(lambda x: f"{x:+.1f}%")
+            
+            # Sort by the selected team's win % change
+            filter_display_df = filter_display_df.sort_values("Win % Change", ascending=False)
+            
+            # Display the filtered data
+            st.write(f"All possible schedule swaps for {filter_team}:")
+            
+            # Display columns we want to show
+            display_columns = ["Swap Partner", "Win % Change (formatted)", "Position Change (formatted)", "Partner Win % Change (formatted)"]
+            st.dataframe(filter_display_df[display_columns], use_container_width=True)
+            
+            # Create a bar chart showing all swaps for this team
+            fig = px.bar(
+                filter_display_df, 
+                x="Swap Partner", 
+                y="Win % Change",
+                title=f"Win Percentage Changes for {filter_team} with Different Swap Partners",
+                labels={"Win % Change": "Win % Change", "Swap Partner": "Swap Partner"},
+                height=500,
+                color="Win % Change",
+                color_continuous_scale=["red", "white", "green"],
+                range_color=[-max(abs(filter_display_df["Win % Change"])), max(abs(filter_display_df["Win % Change"]))]
+            )
+            
+            # Update layout
+            fig.update_layout(
+                xaxis_title="Swap Partner",
+                yaxis_title="Win % Change"
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Add a button to set these teams for detailed analysis
+            selected_partner = filter_display_df.iloc[0]["Swap Partner"] if not filter_display_df.empty else None
+            
+            if selected_partner:
+                if st.button(f"Analyze {filter_team} & {selected_partner} in Detail"):
+                    st.session_state.schedule_swap_team1 = filter_team
+                    st.session_state.schedule_swap_team2 = selected_partner
+                    st.rerun()
