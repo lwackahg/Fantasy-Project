@@ -387,17 +387,22 @@ def display_schedule_swap(schedule_df):
                     # Standings position
                     position_text = f"#{new_position}"
                     position_delta = None
+                    delta_color = "off"  # Default to gray (no change)
+                    
                     if position_change > 0:
                         position_delta = f"Up {position_change} spots"
+                        delta_color = "normal"  # Green for improvement (lower number is better)
                     elif position_change < 0:
                         position_delta = f"Down {abs(position_change)} spots"
+                        delta_color = "inverse"  # Red for decline
                     else:
                         position_delta = "No change"
                         
                     st.metric(
                         label="Standings Position", 
                         value=position_text,
-                        delta=position_delta
+                        delta=position_delta,
+                        delta_color="normal" if position_change > 0 else "inverse" if position_change < 0 else "off"
                     )
                     
                     # Points change
@@ -448,17 +453,23 @@ def display_schedule_swap(schedule_df):
                     # Standings position
                     position_text = f"#{new_position}"
                     position_delta = None
+                    delta_color = "off"  # Default to gray (no change)
+                    
                     if position_change > 0:
                         position_delta = f"Up {position_change} spots"
+                        delta_color = "normal"  # Green for improvement (lower number is better)
                     elif position_change < 0:
                         position_delta = f"Down {abs(position_change)} spots"
+                        delta_color = "inverse"  # Red for decline
                     else:
                         position_delta = "No change"
                         
                     st.metric(
                         label="Standings Position", 
                         value=position_text,
-                        delta=position_delta
+                        delta=position_delta,
+                        delta_color="normal" if position_change > 0 else "inverse" if position_change < 0 else "off" 
+                        
                     )
                     
                     # Points change
@@ -567,18 +578,44 @@ def display_schedule_swap(schedule_df):
             display_df["Team 1"] = summary_df["Team 1"]
             display_df["Team 1 Win % Change"] = summary_df["Team 1 Win % Change"].apply(lambda x: f"{x:+.1f}%")
             display_df["Team 1 Position Change"] = summary_df["Team 1 Position Change"].apply(
-                lambda x: f"↑ {x}" if x > 0 else (f"↓ {abs(x)}" if x < 0 else "—")
+                lambda x: f"↑{abs(x)}" if x > 0 else (f"↓{abs(x)}" if x < 0 else "—")
             )
             display_df["Team 2"] = summary_df["Team 2"]
             display_df["Team 2 Win % Change"] = summary_df["Team 2 Win % Change"].apply(lambda x: f"{x:+.1f}%")
             display_df["Team 2 Position Change"] = summary_df["Team 2 Position Change"].apply(
-                lambda x: f"↑ {x}" if x > 0 else (f"↓ {abs(x)}" if x < 0 else "—")
+                lambda x: f"↑{abs(x)}" if x > 0 else (f"↓{abs(x)}" if x < 0 else "—")
             )
             display_df["Total Impact"] = summary_df["Total Absolute Change"].apply(lambda x: f"{x:.1f}%")
             
-            # Show the top 10 most impactful swaps
-            st.write("Top 10 most impactful schedule swaps (based on total win percentage change):")
-            st.dataframe(display_df.head(10), use_container_width=True)
+            # Sort by total impact
+            display_df = display_df.sort_values("Total Impact", ascending=False).reset_index(drop=True)
+            
+            # Apply styling
+            def highlight_changes(val):
+                if '↑' in str(val):
+                    return 'color: green'
+                elif '↓' in str(val):
+                    return 'color: red'
+                return ''
+            
+            def highlight_percentage(val):
+                if '+' in str(val):
+                    return 'color: green'
+                elif '-' in str(val):
+                    return 'color: red'
+                return ''
+            
+            # Display the table with all swaps
+            st.subheader("All Schedule Swaps (Sorted by Total Impact)")
+            st.dataframe(
+                display_df.style.applymap(
+                    highlight_changes, 
+                    subset=["Team 1 Position Change", "Team 2 Position Change"]
+                ).applymap(
+                    highlight_percentage,
+                    subset=["Team 1 Win % Change", "Team 2 Win % Change"]
+                )
+            )
             
             # Create a bar chart of the top swaps
             top_pairs = summary_df.head(10)
@@ -658,7 +695,7 @@ def display_schedule_swap(schedule_df):
             
             # Format position change
             filter_display_df["Position Change (formatted)"] = filter_display_df["Position Change"].apply(
-                lambda x: f"↑ {x}" if x > 0 else (f"↓ {abs(x)}" if x < 0 else "—")
+                lambda x: f"↑{abs(x)}" if x > 0 else (f"↓{abs(x)}" if x < 0 else "—")
             )
             
             # Get partner win % change
@@ -673,12 +710,36 @@ def display_schedule_swap(schedule_df):
             # Sort by the selected team's win % change
             filter_display_df = filter_display_df.sort_values("Win % Change", ascending=False)
             
+            # Apply styling
+            def highlight_changes(val):
+                if '↑' in str(val):
+                    return 'color: green'
+                elif '↓' in str(val):
+                    return 'color: red'
+                return ''
+            
+            def highlight_percentage(val):
+                if '+' in str(val):
+                    return 'color: green'
+                elif '-' in str(val):
+                    return 'color: red'
+                return ''
+            
             # Display the filtered data
             st.write(f"All possible schedule swaps for {filter_team}:")
             
             # Display columns we want to show
             display_columns = ["Swap Partner", "Win % Change (formatted)", "Position Change (formatted)", "Partner Win % Change (formatted)"]
-            st.dataframe(filter_display_df[display_columns], use_container_width=True)
+            st.dataframe(
+                filter_display_df[display_columns].style.applymap(
+                    highlight_changes, 
+                    subset=["Position Change (formatted)"]
+                ).applymap(
+                    highlight_percentage,
+                    subset=["Win % Change (formatted)", "Partner Win % Change (formatted)"]
+                ),
+                use_container_width=True
+            )
             
             # Create a bar chart showing all swaps for this team
             fig = px.bar(
