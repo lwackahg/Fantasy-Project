@@ -13,8 +13,8 @@ from player_data_display import (
     display_team_scouting,
 )
 from player_data_display import display_fantasy_managers_teams
-from schedule_manager import ScheduleManager
-from standings_manager import StandingsManager
+from schedule_display import display_schedule_page
+import pandas as pd
 
 def main():
     """Main application entry point."""
@@ -56,7 +56,7 @@ def main():
         # Navigation options
         page = st.sidebar.radio(
             "Go to",
-            [":violet[Trade Analysis]", ":violet[Team Details & Opportunities]", ":blue[Team Scouting]", ":blue[Player Trends]", ":rainbow[Player Full Data]", ":orange[Schedule Swap]"],
+            [":violet[Trade Analysis]", ":violet[Team Details & Opportunities]", ":blue[Team Scouting]", ":blue[Player Trends]", ":rainbow[Player Full Data]", ":green[Schedule]"],
         )
         # Add another divider
         st.sidebar.markdown("---")  # Horizontal line
@@ -98,40 +98,9 @@ def main():
 
         elif page == ":violet[Team Details & Opportunities]":
             display_fantasy_managers_teams(st.session_state.combined_data)
-
-        elif page == ":orange[Schedule Swap]":
-            schedule_manager = ScheduleManager(str(data_dir / "schedule/schedule.csv"))
-            standings_manager = StandingsManager(schedule_manager.schedule_df)
-            team1 = st.selectbox("Select Team 1", schedule_manager.get_teams())
-            team2 = st.selectbox("Select Team 2", schedule_manager.get_teams())
-            selected_teams = [team1, team2]
-            trade_executed = False
-            if st.button("Swap Schedules"):
-                updated_standings = schedule_manager.swap_schedules(team1, team2)
-                trade_executed = True
-                st.write("Updated Standings:")
-                st.dataframe(updated_standings)
             
-            st.subheader("Before Trade Standings")
-            before_standings = standings_manager.calculate_standings(selected_teams)
-            st.dataframe(before_standings)
-            
-            # Show weekly standings before trade
-            st.subheader("Weekly Standings Before Trade")
-            for period, group in before_standings.groupby('Period'):
-                st.write(f"Period {period}")
-                st.dataframe(group)
-            
-            if trade_executed:
-                st.subheader("After Trade Standings")
-                after_standings = standings_manager.calculate_standings(selected_teams)
-                st.dataframe(after_standings)
-                
-                # Show weekly standings after trade
-                st.subheader("Weekly Standings After Trade")
-                for period, group in after_standings.groupby('Period'):
-                    st.write(f"Period {period}")
-                    st.dataframe(group)
+        elif page == ":green[Schedule]":
+            display_schedule_page()
 
 
 if __name__ == "__main__":
