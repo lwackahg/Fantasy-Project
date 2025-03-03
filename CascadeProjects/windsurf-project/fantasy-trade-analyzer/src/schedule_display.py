@@ -296,60 +296,178 @@ def display_schedule_swap(schedule_df):
                 # Highlight the swapped teams
                 st.markdown(f"### Teams Swapped: **{team1}** and **{team2}**")
                 
-                # Display the comparison table with conditional formatting
-                st.dataframe(
-                    comparison.style.apply(
-                        lambda x: ['background-color: #232300' if i in [team1, team2] else '' 
-                                 for i in x.index],
-                        axis=0
-                    ),
-                    use_container_width=True
-                )
+                # Create columns for visualization
+                col1, col2 = st.columns([3, 2])
+                
+                with col1:
+                    # Display the comparison table with conditional formatting
+                    st.dataframe(
+                        comparison.style.apply(
+                            lambda x: ['background-color: #232300' if i in [team1, team2] else '' 
+                                     for i in x.index],
+                            axis=0
+                        ).format({
+                            "Original Win %": "{:.1f}%",
+                            "New Win %": "{:.1f}%",
+                            "Win % Change": "{:+.1f}%"
+                        }),
+                        use_container_width=True
+                    )
+                
+                with col2:
+                    # Create a bar chart showing win percentage changes
+                    top_changes = comparison.sort_values("Win % Change", ascending=False).head(6)
+                    fig = {
+                        "data": [
+                            {
+                                "x": top_changes.index,
+                                "y": top_changes["Win % Change"],
+                                "type": "bar",
+                                "marker": {
+                                    "color": ["#FFD700" if team in [team1, team2] else "#1E90FF" for team in top_changes.index]
+                                }
+                            }
+                        ],
+                        "layout": {
+                            "title": "Top Win % Changes",
+                            "xaxis": {"title": "Team"},
+                            "yaxis": {"title": "Win % Change"},
+                            "height": 300,
+                            "margin": {"t": 40, "b": 30, "l": 40, "r": 10},
+                            "paper_bgcolor": "rgba(0,0,0,0)",
+                            "plot_bgcolor": "rgba(0,0,0,0)",
+                            "font": {"color": "#FFFFFF"}
+                        }
+                    }
+                    st.plotly_chart(fig, use_container_width=True)
                 
                 # Show detailed impact for the swapped teams
                 st.subheader("Detailed Impact on Swapped Teams")
                 
-                # Create a filtered dataframe with just the swapped teams
-                swapped_teams_comparison = comparison.loc[[team1, team2]]
+                # Create columns for the two teams
+                col1, col2 = st.columns(2)
                 
-                # Display in a more readable format
-                for team in [team1, team2]:
-                    team_data = swapped_teams_comparison.loc[team]
+                # Display detailed stats for team1
+                with col1:
+                    team_data = comparison.loc[team1]
+                    st.markdown(f"### {team1}")
                     
-                    st.markdown(f"#### {team}")
+                    # Calculate win difference
+                    old_wins = int(team_data["Original Record"].split("-")[0])
+                    new_wins = int(team_data["New Record"].split("-")[0])
+                    win_diff = new_wins - old_wins
                     
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.markdown(f"**Original Record:** {team_data['Original Record']}")
-                        st.markdown(f"**Original Win %:** {team_data['Original Win %']:.3f}")
+                    # Create metrics for key stats
+                    st.metric(
+                        label="Record", 
+                        value=team_data["New Record"], 
+                        delta=f"{win_diff:+d} wins" if win_diff != 0 else "No change"
+                    )
                     
-                    with col2:
-                        st.markdown(f"**New Record:** {team_data['New Record']}")
-                        st.markdown(f"**New Win %:** {team_data['New Win %']:.3f}")
-                    
-                    # Show the change with an arrow indicator
+                    # Show the change with an arrow indicator and color
                     win_pct_change = team_data["Win % Change"]
-                    if win_pct_change > 0:
-                        st.markdown(f"**Win % Change:** +{win_pct_change:.3f} ")
-                    elif win_pct_change < 0:
-                        st.markdown(f"**Win % Change:** {win_pct_change:.3f} ")
-                    else:
-                        st.markdown(f"**Win % Change:** {win_pct_change:.3f} ")
+                    
+                    st.metric(
+                        label="Win %", 
+                        value=f"{team_data['New Win %']:.1f}%", 
+                        delta=f"{win_pct_change:+.1f}%"
+                    )
+                    
+                    # Points change
+                    pts_change = team_data["Pts For Change"]
+                    st.metric(
+                        label="Points For Change", 
+                        value=f"{pts_change:+.1f}", 
+                        delta=f"{pts_change:+.1f}",
+                        delta_color="normal"
+                    )
                     
                     st.markdown("---")
                 
-                # Option to view the swapped schedule
-                with st.expander("View Swapped Schedule"):
-                    # Only show matchups involving the swapped teams
-                    swapped_team_matchups = swapped_df[
-                        (swapped_df["Team 1"] == team1) | 
-                        (swapped_df["Team 2"] == team1) |
-                        (swapped_df["Team 1"] == team2) | 
-                        (swapped_df["Team 2"] == team2)
-                    ]
+                # Display detailed stats for team2
+                with col2:
+                    team_data = comparison.loc[team2]
+                    st.markdown(f"### {team2}")
                     
-                    # Display the swapped matchups
-                    display_table_view(swapped_team_matchups)
+                    # Calculate win difference
+                    old_wins = int(team_data["Original Record"].split("-")[0])
+                    new_wins = int(team_data["New Record"].split("-")[0])
+                    win_diff = new_wins - old_wins
+                    
+                    # Create metrics for key stats
+                    st.metric(
+                        label="Record", 
+                        value=team_data["New Record"], 
+                        delta=f"{win_diff:+d} wins" if win_diff != 0 else "No change"
+                    )
+                    
+                    # Show the change with an arrow indicator and color
+                    win_pct_change = team_data["Win % Change"]
+                    
+                    st.metric(
+                        label="Win %", 
+                        value=f"{team_data['New Win %']:.1f}%", 
+                        delta=f"{win_pct_change:+.1f}%"
+                    )
+                    
+                    # Points change
+                    pts_change = team_data["Pts For Change"]
+                    st.metric(
+                        label="Points For Change", 
+                        value=f"{pts_change:+.1f}", 
+                        delta=f"{pts_change:+.1f}",
+                        delta_color="normal"
+                    )
+                    
+                    st.markdown("---")
+                
+                # Add a visualization of the swapped schedules
+                st.subheader("Swapped Schedule Matchups")
+                
+                # Filter to show only the matchups involving the swapped teams
+                team1_matchups = swapped_df[(swapped_df["Team 1"] == team1) | (swapped_df["Team 2"] == team1)]
+                team2_matchups = swapped_df[(swapped_df["Team 1"] == team2) | (swapped_df["Team 2"] == team2)]
+                
+                # Create tabs for viewing the matchups
+                tab1, tab2 = st.tabs([f"{team1}'s New Schedule", f"{team2}'s New Schedule"])
+                
+                with tab1:
+                    # Display team1's new matchups
+                    if not team1_matchups.empty:
+                        # Clean up the display
+                        display_df = team1_matchups.copy()
+                        display_df = display_df[["Team 1", "Score 1", "Team 2", "Score 2", "Winner"]]
+                        display_df.columns = ["Team", "Score", "Opponent", "Opp Score", "Winner"]
+                        
+                        # Highlight rows where team1 won
+                        st.dataframe(
+                            display_df.style.apply(
+                                lambda x: ['background-color: rgba(0, 255, 0, 0.2)' if x["Winner"] == team1 else 
+                                          'background-color: rgba(255, 0, 0, 0.2)' if x["Winner"] != team1 and x["Winner"] != "Tie" else
+                                          'background-color: rgba(255, 255, 0, 0.2)' for _ in x],
+                                axis=1
+                            ),
+                            use_container_width=True
+                        )
+                
+                with tab2:
+                    # Display team2's new matchups
+                    if not team2_matchups.empty:
+                        # Clean up the display
+                        display_df = team2_matchups.copy()
+                        display_df = display_df[["Team 1", "Score 1", "Team 2", "Score 2", "Winner"]]
+                        display_df.columns = ["Team", "Score", "Opponent", "Opp Score", "Winner"]
+                        
+                        # Highlight rows where team2 won
+                        st.dataframe(
+                            display_df.style.apply(
+                                lambda x: ['background-color: rgba(0, 255, 0, 0.2)' if x["Winner"] == team2 else 
+                                          'background-color: rgba(255, 0, 0, 0.2)' if x["Winner"] != team2 and x["Winner"] != "Tie" else
+                                          'background-color: rgba(255, 255, 0, 0.2)' for _ in x],
+                                axis=1
+                            ),
+                            use_container_width=True
+                        )
             else:
                 st.error("Failed to perform schedule swap analysis.")
     
