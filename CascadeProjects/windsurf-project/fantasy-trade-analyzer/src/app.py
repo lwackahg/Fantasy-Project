@@ -9,10 +9,9 @@ from config import PAGE_TITLE, PAGE_ICON, LAYOUT, MENUITEMS
 from player_data_display import (
     display_player_data, 
     display_metrics, 
-    display_player_trends,
+    
     display_team_scouting,
 )
-from player_data_display import display_fantasy_managers_teams
 from schedule_display import display_schedule_page
 import pandas as pd
 
@@ -56,7 +55,7 @@ def main():
         # Navigation options
         page = st.sidebar.radio(
             "Go to",
-            [":violet[Trade Analysis]", ":violet[Team Details & Opportunities]", ":blue[Team Scouting]", ":blue[Player Trends]", ":rainbow[Player Full Data]", ":green[Schedule]"],
+            [":violet[Trade Analysis]", ":blue[Team Scouting]",  ":green[Schedule Swap]", ":rainbow[Player Full Data]"],
         )
         # Add another divider
         st.sidebar.markdown("---")  # Horizontal line
@@ -86,20 +85,15 @@ def main():
                 display_player_data(st.session_state.data_ranges, st.session_state.combined_data)
                 display_metrics(data)
 
-        elif page == ":blue[Player Trends]":
-            current_data = st.session_state.combined_data.reset_index()
-            display_player_trends(current_data)
+       
 
         elif page == ":blue[Team Scouting]":
             display_team_scouting(st.session_state.combined_data, st.session_state.data_ranges)
 
         elif page == ":violet[Trade Analysis]":
             display_trade_analysis_page()
-
-        elif page == ":violet[Team Details & Opportunities]":
-            display_fantasy_managers_teams(st.session_state.combined_data)
             
-        elif page == ":green[Schedule]":
+        elif page == ":green[Schedule Swap]":
             display_schedule_page()
 
 
