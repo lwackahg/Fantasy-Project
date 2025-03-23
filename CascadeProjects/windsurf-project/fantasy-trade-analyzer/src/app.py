@@ -2,7 +2,7 @@ import streamlit as st
 import os 
 import time 
 from pathlib import Path
-from data_loader import load_data, csv_time
+from data_loader import load_data, csv_time, load_draft_results
 from trade_analysis import display_trade_analysis_page
 from trade_options import TradeAnalyzer
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT, MENUITEMS
@@ -46,10 +46,13 @@ def main():
         st.sidebar.subheader(f":blue[{csv_time()}]")
         st.sidebar.markdown("---")
         
-        page = st.sidebar.radio("Go to", [":violet[Trade Analysis]", ":blue[Team Scouting]", ":green[Schedule Swap]", ":rainbow[Player Full Data]"])
+        page = st.sidebar.radio("Go to", [":violet[Trade Analysis]", ":blue[Team Scouting]", ":green[Schedule Swap]", ":rainbow[Player Full Data]", ":blue[Draft Results]"])
         st.sidebar.markdown("---")
         st.sidebar.subheader(":orange[Note:]")  
         st.sidebar.write(":orange[The CSV data is updated regularly. Please message me if you notice it's been too long.]")
+
+    # Load draft results once
+    draft_results = load_draft_results('data/Fantrax-Draft-Results-Mr Squidward’s 69.csv')
 
     # Get data directory
     data_dir = Path(__file__).parent.parent / "data"
@@ -71,7 +74,7 @@ def main():
             if selected_range:
                 st.session_state.current_range = selected_range
                 data = st.session_state.data_ranges[selected_range]
-                display_player_data(st.session_state.data_ranges, st.session_state.combined_data)
+                display_player_data(data, st.session_state.combined_data, draft_results)
                 display_metrics(data)
 
         elif page == ":blue[Team Scouting]":
@@ -82,6 +85,20 @@ def main():
             
         elif page == ":green[Schedule Swap]":
             display_schedule_page()
+
+        elif page == ":blue[Draft Results]":
+            def display_draft_results_page():
+                """Display the draft results page in the app."""
+                st.title(":blue[Draft Results]")
+                
+                # Load draft results
+                draft_results = load_draft_results('data/Fantrax-Draft-Results-Mr Squidward’s 69.csv')
+                
+                if draft_results.empty:
+                    st.warning("No draft results available.")
+                else:
+                    st.dataframe(draft_results)
+            display_draft_results_page()
 
 
 if __name__ == "__main__":

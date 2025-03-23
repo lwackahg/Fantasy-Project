@@ -29,46 +29,34 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """Clean the DataFrame by removing invalid entries and normalizing data."""
     numeric_columns = ['FPts', 'FP/G', 'PTS', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TO', 'TF', 'EJ', '3D', '2D', 'GP']
     
-    # Convert numeric columns and remove rows with invalid entries
-    for col in numeric_columns:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col].astype(str).str.strip(), errors='coerce')
-            df = df[df[col].notna()]  # Remove rows where conversion failed
+    # Check for the existence of numeric columns
+    existing_numeric_columns = [col for col in numeric_columns if col in df.columns]
 
-    # Ensure that required columns exist
+    # Convert numeric columns and drop rows with invalid entries
+    df[existing_numeric_columns] = df[existing_numeric_columns].apply(pd.to_numeric, errors='coerce')
+    df.dropna(subset=existing_numeric_columns, inplace=True)
+
+    # Ensure required columns exist
     required_columns = ['Player', 'Status', 'FP/G']
     if not all(col in df.columns for col in required_columns):
-        print("Error: Missing required columns. Required: {}".format(required_columns))
-        return pd.DataFrame()  # Return an empty DataFrame if required columns are missing
+        print(f"Error: Missing required columns. Required: {required_columns}")
+        return pd.DataFrame()
 
-    # Clean up team names
-    if 'Team' in df.columns:
-        df['Team'] = df['Team'].fillna('FA')
-
-    # Remove rows with missing or invalid player names
+    # Clean up team names and remove invalid player names
+    df['Team'] = df.get('Team', pd.Series(['FA'] * len(df)))
     df = df[df['Player'].notna() & (df['Player'] != '')]
 
-    # Drop RkOv, Opponent and Roster Status columns
-    if 'RkOv' in df.columns:
-        df = df.drop(columns=['RkOv'])
-    if 'Opponent' in df.columns:
-        df = df.drop(columns=['Opponent'])
-    if 'Roster Status' in df.columns:
-        df = df.drop(columns=['Roster Status'])
+    # Drop unnecessary columns
+    df.drop(columns=['RkOv', 'Opponent', 'Roster Status'], errors='ignore', inplace=True)
 
-    # Calculate GP (Games Played) based on provided logic
+    # Calculate GP (Games Played) if columns exist
     if 'FPts' in df.columns and 'FP/G' in df.columns:
-        df['GP'] = np.ceil(df['FPts'] / df['FP/G']).fillna(0).astype(int)  # Ceiling rounding and convert to int
-        
-    # Assign Fantasy Manager Names based on Status column
-    if 'Status' in df.columns:
-        df['Fantasy_Manager'] = df['Status'].map(TEAM_MAPPINGS).fillna('Unknown Manager')
+        df['GP'] = np.ceil(df['FPts'] / df['FP/G']).fillna(0).astype(int)
 
-    # Reset index if 'Player' is in DataFrame
-    if 'Player' in df.columns:
-        df.reset_index(inplace=True, drop=True)
+    # Map Fantasy Manager Names
+    df['Fantasy_Manager'] = df['Status'].map(TEAM_MAPPINGS).fillna('Unknown Manager')
 
-    return df
+    return df.reset_index(drop=True)
 
 def load_data():
     """Load data from CSV files."""
@@ -314,3 +302,32 @@ def calculate_team_stats(schedule_df):
     stats_df["Avg Points Against"] = round(stats_df["Points Against"] / stats_df["Total Matchups"], 1)
     
     return stats_df
+
+def load_draft_results(file_path: str) -> pd.DataFrame:
+    """Load and process the draft results from a CSV file."""
+    try:
+        draft_df = pd.read_csv(file_path)
+        # Ensure necessary columns are present
+        required_columns = ['Player ID', 'Pick', 'Pos', 'Player', 'Team', 'Bid', 'Fantasy Team', 'Time (EDT)']
+        if not all(col in draft_df.columns for col in required_columns):
+            raise ValueError(f"Missing required columns in draft results. Required: {required_columns}")
+        
+        # Process data as needed (e.g., convert types, handle missing values)
+        draft_df['Bid'] = pd.to_numeric(draft_df['Bid'], errors='coerce').fillna(0)
+        draft_df['Time (EDT)'] = pd.to_datetime(draft_df['Time (EDT)'], errors='coerce')
+
+        # Map Fantasy Team Names
+        draft_df['Fantasy Team Full Name'] = draft_df['Fantasy Team'].map(TEAM_MAPPINGS).fillna('Unknown Team')
+        
+        return draft_df
+    except Exception as e:
+        print(f"Error loading draft results: {e}")
+        return pd.DataFrame()
+
+# Example usage
+# draft_results = load_draft_results('data/Fantrax-Draft-Results-Mr Squidward’s 69.csv')
+
+# Display TEAM_MAPPINGS for reference
+print("Fantasy Team Mappings:")
+for key, value in TEAM_MAPPINGS.items():
+    print(f"{key} -> {value}")

@@ -176,24 +176,18 @@ def display_team_scouting(current_data, data_ranges):
             display_player_comparison(data_ranges, comparison_players, comparison_metrics)
 
 
-def display_player_data(data_ranges, combined_data):
-    """Display the player data in a clean and searchable format."""
-    st.subheader("Player Data Overview")
-
-    if not combined_data.empty:
-        search_query = st.text_input("Search Players", "").strip()
-
-        if search_query:
-            filtered_data = combined_data[combined_data.index.str.contains(search_query, case=False, na=False)]
-            if not filtered_data.empty:
-                st.write(f"Data for **{search_query}**:")
-                st.dataframe(filtered_data)
-            else:
-                st.write("Player not found.")
-        else:
-            st.dataframe(combined_data)
+def display_player_data(player_data, combined_data, draft_results):
+    """Display player data with additional draft information."""
+    st.header("Player Data")
+    
+    # Merge player data with draft results on Player Name
+    player_data = player_data.merge(draft_results[['Player', 'Bid', 'Pick']], on='Player', how='left')
+    
+    # Display player data
+    if player_data.empty:
+        st.warning("No player data available.")
     else:
-        st.write("No data available to display.")
+        st.dataframe(player_data)
 
 
 def display_metrics(data):
