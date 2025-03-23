@@ -316,8 +316,7 @@ def load_draft_results(file_path: str) -> pd.DataFrame:
         draft_df['Bid'] = pd.to_numeric(draft_df['Bid'], errors='coerce').fillna(0)
         draft_df['Time (EDT)'] = pd.to_datetime(draft_df['Time (EDT)'], errors='coerce')
 
-        # Map Fantasy Team Names
-        draft_df['Fantasy Team Full Name'] = draft_df['Fantasy Team'].map(TEAM_MAPPINGS).fillna('Unknown Team')
+       
         
         return draft_df
     except Exception as e:
@@ -326,8 +325,3 @@ def load_draft_results(file_path: str) -> pd.DataFrame:
 
 # Example usage
 # draft_results = load_draft_results('data/Fantrax-Draft-Results-Mr Squidward’s 69.csv')
-
-# Display TEAM_MAPPINGS for reference
-print("Fantasy Team Mappings:")
-for key, value in TEAM_MAPPINGS.items():
-    print(f"{key} -> {value}")

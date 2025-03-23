@@ -3,23 +3,18 @@ from debug import debug_manager
 
 def init_session_state():
     """Initialize session state variables."""
-    if 'data_ranges' not in st.session_state:
-        st.session_state.data_ranges = {}
-    if 'current_range' not in st.session_state:
-        st.session_state.current_range = None
-    if 'debug_manager' not in st.session_state:
-        st.session_state.debug_manager = debug_manager
-    # Initialize schedule view preferences
-    if 'schedule_view_type' not in st.session_state:
-        st.session_state.schedule_view_type = "List View"
-    if 'schedule_selected_period' not in st.session_state:
-        st.session_state.schedule_selected_period = "All Periods"
-    if 'schedule_selected_team' not in st.session_state:
-        st.session_state.schedule_selected_team = "All Teams"
-    # Initialize schedule swap variables
-    if 'schedule_swap_team1' not in st.session_state:
-        st.session_state.schedule_swap_team1 = None
-    if 'schedule_swap_team2' not in st.session_state:
-        st.session_state.schedule_swap_team2 = None
-    if 'schedule_swap_performed' not in st.session_state:
-        st.session_state.schedule_swap_performed = False
+    default_states = {
+        'data_ranges': {},
+        'current_range': None,
+        'debug_manager': debug_manager,
+        'schedule_view_type': "List View",
+        'schedule_selected_period': "All Periods",
+        'schedule_selected_team': "All Teams",
+        'schedule_swap_team1': None,
+        'schedule_swap_team2': None,
+        'schedule_swap_performed': False
+    }
+    
+    for key, default_value in default_states.items():
+        if key not in st.session_state:
+            st.session_state[key] = default_value
