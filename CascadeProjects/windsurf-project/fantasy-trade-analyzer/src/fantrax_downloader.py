@@ -65,14 +65,15 @@ def login_to_fantrax(driver, username, password):
 
 from datetime import datetime
 
+DEFAULT_START = "2024-10-22"
+DEFAULT_END = "2025-04-13"
+
 def download_players_csv(driver, start_date=None, end_date=None, league_id=None):
 	"""
 	Logs in with Selenium, then downloads the Fantrax CSV using requests and session cookies.
 	start_date, end_date: strings in YYYY-MM-DD format
 	league_id: Fantrax league ID string (required)
 	"""
-	DEFAULT_START = "2024-10-22"
-	DEFAULT_END = "2025-04-13"
 	if not start_date:
 		start_date = DEFAULT_START
 	if not end_date:
@@ -195,4 +196,9 @@ def main():
 
 
 if __name__ == '__main__':
-	main()
+	print("This script will download all default ranges for the default league.")
+	resp = input("Proceed with download? [y/N]: ").strip().lower()
+	if resp == 'y':
+		main()
+	else:
+		print("Aborted. No downloads performed.")

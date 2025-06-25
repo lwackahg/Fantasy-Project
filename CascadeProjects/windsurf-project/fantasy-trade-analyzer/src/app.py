@@ -14,6 +14,8 @@ from player_data_display import (
 )
 from schedule_display import display_schedule_page
 import pandas as pd
+from player_csv_selector import select_player_csv_files, load_selected_csvs
+from streamlit_downloader_ui import downloader_sidebar
 
 def main():
     """Main application entry point."""
@@ -46,20 +48,53 @@ def main():
         st.sidebar.subheader(f":blue[{csv_time()}]")
         st.sidebar.markdown("---")
         
+        # Downloader UI (league/range selection and download)
+        downloader_sidebar()
+        # CSV Selection Section
+        st.sidebar.subheader(":blue[Select Player CSV(s)]")
+        data_dir = Path(__file__).parent.parent / "data"
+        selected_files = select_player_csv_files(data_dir)
+        load_btn = st.sidebar.button("Load Selected CSVs")
+        st.sidebar.markdown("---")
+        
         page = st.sidebar.radio("Go to", [":violet[Trade Analysis]", ":blue[Team Scouting]", ":green[Schedule Swap]", ":rainbow[Player Full Data]", ":blue[Draft Results]"])
         st.sidebar.markdown("---")
         st.sidebar.subheader(":orange[Note:]")  
-        st.sidebar.write(":orange[The CSV data is updated regularly. Please message me if you notice it's been too long.]")
+        st.sidebar.write(":orange[The CSV data is updated regularly. Please message me if you notice it's been too long.")
 
     # Load draft results once
     draft_results = load_draft_results('data/Fantrax-Draft-Results-Mr Squidward’s 69.csv')
 
-    # Get data directory
-    data_dir = Path(__file__).parent.parent / "data"
-
-    # Load data if not already loaded
-    if not st.session_state.data_ranges:
-        data_ranges, combined_data = load_data()  # Remove the data_dir parameter
+    # Only load data when user presses button
+    if load_btn and selected_files:
+        loaded_csvs = load_selected_csvs(selected_files)
+        # Patch: temporarily replace load_data logic to only use selected files
+        # We'll mimic load_data but only for selected files
+        import re
+        from data_loader import clean_data
+        data_ranges = {}
+        combined_data = pd.DataFrame()
+        for file in selected_files:
+            try:
+                df = clean_data(loaded_csvs[file.name])
+                if not df.empty:
+                    timestamp_value = None
+                    if "YTD" in file.name:
+                        timestamp_value = 'YTD'
+                        data_ranges['YTD'] = df
+                    else:
+                        match = re.search(r'\((\d+)\)', file.name)
+                        if match:
+                            days = match.group(1)
+                            timestamp_value = f'{days} Days'
+                            data_ranges[f'{days} Days'] = df
+                    if timestamp_value:
+                        df['Timestamp'] = timestamp_value
+                    combined_data = pd.concat([combined_data, df], ignore_index=True)
+            except Exception as e:
+                st.error(f"Failed to process {file.name}: {e}")
+        if not combined_data.empty:
+            combined_data.set_index('Player', inplace=True)
         st.session_state.data_ranges = data_ranges
         st.session_state.combined_data = combined_data
         if combined_data is not None:
