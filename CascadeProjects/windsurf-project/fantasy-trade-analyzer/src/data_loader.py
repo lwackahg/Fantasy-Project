@@ -6,7 +6,11 @@ import numpy as np
 import os
 import time
 import csv
-from functools import lru_cache
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 TEAM_MAPPINGS = {
     'Sar': 'Shaq\'s Anus Ripples',
@@ -58,63 +62,71 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 
     return df.reset_index(drop=True)
 
-def load_data():
-    """Load data from CSV files."""
-    try:
-        data_dir = Path(__file__).parent.parent / "data"
-        data_ranges = {}
-        combined_data = pd.DataFrame()
-        oldest_timestamp = None
+@st.cache_data
+def _load_and_clean_csv_data(file_paths):
+    """Loads and processes a tuple of CSV file paths, returning clean data."""
+    data_ranges = {}
+    combined_data = pd.DataFrame()
 
-        csv_files = list(data_dir.glob("*.csv"))
+    for file_path in file_paths:
+        file = Path(file_path)
+        df = pd.read_csv(file)
+        df = clean_data(df)  # Clean the DataFrame
+        
+        if not df.empty:
+            # Extract timestamp from filename
+            timestamp_value = None
+            if "YTD" in file.name:
+                timestamp_value = 'YTD'
+                data_ranges['YTD'] = df
+            else:
+                match = re.search(r'\((\d+)\)', file.name)
+                if match:
+                    days = match.group(1)
+                    timestamp_value = f'{days} Days'
+                    data_ranges[f'{days} Days'] = df
+            
+            if timestamp_value:
+                df['Timestamp'] = timestamp_value
+                
+            combined_data = pd.concat([combined_data, df], ignore_index=True)
+
+    if not combined_data.empty:
+        combined_data.set_index('Player', inplace=True)
+    
+    return data_ranges, combined_data
+
+def load_data():
+    """
+    Finds CSV files, loads them using a cached function, and handles UI/session state.
+    """
+    try:
+        project_root = Path(__file__).parent.parent
+        data_dir = project_root / "data"
+        csv_files = [str(f) for f in data_dir.glob('*.csv') if f.is_file()]
+
         if not csv_files:
             st.error("No CSV files found in the data directory")
             st.session_state.csv_timestamp = "No CSV files found"
-            return data_ranges, combined_data
+            return {}, pd.DataFrame()
 
-        for file in csv_files:
-            # Get timestamp while we're already accessing the file
-            timestamp = os.path.getmtime(str(file))
-            if oldest_timestamp is None or timestamp < oldest_timestamp:
-                oldest_timestamp = timestamp
-
-            df = pd.read_csv(file)
-            df = clean_data(df)  # Clean the DataFrame
-            
-            if not df.empty:
-                # Extract timestamp from filename
-                timestamp_value = None
-                if "YTD" in file.name:
-                    timestamp_value = 'YTD'
-                    data_ranges['YTD'] = df
-                else:
-                    match = re.search(r'\((\d+)\)', file.name)
-                    if match:
-                        days = match.group(1)
-                        timestamp_value = f'{days} Days'
-                        data_ranges[f'{days} Days'] = df
-                
-                if timestamp_value:
-                    df['Timestamp'] = timestamp_value
-                    
-                combined_data = pd.concat([combined_data, df], ignore_index=True)
+        # Get the list of file paths as a tuple to make it hashable for caching
+        file_paths_tuple = tuple(sorted([str(f) for f in csv_files]))
+        data_ranges, combined_data = _load_and_clean_csv_data(file_paths_tuple)
 
         if combined_data.empty:
             st.error("No valid data files were loaded")
-        else:
-            combined_data.set_index('Player', inplace=True)
+            return {}, pd.DataFrame()
 
-        # Store the timestamp in session state
-        if oldest_timestamp is not None:
-            # Check if running on localhost
-            is_local = st.get_option('server.address') == 'localhost'
-            
-            # Only adjust timestamp if not running locally
-            if not is_local:
-                oldest_timestamp = oldest_timestamp - (5 * 3600)  # Subtract 5 hours in seconds
-            
-            st.session_state.csv_timestamp = time.strftime("%Y-%m-%d %I:%M:%S %p", 
-                                                         time.localtime(oldest_timestamp))
+        # Handle side-effects (timestamp calculation and session state) here
+        oldest_timestamp = min(os.path.getmtime(file) for file in csv_files)
+        
+        is_local = st.get_option('server.address') == 'localhost'
+        if not is_local:
+            oldest_timestamp -= (5 * 3600)  # Subtract 5 hours
+        
+        st.session_state.csv_timestamp = time.strftime("%Y-%m-%d %I:%M:%S %p", 
+                                                     time.localtime(oldest_timestamp))
 
         return data_ranges, combined_data
         
@@ -127,7 +139,7 @@ def csv_time():
     """Get the CSV timestamp from session state."""
     return st.session_state.get('csv_timestamp', "CSV timestamp not available")
 
-@lru_cache(maxsize=1)
+@st.cache_data
 def load_schedule_data():
     """
     Load and parse the schedule data from CSV file.
@@ -137,12 +149,16 @@ def load_schedule_data():
         pd.DataFrame: Processed schedule data with proper columns
     """
     try:
-        # Get path to schedule.csv
-        schedule_path = Path(__file__).parent.parent / "data" / "schedule" / "schedule.csv"
+        # Construct an absolute path to the data directory from the project root
+        project_root = Path(__file__).parent.parent
+        schedule_path = project_root / "data" / "schedule" / "schedule.csv"
+        logging.info(f"Attempting to load schedule from: {schedule_path}")
         
         if not os.path.exists(schedule_path):
-            st.error("Schedule data file not found.")
+            logging.error(f"Schedule data file not found at: {schedule_path}")
             return None
+        
+        logging.info("Schedule file found. Proceeding to parse.")
         
         # Process the data using a more robust approach
         data = []
@@ -207,7 +223,7 @@ def load_schedule_data():
         df = pd.DataFrame(data)
         
         if df.empty:
-            st.error("No data was parsed from the schedule file.")
+            logging.warning("No data was parsed from the schedule file. The file might be empty or in an unexpected format.")
             return None
         
         # Add winner column
@@ -225,14 +241,15 @@ def load_schedule_data():
         # Sort by period
         df = df.sort_values("Period Number")
         
+        logging.info(f"Successfully parsed {len(df)} rows from schedule file.")
         return df
     
     except Exception as e:
-        st.error(f"Error loading schedule data: {str(e)}")
-        import traceback
-        st.error(traceback.format_exc())
+        logging.error(f"An exception occurred while loading schedule data: {e}", exc_info=True)
+        return None
         return None
 
+@st.cache_data
 def calculate_team_stats(schedule_df):
     """
     Calculate performance statistics for each team.
@@ -303,6 +320,7 @@ def calculate_team_stats(schedule_df):
     
     return stats_df
 
+@st.cache_data
 def load_draft_results(file_path: str) -> pd.DataFrame:
     """Load and process the draft results from a CSV file."""
     try:
