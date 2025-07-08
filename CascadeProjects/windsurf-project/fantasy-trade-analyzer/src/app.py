@@ -62,14 +62,20 @@ def main():
         st.sidebar.subheader(":orange[Note:]")  
         st.sidebar.write(":orange[The CSV data is updated regularly. Please message me if you notice it's been too long.")
 
-    # Load draft results once
-    draft_results = load_draft_results('data/Fantrax-Draft-Results-Mr Squidward’s 69.csv')
+
+    # Load draft results - find any file matching the pattern
+    data_dir = Path(__file__).parent.parent / "data"
+    draft_results = pd.DataFrame()
+    draft_files = list(data_dir.glob("Fantrax-Draft-Results*.csv"))
+    if draft_files:
+        draft_results = load_draft_results(str(draft_files[0]))
+    else:
+        st.warning("Could not find draft results file in data directory")
 
     # Only load data when user presses button
     if load_btn and selected_files:
         loaded_csvs = load_selected_csvs(selected_files)
         # Patch: temporarily replace load_data logic to only use selected files
-        # We'll mimic load_data but only for selected files
         import re
         from data_loader import clean_data
         data_ranges = {}
@@ -126,9 +132,7 @@ def main():
                 """Display the draft results page in the app."""
                 st.title(":blue[Draft Results]")
                 
-                # Load draft results
-                draft_results = load_draft_results('data/Fantrax-Draft-Results-Mr Squidward’s 69.csv')
-                
+                # Display draft results from the already loaded data
                 if draft_results.empty:
                     st.warning("No draft results available.")
                 else:
