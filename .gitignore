@@ -1,7 +1,22 @@
-CascadeProjects/windsurf-project/fantasy-trade-analyzer/debug.log
-CascadeProjects/windsurf-project/fantasy-trade-analyzer/src/__pycache__/
-CascadeProjects/windsurf-project/fantasy-trade-analyzer/src/__pycache__/data_loader.cpython-312.pyc
-CascadeProjects/windsurf-project/fantasy-trade-analyzer/debug.log
-CascadeProjects/windsurf-project/fantasy-trade-analyzer/src/fantrax.env
-CascadeProjects/windsurf-project/fantasy-trade-analyzer/tests
-CascadeProjects/windsurf-project/fantasy-trade-analyzer/pytest.ini
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+virtualenv/
+venv/
+env/
+
+# Log files
+*.log
+
+# Configuration
+.env
+fantrax.env
+
+# Test files
+/CascadeProjects/windsurf-project/fantasy-trade-analyzer/tests/
+/CascadeProjects/windsurf-project/fantasy-trade-analyzer/pytest.ini
