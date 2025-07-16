@@ -8,10 +8,6 @@ import time
 import csv
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-
 TEAM_MAPPINGS = {
     'Sar': 'Shaq\'s Anus Ripples',
     '15': '15 Dream Team',
@@ -255,76 +251,6 @@ def load_schedule_data():
         return None
         return None
 
-@st.cache_data
-def calculate_team_stats(schedule_df):
-    """
-    Calculate performance statistics for each team.
-    
-    Args:
-        schedule_df (pd.DataFrame): The schedule data
-        
-    Returns:
-        pd.DataFrame: Team statistics
-    """
-    # Initialize stats dictionary
-    team_stats = {}
-    
-    # Get all unique teams first
-    all_teams = set(schedule_df["Team 1"].unique()) | set(schedule_df["Team 2"].unique())
-    
-    # Initialize team entries
-    for team in all_teams:
-        team_stats[team] = {
-            "Wins": 0,
-            "Losses": 0,
-            "Ties": 0,
-            "Points For": 0,
-            "Points Against": 0,
-            "Total Matchups": 0
-        }
-    
-    # Process each matchup - use vectorized operations where possible
-    for _, row in schedule_df.iterrows():
-        team1 = row["Team 1"]
-        team2 = row["Team 2"]
-        score1 = row["Score 1"]
-        score2 = row["Score 2"]
-        
-        # Update team1 stats
-        team_stats[team1]["Points For"] += score1
-        team_stats[team1]["Points Against"] += score2
-        team_stats[team1]["Total Matchups"] += 1
-        
-        # Update team2 stats
-        team_stats[team2]["Points For"] += score2
-        team_stats[team2]["Points Against"] += score1
-        team_stats[team2]["Total Matchups"] += 1
-        
-        # Update win/loss/tie records
-        if score1 > score2:
-            team_stats[team1]["Wins"] += 1
-            team_stats[team2]["Losses"] += 1
-        elif score2 > score1:
-            team_stats[team2]["Wins"] += 1
-            team_stats[team1]["Losses"] += 1
-        else:
-            team_stats[team1]["Ties"] += 1
-            team_stats[team2]["Ties"] += 1
-    
-    # Convert to DataFrame
-    stats_df = pd.DataFrame.from_dict(team_stats, orient="index")
-    
-    # Calculate win percentage
-    stats_df["Win %"] = stats_df.apply(
-        lambda row: round(row["Wins"] / row["Total Matchups"] * 100, 1) if row["Total Matchups"] > 0 else 0,
-        axis=1
-    )
-    
-    # Calculate average points
-    stats_df["Avg Points For"] = round(stats_df["Points For"] / stats_df["Total Matchups"], 1)
-    stats_df["Avg Points Against"] = round(stats_df["Points Against"] / stats_df["Total Matchups"], 1)
-    
-    return stats_df
 
 @st.cache_data
 def load_draft_results(file_path: str) -> pd.DataFrame:

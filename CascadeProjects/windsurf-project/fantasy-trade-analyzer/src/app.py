@@ -2,6 +2,7 @@ import streamlit as st
 from pathlib import Path
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT, MENUITEMS
 from data_loader import csv_time, load_schedule_data
+from logic.schedule_analysis import calculate_all_schedule_swaps
 from modules.sidebar.ui import display_global_sidebar
 from modules.data_loader_ui.ui import find_default_files_to_load, process_files_into_session_state
 from modules.fantrax_downloader.ui import display_downloader_ui
@@ -42,23 +43,31 @@ def main():
                     player_files_found = True
                 
                 # Load schedule data
-                schedule_df = load_schedule_data()
-                schedule_file_found = schedule_df is not None and not schedule_df.empty
-                if schedule_file_found:
-                    st.session_state.schedule_data = schedule_df
+                if 'schedule_data' not in st.session_state or st.session_state.schedule_data is None:
+                    schedule_df = load_schedule_data()
+                    if schedule_df is not None and not schedule_df.empty:
+                        st.session_state.schedule_data = schedule_df
+                        # Pre-calculate all swaps and cache them if not already done
+                        if 'all_swaps_df' not in st.session_state:
+                            with st.spinner("Pre-calculating all schedule swap scenarios..."):
+                                all_swaps_df = calculate_all_schedule_swaps(schedule_df)
+                                st.session_state['all_swaps_df'] = all_swaps_df
+                    else:
+                        st.session_state.schedule_data = pd.DataFrame()  # Ensure it's an empty DataFrame if load fails
 
-            # Only set the loaded flag if both were successful
-            if player_files_found and schedule_file_found:
-                st.session_state.data_loaded = True
-                st.toast(f"Default dataset '{league_name}' loaded successfully!", icon="✅")
-            else:
-                # This will ensure it tries again on reload if one part failed
-                if 'data_loaded' in st.session_state:
-                    del st.session_state['data_loaded']
-                if not player_files_found:
-                    st.warning("Default player CSV data not found in /data folder.")
-                if not schedule_file_found:
-                    st.warning("Default schedule.csv not found in /data/schedule folder.")
+                # Only set the loaded flag if both were successful
+                if player_files_found and ('schedule_data' in st.session_state and st.session_state.schedule_data is not None and not st.session_state.schedule_data.empty):
+                    st.session_state.data_loaded = True
+                    st.toast(f"Default dataset '{league_name}' loaded successfully!", icon="✅")
+                else:
+                    # This will ensure it tries again on reload if one part failed
+                    if 'data_loaded' in st.session_state:
+                        del st.session_state['data_loaded']
+                    if not player_files_found:
+                        st.warning("Default player CSV data not found in /data folder.")
+                    if 'schedule_data' not in st.session_state or st.session_state.schedule_data is None or st.session_state.schedule_data.empty:
+                        st.warning("Default schedule.csv not found in /data/schedule folder.")
+
 
         except Exception as e:
             st.error(f"A critical error occurred while loading default data: {e}")
