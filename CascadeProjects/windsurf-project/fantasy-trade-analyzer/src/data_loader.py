@@ -31,14 +31,20 @@ TEAM_MAPPINGS = {
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """Clean the DataFrame by removing invalid entries and normalizing data."""
-    numeric_columns = ['FPts', 'FP/G', 'PTS', 'OREB', 'DREB', 'REB', 'AST', 'STL', 'BLK', 'TO', 'TF', 'EJ', '3D', '2D', 'GP']
+    # Comprehensive list of all possible numeric stat columns from Fantrax
+    numeric_columns = [
+        'FPts', 'FP/G', 'PTS', 'OREB', 'DREB', 'REB', 'AST', 'ST', 'BLK', 
+        'TO', 'TF', 'EJ', '3D', '2D', 'GP', '3PTM', 'FGM', 'FTM'
+    ]
     
-    # Check for the existence of numeric columns
+    # Check for the existence of numeric columns in the current dataframe
     existing_numeric_columns = [col for col in numeric_columns if col in df.columns]
 
-    # Convert numeric columns and drop rows with invalid entries
+    # Convert numeric columns to numeric type, coercing errors to NaN
     df[existing_numeric_columns] = df[existing_numeric_columns].apply(pd.to_numeric, errors='coerce')
-    df.dropna(subset=existing_numeric_columns, inplace=True)
+    
+    # Fill any NaN values in stat columns with 0 instead of dropping the row
+    df[existing_numeric_columns] = df[existing_numeric_columns].fillna(0)
 
     # Ensure required columns exist
     required_columns = ['Player', 'Status', 'FP/G']
