@@ -139,18 +139,16 @@ def display_swap_selection(all_teams, schedule_df):
             display_team_impact_metrics(results['comparison'], results['original_stats'], results['new_stats'], results['team2'])
         st.plotly_chart(create_win_change_barchart(results['comparison'], results['team1'], results['team2']), use_container_width=True)
 
-def display_all_swaps_analysis(all_teams):
+def display_all_swaps_analysis(all_teams, all_swaps_df):
     """
     Displays the analysis of all possible schedule swaps from pre-calculated data.
     """
     st.subheader("All Possible Schedule Swaps")
     st.write("This table shows the impact of every possible one-for-one schedule swap. Higher 'Impact' scores indicate more significant changes to the league standings.")
 
-    if 'all_swaps_df' not in st.session_state or st.session_state['all_swaps_df'].empty:
-        st.warning("Swap analysis data is not available. Please load schedule data first.")
+    if all_swaps_df.empty:
+        st.warning("Swap analysis data could not be calculated.")
         return
-
-    all_swaps_df = st.session_state['all_swaps_df']
 
     selected_team = st.selectbox("Filter by team:", options=["All Teams"] + all_teams, index=0, key="swap_filter_team")
 

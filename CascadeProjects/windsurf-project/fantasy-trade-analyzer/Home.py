@@ -47,11 +47,7 @@ def main():
                     schedule_df = load_schedule_data()
                     if schedule_df is not None and not schedule_df.empty:
                         st.session_state.schedule_data = schedule_df
-                        # Pre-calculate all swaps and cache them if not already done
-                        if 'all_swaps_df' not in st.session_state:
-                            with st.spinner("Pre-calculating all schedule swap scenarios..."):
-                                all_swaps_df = calculate_all_schedule_swaps(schedule_df)
-                                st.session_state['all_swaps_df'] = all_swaps_df
+
                     else:
                         st.session_state.schedule_data = pd.DataFrame()  # Ensure it's an empty DataFrame if load fails
 

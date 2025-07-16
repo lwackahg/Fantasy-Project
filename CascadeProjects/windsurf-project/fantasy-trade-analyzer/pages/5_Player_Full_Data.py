@@ -38,7 +38,7 @@ if selected_range:
 
     # Construct dynamic path for draft results
     project_root = Path(__file__).resolve().parent.parent
-    league_name = st.session_state.get("league_name", "")
+    league_name = st.session_state.get("loaded_league_name", "")
     draft_results_filename = f"Fantrax-Draft-Results-{league_name}.csv"
     draft_results_path = project_root / 'data' / draft_results_filename
 

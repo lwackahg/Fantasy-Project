@@ -55,10 +55,22 @@ def find_default_files_to_load(data_dir: Path) -> Tuple[List[Path], str]:
             most_found = found_count
             best_league = league
 
+    # If the best league is 'Default League', check for a draft results file to get a better name
+    if best_league == "Default League":
+        try:
+            draft_file = next(data_dir.glob('Fantrax-Draft-Results-*.csv'))
+            draft_match = re.search(r'Fantrax-Draft-Results-(.*)\.csv', draft_file.name)
+            if draft_match and draft_match.group(1):
+                best_league = draft_match.group(1).replace('_', ' ').strip()
+        except StopIteration:
+            pass  # No draft file found, stick with 'Default League'
+
     if not best_league:
         return [], None
 
-    league_files = grouped_files[best_league]
+    # If the league name was derived from the draft file, the player files are in the 'Default League' group
+    files_key = "Default League" if best_league != "Default League" and "Default League" in grouped_files else best_league
+    league_files = grouped_files[files_key]
     default_files = []
     for _, pattern in range_patterns.items():
         # Find the most recent file for each pattern

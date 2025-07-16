@@ -144,6 +144,7 @@ def compare_team_stats(original_stats, new_stats):
     comparison = comparison.sort_values("Win % Change", ascending=False)
     return comparison
 
+@st.cache_data
 def calculate_all_schedule_swaps(schedule_df):
     """
     Calculate all possible schedule swaps and their impact on the entire league.

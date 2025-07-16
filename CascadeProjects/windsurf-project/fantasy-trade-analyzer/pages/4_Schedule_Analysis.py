@@ -1,6 +1,6 @@
 import streamlit as st
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT, MENUITEMS
-from logic.schedule_analysis import calculate_team_stats
+from logic.schedule_analysis import calculate_team_stats, calculate_all_schedule_swaps
 from ui.schedule_analysis_ui import (
     display_list_view,
     display_table_view,
@@ -27,15 +27,22 @@ st.write(
     "swap schedules between teams to see how it impacts standings and win percentages."
 )
 
-
+# Add a robust check for schedule_data to prevent race conditions
+if 'schedule_data' not in st.session_state or st.session_state.schedule_data.empty:
+    st.warning("Schedule data is still loading or not available. Please wait or load a league on the Home page.")
+    st.page_link("Home.py", label="Go to Home", icon="🏠")
+    st.stop()
 
 schedule_df = st.session_state.schedule_data
 
 # Main analysis section
 st.header("Schedule Swap Analysis")
 all_teams = sorted(list(set(schedule_df["Team 1"]).union(set(schedule_df["Team 2"]))))
+with st.spinner("Analyzing all schedule swap scenarios..."):
+    all_swaps_df = calculate_all_schedule_swaps(schedule_df)
+
 display_swap_selection(all_teams, schedule_df)
-display_all_swaps_analysis(all_teams)
+display_all_swaps_analysis(all_teams, all_swaps_df)
 
 st.markdown("***")
 
