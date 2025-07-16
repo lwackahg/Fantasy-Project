@@ -23,3 +23,4 @@ fantrax.env
 
 # Unused Modules
 /CascadeProjects/windsurf-project/fantasy-trade-analyzer/src/modules/unused_team_scouting
+/CascadeProjects/windsurf-project/fantasy-trade-analyzer/src/modules/old_schedule_analysis

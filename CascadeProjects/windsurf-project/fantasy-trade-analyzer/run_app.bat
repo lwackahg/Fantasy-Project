@@ -4,7 +4,7 @@ setlocal
 REM --- Configuration ---
 set "VENV_DIR=.venv"
 set "REQUIREMENTS_FILE=requirements.txt"
-set "MAIN_APP_FILE=src\app.py"
+set "MAIN_APP_FILE=Home.py"
 
 REM --- Script Start ---
 cd /d "%~dp0"
