@@ -1,4 +1,26 @@
-Core Programming Principles
+# Fantasy Trade Analyzer & Auction Draft Tool
+
+This project provides tools for fantasy basketball analysis, including a trade analyzer and a new live auction draft assistant.
+
+## Project Status
+
+### Auction Draft Tool (In Development)
+
+We are currently building a live auction draft assistant. This tool is designed to provide dynamic player valuations that update in real-time as the draft progresses.
+
+**Phase 0: Data Preparation - Complete**
+- A script (`data_preparation.py`) has been created to process historical data.
+- It generates a single `player_projections.csv` file, which serves as the input for the live tool.
+- This file contains player names, positions, and their projected fantasy points for the upcoming season.
+
+**Next Steps: Phase 1 - Build the Core Engine**
+- Create `auction_tool.py` to house the core valuation logic.
+- Implement `calculate_initial_values()` to set baseline player values using a VORP model.
+- Implement `recalculate_dynamic_values()` to adjust player values live based on market inflation.
+
+---
+
+## Core Programming Principles
 
 code_quality: prioritize clean, readable, and maintainable code.
 
