@@ -1,8 +1,121 @@
-# Fantasy Trade Analyzer & Auction Draft Tool
+# Fantasy Basketball Trade Analyzer & Auction Draft Tool
 
-This project provides tools for fantasy basketball analysis, including a trade analyzer and a new live auction draft assistant.
+This project is a comprehensive suite of tools for fantasy basketball managers, built with Streamlit. It provides a sophisticated Trade Analyzer and a feature-rich Live Auction Draft Tool to help users make informed decisions and dominate their leagues.
 
-## Project Status
+## Core Features
+
+1.  **Trade Analyzer**: Evaluate multi-player trades by analyzing player statistics, and schedule strength.
+2.  **Live Auction Draft Tool**: A powerful tool to manage a fantasy basketball auction draft in real-time, with dynamic player valuations that adapt as the draft progresses.
+
+---
+
+## Auction Draft Tool - In-Depth Features
+
+The Live Auction Draft Tool is designed to give you a significant strategic advantage during your auction drafts.
+
+### Valuation Engine
+
+-   **Player Power Score (PPS)**: At the core of the tool is the PPS, a proprietary metric that combines a player's trend-weighted historical performance (FP/G) with their risk-adjusted availability (Avg. Games Played %) to produce a single, powerful performance score.
+-   **Dynamic Adjusted Values**: Player values (`AdjValue`) are not static. They are recalculated live after every single pick, factoring in the remaining money in the league, player scarcity, and roster needs.
+
+### Customizable Valuation Models
+
+Tailor the valuation engine to your specific draft strategy with flexible model settings:
+
+-   **Base Value Calculation**: Choose how a player's initial `BaseValue` is determined.
+    -   `Blended (VORP + Market)`: A balanced approach combining a player's Value Over Replacement Player (VORP) with their historical auction market value.
+    -   `Pure VORP`: A purely analytical approach based on VORP.
+    -   `Pure Market Value`: A valuation based entirely on historical auction data.
+-   **In-Draft Scarcity Model**: Choose how the `AdjValue` is modified by scarcity during the draft.
+    -   `Tier Scarcity`: Applies a premium to players in tiers that are becoming depleted.
+    -   `Position Scarcity`: Applies a premium to players at positions that are becoming scarce.
+    -   `None`: Disables scarcity adjustments.
+
+### Advanced Draft Management
+
+-   **Injury Management System**: Before the draft, mark players as injured for a "Half Season" or "Out for Season". The projection engine will automatically adjust their PPS and value accordingly.
+-   **Undo Last Pick**: Made a mistake? The "Undo Last Pick" button instantly reverses the last selection, returning the player to the pool and refunding the team's budget.
+-   **Live Draft Summary**: A summary table tracks every pick, comparing the `DraftPrice` to the `AdjValue` at the time of the pick. It color-codes each pick as a "Bargain" (green) or a "Reach" (red), giving you instant feedback on your draft performance.
+
+---
+
+## Core Programming Principles
+
+This project adheres to a strict set of programming principles to ensure high-quality, maintainable, and robust code.
+
+-   **Clean & Readable Code**: Prioritize clarity and simplicity.
+-   **Efficiency**: Use efficient algorithms and data structures.
+-   **Robust Error Handling**: Implement comprehensive error handling to prevent crashes.
+-   **Modularity & Reusability**: Write modular, reusable code to avoid duplication.
+-   **Security**: Follow secure coding practices to protect data.
+-   **Simplicity**: Keep the design and implementation as simple as possible.
+
+## Code Style Guidelines
+
+-   **Indentation**: Tabs
+-   **Naming Conventions**: `snake_case` for variables, `PascalCase` for classes, `camelCase` for functions.
+-   **Comments**: Use clear and concise comments where necessary.
+-   **Line Length**: Keep lines under 100 characters.
+
+## How to Run
+
+1.  Ensure you have Python and `pip` installed.
+2.  Install the required dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+3.  Run the Streamlit application:
+    ```bash
+    streamlit run app.py
+    ```
+
+This project is a sophisticated, multi-purpose tool for fantasy basketball enthusiasts. It started as a trade analyzer and has now been expanded to include a powerful, dynamic auction draft assistant designed to give you a significant edge in your fantasy league.
+
+## Auction Draft Tool Features
+
+The auction draft tool is built on a multi-layered valuation model that provides dynamic, real-time insights during your live draft.
+
+-   **Player Power Score (PPS) Engine**: At its core, the tool uses a PPS model that calculates a forward-looking, risk-adjusted score for every player. It analyzes trend-weighted performance over recent seasons and factors in games played to assess availability and risk.
+
+-   **Advanced VORP Model**: It implements a Value Over Replacement Player (VORP) system that translates the raw PPS scores into a clear measure of each player's value relative to the other players in the pool.
+
+-   **Dynamic Tiering System**: To reflect the premium on elite talent, the tool segments players into five tiers. It applies weights to the VORP scores based on these tiers, ensuring that top players are valued appropriately. This system is fully dynamic and re-tiers the available player pool after every pick.
+
+-   **Live Dynamic Valuations**: A player's 'AdjValue' (Adjusted Value) recalculates in real-time after each draft pick. This value responds to both the money leaving the market and the shifting tiers of available talent, giving you a live, accurate assessment of player worth.
+
+-   **Complete Draft Management**: The UI fully supports a live draft. You can assign players to teams, and the tool will automatically track team budgets, enforce spending limits (ensuring every team can fill their roster), and display detailed team rosters.
+
+-   **Customizable League Settings**: The tool is highly flexible, allowing you to configure the number of teams, budget per team, roster spots, and even the number of games in a season to fine-tune the projections.
+
+## How to Use
+
+1.  **Launch the App**: Run the Streamlit application.
+2.  **Navigate to the Tool**: Select the 'Auction Draft Tool' from the sidebar navigation.
+3.  **Configure Settings**: In the sidebar, set your league's parameters (number of teams, budget, etc.) and generate the initial PPS projections.
+4.  **Start the Draft**: Click 'Start Draft' to load the player pool with their initial calculated values.
+5.  **Draft Players**: As players are won in your auction, use the 'Draft a Player' form to select the player, the winning team, and the price. The tool will automatically update all team budgets and recalculate the adjusted values for all remaining players.
+6.  **Monitor Rosters**: Use the expandable team roster views at the bottom to track each team's progress, budget, and drafted players.
+
+## Future Enhancement Ideas
+
+This tool provides a powerful foundation that can be expanded even further. Here are some ideas for future development:
+
+-   **Keeper League Support**: Add functionality to input keeper players and their associated salaries before the draft begins. This would automatically adjust team budgets and remove those players from the available pool.
+
+-   **Improved Multi-Position Eligibility**: Enhance the VORP model to more accurately value players who are eligible for multiple positions, as they offer greater roster flexibility.
+
+-   **Live Inflation Index**: Create a visual gauge or metric that shows the current market inflation or deflation. This would track whether players are generally being drafted for more or less than their adjusted values, indicating market trends.
+
+-   **Post-Draft Grades**: After the draft is complete, generate a 'Draft Grade' for each team based on the total value they acquired versus the money they spent.
+
+-   **Enhanced UI/UX**: 
+    -   A classic **Draft Board View** showing all drafted players under their respective teams.
+    -   **Advanced Filtering/Searching** for the available players table (e.g., by position, tier, etc.).
+    -   A dedicated, more detailed **Team Page** view.
+
+-   **Historical Draft Analysis**: Allow users to load past draft results (from a CSV, for example) to analyze trends, team strategies, and the historical accuracy of the valuation model.
+
+
 
 ### Auction Draft Tool (In Development)
 

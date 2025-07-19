@@ -1,38 +1,63 @@
 import pandas as pd
 import numpy as np
+import streamlit as st
 
 # --- Constants and Configuration ---
 # --- Player Power Score (PPS) Configuration ---
-# Trend-Weighted FP/G weights. S1 is the oldest season, S4 is the most recent.
-TREND_WEIGHTS = {'S1': 0.15, 'S2': 0.20, 'S3': 0.30, 'S4': 0.35}
+
 
 # File paths
 FP_PER_GAME_FILE = 'data/PlayerFPperGameOverYears.csv'
 GP_FILE = 'data/PlayerGPOverYears.csv'
-PLAYER_IDS_FILE = 'data/AllPlayerIds.csv'
+HISTORICAL_BIDS_FILE = 'data/PlayerBidPricesOverYears.csv'
+# Position data will be sourced from seasonal stats files S1-S4
 OUTPUT_FILE = 'data/player_projections.csv'
 
-def get_player_position(player_name, ids_df):
-    """Fetches the position for a given player from the IDs dataframe."""
-    # In a real scenario, we would merge with a file that has player positions.
-    return 'Flx' # Defaulting to Flex position
-
-def generate_pps_projections(games_in_season=82):
+def generate_pps_projections(games_in_season=82, trend_weights=None, injured_players=None):
     """
     Loads historical player data to calculate the Player Power Score (PPS) and 
     saves the result to a CSV file for the auction tool.
 
     Args:
         games_in_season (int): The number of games in a standard season.
+        trend_weights (dict): A dictionary with season keys ('S1'-'S4') and their float weights.
 
     Returns:
         bool: True if successful, False otherwise.
     """
+    if trend_weights is None:
+        # Provide default weights if none are passed (e.g., for standalone execution)
+        trend_weights = {'S1': 0.15, 'S2': 0.20, 'S3': 0.30, 'S4': 0.35}
     try:
         # Load the datasets
         fp_df = pd.read_csv(FP_PER_GAME_FILE)
         gp_df = pd.read_csv(GP_FILE)
-        player_ids_df = pd.read_csv(PLAYER_IDS_FILE)
+        bids_df = pd.read_csv(HISTORICAL_BIDS_FILE)
+
+        # --- Calculate Market Value from Historical Bids ---
+        bid_cols = [col for col in bids_df.columns if col.startswith('S') and 'Picked Spot' not in col and col != 'S1']
+        bids_df[bid_cols] = bids_df[bid_cols].apply(pd.to_numeric, errors='coerce')
+        bids_df['MarketValue'] = bids_df[bid_cols].mean(axis=1).round()
+        market_value_df = bids_df[['Player', 'MarketValue']].copy().dropna()
+        market_value_df['Player'] = market_value_df['Player'].str.strip()
+
+        # Load and consolidate position data from seasonal stats files
+        all_pos_df = pd.DataFrame()
+        for i in range(1, 5):
+            try:
+                season_stats_file = f'data/S{i}Stats.csv'
+                season_df = pd.read_csv(season_stats_file)
+                season_df.rename(columns={'Player': 'PlayerName'}, inplace=True, errors='ignore')
+                season_df['PlayerName'] = season_df['PlayerName'].str.strip()
+                pos_data = season_df[['PlayerName', 'Position']].copy()
+                all_pos_df = pd.concat([all_pos_df, pos_data])
+            except (FileNotFoundError, KeyError):
+                # Handle cases where file or 'Position' column might be missing
+                continue
+        
+        # Drop duplicates, keeping the last (most recent season's) entry for each player
+        if not all_pos_df.empty:
+            all_pos_df.drop_duplicates(subset='PlayerName', keep='last', inplace=True)
 
         # --- Data Merging and Cleaning ---
         fp_df.rename(columns={'player': 'Player'}, inplace=True)
@@ -40,10 +65,22 @@ def generate_pps_projections(games_in_season=82):
         fp_df['Player'] = fp_df['Player'].str.strip()
         gp_df['Player'] = gp_df['Player'].str.strip()
 
+        # Merge the primary datasets
         merged_df = pd.merge(fp_df, gp_df, on='Player', how='left')
+        merged_df = pd.merge(merged_df, market_value_df, on='Player', how='left')
+        
+        # Merge the consolidated position data
+        if not all_pos_df.empty:
+            all_pos_df.rename(columns={'PlayerName': 'Player'}, inplace=True)
+            merged_df = pd.merge(merged_df, all_pos_df, on='Player', how='left')
+        
+        # Ensure a 'Position' column exists and fill any missing values
+        if 'Position' not in merged_df.columns:
+            merged_df['Position'] = 'Flx'
+        merged_df['Position'].fillna('Flx', inplace=True)
 
         # --- Data Type Conversion ---
-        for season in TREND_WEIGHTS.keys():
+        for season in trend_weights.keys():
             fp_col = f'{season} FP/G'
             gp_col = f'{season} GP'
             if fp_col in merged_df.columns:
@@ -58,7 +95,7 @@ def generate_pps_projections(games_in_season=82):
         for index, row in merged_df.iterrows():
             weighted_fp_sum = 0
             total_weight = 0
-            for season, weight in TREND_WEIGHTS.items():
+            for season, weight in trend_weights.items():
                 fp_col = f'{season} FP/G'
                 if fp_col in merged_df.columns and pd.notna(row[fp_col]):
                     weighted_fp_sum += row[fp_col] * weight
@@ -67,7 +104,7 @@ def generate_pps_projections(games_in_season=82):
                 merged_df.at[index, 'TrendWeightedFPG'] = weighted_fp_sum / total_weight
 
         # 2. Calculate Risk-Adjusted Availability (Avg GP %)
-        gp_cols = [f'{s} GP' for s in TREND_WEIGHTS.keys() if f'{s} GP' in merged_df.columns]
+        gp_cols = [f'{s} GP' for s in trend_weights.keys() if f'{s} GP' in merged_df.columns]
         merged_df['TotalGamesPlayed'] = merged_df[gp_cols].sum(axis=1)
         merged_df['NumSeasonsPlayed'] = merged_df[gp_cols].notna().sum(axis=1)
         # Avoid division by zero for players with no games played data
@@ -77,20 +114,27 @@ def generate_pps_projections(games_in_season=82):
         # 3. Calculate Final Player Power Score (PPS)
         merged_df['PPS'] = merged_df['TrendWeightedFPG'] * merged_df['AvgGP_Percentage']
 
-        # --- Data Cleaning and Output ---
-        merged_df['Position'] = merged_df['Player'].apply(lambda x: get_player_position(x, player_ids_df))
-        merged_df.rename(columns={'Player': 'PlayerName'}, inplace=True)
+        # 4. Apply Injury Adjustments
+        if injured_players:
+            for player, status in injured_players.items():
+                if status == "Out for Season":
+                    merged_df.loc[merged_df['Player'] == player, 'PPS'] = 0
+                elif status == "Half Season":
+                    merged_df.loc[merged_df['Player'] == player, 'PPS'] *= 0.5
 
-        output_cols = ['PlayerName', 'Position', 'PPS', 'TrendWeightedFPG', 'AvgGP_Percentage']
-        output_df = merged_df[output_cols].copy()
-        output_df = output_df[output_df['PPS'] > 0].sort_values(by='PPS', ascending=False).reset_index(drop=True)
+        # --- Final Data Selection and Save ---
+        # Select and rename columns for the final output
+        final_df = merged_df[['Player', 'Position', 'MarketValue', 'PPS']].copy()
+        final_df.rename(columns={'Player': 'PlayerName'}, inplace=True)
+
+        # Sort by PPS descending and save
+        final_df.sort_values(by='PPS', ascending=False, inplace=True)
+        final_df.to_csv(OUTPUT_FILE, index=False)
         
-        output_df.to_csv(OUTPUT_FILE, index=False)
-
         print(f"Successfully created projection file at: {OUTPUT_FILE}")
-        print(f"Total players with projections: {len(output_df)}")
+        print(f"Total players with projections: {len(final_df)}")
         print("\nTop 5 players by PPS:")
-        print(output_df.head())
+        print(final_df.head())
         return True
 
     except FileNotFoundError as e:
