@@ -1,5 +1,21 @@
 # Fantasy Basketball Trade Analyzer & Auction Draft Tool
 
+## Live Auction Draft Tool
+
+The Live Auction Draft Tool is a powerful feature designed to assist users during a live fantasy basketball auction draft. It provides dynamic player valuations that update in real-time as players are drafted.
+
+### Key Features
+
+*   **Dynamic Player Valuation**: Player values are recalculated after every pick, taking into account the remaining talent pool and league-wide budget.
+*   **Multi-Model Analysis**: Users can select from a suite of sophisticated valuation models to get a comprehensive view of a player's worth:
+    *   **Base Value Models**: Provide pre-draft estimates (e.g., *Blended VORP + Market*, *Pure VORP*, *Risk-Adjusted VORP*).
+    *   **Scarcity Models**: Adjust values during the draft based on supply and demand (e.g., *Tier Scarcity*, *Position Scarcity*, *Contrarian Fade*).
+*   **Detailed Player Insights**: When a player is selected, the tool displays their key historical stats for the last four seasons, including Games Played (GP) and Fantasy Points Per Game (FP/G), alongside their current VORP, Tier, and Market Value.
+*   **Persistent Injury Tracking**: Users can mark players as injured with "Full Season" or "Half Season" status. This list is saved and persists across sessions, and the projection engine automatically adjusts player stats based on the injury duration.
+*   **Live Draft Management**: Includes features to assign drafted players to teams, track team budgets, and view complete rosters as the draft progresses.
+*   **Undo Last Pick**: A safety feature that allows the commissioner to easily reverse the last pick, reverting all associated stats and budgets.
+
+
 This project is a comprehensive suite of tools for fantasy basketball managers, built with Streamlit. It provides a sophisticated Trade Analyzer and a feature-rich Live Auction Draft Tool to help users make informed decisions and dominate their leagues.
 
 ## Core Features

@@ -26,64 +26,80 @@ def _assign_percentile_tiers(df):
     df['Tier'] = np.select(conditions, choices, default=5)
     return df
 
-def calculate_initial_values(pps_df, num_teams, roster_spots_per_team, budget_per_team, base_value_model, vorp_budget_pct=0.97, market_value_weight=0.5):
+def _get_model_col_name(model_name, prefix):
+    """Creates a clean column name from a model name."""
+    # Remove special characters and spaces, then convert to CamelCase
+    clean_name = ''.join(word.title() for word in model_name.replace('(', '').replace(')', '').replace('-', '').split())
+    return f"{prefix}{clean_name}"
+
+def calculate_initial_values(pps_df, num_teams, roster_spots_per_team, budget_per_team, base_value_models, vorp_budget_pct=0.97, market_value_weight=0.5):
     """
-    Calculates initial auction values based on the PPS, Tiers, and VORP model.
+    Calculates initial auction values for one or more Base Value models.
     """
-    """
-    Calculates initial auction values based on the PPS and VORP model.
-    """
+    # Add this line at the very beginning to ensure correctness
+    pps_df = pps_df.sort_values(by='PPS', ascending=False).reset_index(drop=True)
+
     # 1. Define Replacement Player
     total_rostered_players = num_teams * roster_spots_per_team
-    replacement_player_index = total_rostered_players 
+    replacement_player_index = total_rostered_players
 
     if len(pps_df) <= replacement_player_index:
-        # Handle case where player pool is smaller than total roster spots
-        replacement_level_pps = pps_df['PPS'].min() 
+        replacement_level_pps = pps_df['PPS'].min() if not pps_df.empty else 0
     else:
         replacement_level_pps = pps_df.iloc[replacement_player_index]['PPS']
 
-    # Assign Tiers based on percentiles
+    # Assign Tiers and calculate VORP
     pps_df = _assign_percentile_tiers(pps_df)
-
-    # 3. Calculate VORP Score
     pps_df['VORP'] = pps_df['PPS'] - replacement_level_pps
     pps_df['VORP'] = pps_df['VORP'].clip(lower=0)
 
-    # 4. Calculate Tier-Adjusted VORP
-    pps_df['TierWeight'] = pps_df['Tier'].map(TIER_WEIGHTS)
+    # 2. Calculate core VORP-based value component
+    pps_df['TierWeight'] = pps_df['Tier'].map(TIER_WEIGHTS).fillna(1.0)
     pps_df['TierAdjustedVORP'] = pps_df['VORP'] * pps_df['TierWeight']
-
-    # 3. Allocate Budget
-    total_league_budget = num_teams * budget_per_team
-    total_vorp_budget = total_league_budget * vorp_budget_pct
-
-    # 5. Calculate Dollar-per-Tier-Adjusted-VORP
-    # 4. Calculate VORP-based Value Component
     total_vorp = pps_df['TierAdjustedVORP'].sum()
     total_vorp_budget = (num_teams * budget_per_team) * vorp_budget_pct
-    
-    if total_vorp > 0:
-        pps_df['VORPValue'] = (pps_df['TierAdjustedVORP'] / total_vorp) * total_vorp_budget
-    else:
-        pps_df['VORPValue'] = 0
+    pps_df['VORPValue'] = (pps_df['TierAdjustedVORP'] / total_vorp) * total_vorp_budget if total_vorp > 0 else 0
 
-    # 5. Calculate Base Value based on the selected model
-    if base_value_model == "Pure VORP":
-        pps_df['BaseValue'] = pps_df['VORPValue']
-    elif base_value_model == "Pure Market Value":
-        # For pure market value, we use the historical data, falling back to a minimum of $1 for players with VORP.
-        pps_df['BaseValue'] = pps_df['MarketValue']
-        pps_df.loc[pps_df['VORP'] > 0, 'BaseValue'] = pps_df.loc[pps_df['VORP'] > 0, 'BaseValue'].fillna(1)
-        pps_df['BaseValue'].fillna(0, inplace=True) # Players with no VORP and no market value are $0
-    else: # Blended (Default)
-        pps_df['MarketValue'].fillna(pps_df['VORPValue'], inplace=True)
-        vorp_weight = 1 - market_value_weight
-        pps_df['BaseValue'] = (pps_df['VORPValue'] * vorp_weight) + (pps_df['MarketValue'] * market_value_weight)
+    # 3. Calculate Base Value for each selected model
+    for i, model in enumerate(base_value_models):
+        col_name = _get_model_col_name(model, 'BV_')
+        temp_value = pd.Series(index=pps_df.index, dtype=float)
 
-    # Set a floor value of $1 for any player with positive VORP
-    pps_df.loc[pps_df['VORP'] > 0, 'BaseValue'] = pps_df.loc[pps_df['VORP'] > 0, 'BaseValue'].clip(lower=1)
-    pps_df['BaseValue'] = pps_df['BaseValue'].round()
+        if model == "Risk-Adjusted VORP":
+            if 'AvgGP_Percentage' in pps_df.columns:
+                risk_factor = pps_df['AvgGP_Percentage'].fillna(0.75)
+                temp_value = pps_df['VORPValue'] * risk_factor
+            else:
+                temp_value = pps_df['VORPValue'] # Fallback
+
+        elif model == "Expert Consensus Value (ECV)":
+            if 'ECV' in pps_df.columns:
+                ecv = pps_df['ECV'].fillna(pps_df['VORPValue'])
+                temp_value = (pps_df['VORPValue'] * 0.5) + (ecv * 0.5)
+            else:
+                market_val = pps_df['MarketValue'].fillna(pps_df['VORPValue'])
+                temp_value = (pps_df['VORPValue'] * 0.5) + (market_val * 0.5) # Fallback
+
+        elif model == "Pure VORP":
+            temp_value = pps_df['VORPValue']
+
+        elif model == "Pure Market Value":
+            temp_value = pps_df['MarketValue']
+            temp_value.loc[pps_df['VORP'] > 0] = temp_value.loc[pps_df['VORP'] > 0].fillna(1)
+            temp_value.fillna(0, inplace=True)
+
+        else:  # Blended (VORP + Market) - Default
+            market_val = pps_df['MarketValue'].fillna(pps_df['VORPValue'])
+            vorp_weight = 1 - market_value_weight
+            temp_value = (pps_df['VORPValue'] * vorp_weight) + (market_val * market_value_weight)
+
+        # Post-processing for each calculated value
+        temp_value.loc[pps_df['VORP'] > 0] = temp_value.loc[pps_df['VORP'] > 0].clip(lower=1)
+        pps_df[col_name] = temp_value.round()
+
+        # The first model in the list sets the primary 'BaseValue' for sorting and default display
+        if i == 0:
+            pps_df['BaseValue'] = pps_df[col_name]
 
     # Store initial counts for scarcity calculations
     initial_tier_counts = pps_df['Tier'].value_counts().to_dict()
@@ -91,65 +107,61 @@ def calculate_initial_values(pps_df, num_teams, roster_spots_per_team, budget_pe
 
     return pps_df, initial_tier_counts, initial_pos_counts
 
-def recalculate_dynamic_values(available_players_df, remaining_money_pool, total_league_money, scarcity_model, initial_tier_counts, initial_pos_counts):
+def recalculate_dynamic_values(available_players_df, remaining_money_pool, total_league_money, scarcity_models, initial_tier_counts, initial_pos_counts, roster_composition=None, num_teams=None):
     """
-    Recalculates player values dynamically based on remaining money, VORP pool, and re-tiering.
+    Recalculates player values dynamically for one or more scarcity models.
     """
-    """
-    Recalculates player values dynamically based on remaining money and VORP pool.
-    """
-    # Determine the portion of the remaining budget that should be allocated to VORP
-    vorp_budget_pct_remaining = remaining_money_pool / total_league_money
-    remaining_vorp_budget = remaining_money_pool * vorp_budget_pct_remaining
+    if available_players_df.empty:
+        return available_players_df
 
-    # 1. Re-tier the remaining players (Tier 1 is best)
+    # 1. Calculate Preliminary Adjusted Value (shared by all models)
     available_players_df = _assign_percentile_tiers(available_players_df)
-
-    # 2. Recalculate Tier-Adjusted VORP
-    available_players_df['TierWeight'] = available_players_df['Tier'].map(TIER_WEIGHTS)
+    available_players_df['TierWeight'] = available_players_df['Tier'].map(TIER_WEIGHTS).fillna(1.0)
     available_players_df['TierAdjustedVORP'] = available_players_df['VORP'] * available_players_df['TierWeight']
-
-    # 3. Recalculate Adjusted Value
     total_remaining_vorp = available_players_df['TierAdjustedVORP'].sum()
-    if total_remaining_vorp > 0:
-        available_players_df['AdjValue'] = (available_players_df['TierAdjustedVORP'] / total_remaining_vorp) * remaining_vorp_budget
-    else:
-        available_players_df['AdjValue'] = 0
+    prelim_adj_value = (available_players_df['TierAdjustedVORP'] / total_remaining_vorp) * remaining_money_pool if total_remaining_vorp > 0 else 0
 
-    # 4. Apply Scarcity Model based on user selection
-    max_premium = 1.25 # Cap premium at 25%
+    # 2. Calculate Adjusted Value for each selected scarcity model
+    for i, model in enumerate(scarcity_models):
+        col_name = _get_model_col_name(model, 'AV_')
+        scarcity_premium = pd.Series(1.0, index=available_players_df.index) # Default to 1.0 (no premium)
 
-    if scarcity_model == "Tier Scarcity":
-        current_tier_counts = available_players_df['Tier'].value_counts().to_dict()
-        scarcity_factors = {}
-        for tier, initial_count in initial_tier_counts.items():
-            current_count = current_tier_counts.get(tier, 0)
-            if current_count > 0 and initial_count > 0:
-                scarcity_factors[tier] = np.sqrt(initial_count / current_count)
-            else:
-                scarcity_factors[tier] = 1
-        
-        available_players_df['ScarcityPremium'] = available_players_df['Tier'].map(scarcity_factors).fillna(1)
+        # Determine which model logic to apply
+        effective_model = model
+        if model == "Roster Slot Demand":
+            effective_model = "Position Scarcity" if roster_composition and num_teams else "Tier Scarcity"
+        elif model == "Opponent Budget Targeting":
+            effective_model = "Tier Scarcity" # Placeholder
 
-    elif scarcity_model == "Position Scarcity":
-        current_pos_counts = available_players_df['Position'].value_counts().to_dict()
-        scarcity_factors = {}
-        for pos, initial_count in initial_pos_counts.items():
-            current_count = current_pos_counts.get(pos, 0)
-            if current_count > 0 and initial_count > 0:
-                scarcity_factors[pos] = np.sqrt(initial_count / current_count)
-            else:
-                scarcity_factors[pos] = 1
+        # Calculate scarcity premium based on the effective model
+        if effective_model == "Contrarian Fade":
+            current_tier_counts = available_players_df['Tier'].value_counts()
+            initial_tier_counts_s = pd.Series(initial_tier_counts)
+            ratio = (initial_tier_counts_s / current_tier_counts).replace([np.inf, -np.inf], 1).fillna(1)
+            scarcity_factors = (1 / np.sqrt(ratio)).clip(lower=0.75) # Cap discount
+            scarcity_premium = available_players_df['Tier'].map(scarcity_factors).fillna(1)
 
-        available_players_df['ScarcityPremium'] = available_players_df['Position'].map(scarcity_factors).fillna(1)
-    
-    else: # "None"
-        available_players_df['ScarcityPremium'] = 1
+        elif effective_model == "Tier Scarcity":
+            current_tier_counts = available_players_df['Tier'].value_counts()
+            initial_tier_counts_s = pd.Series(initial_tier_counts)
+            ratio = (initial_tier_counts_s / current_tier_counts).replace([np.inf, -np.inf], 1).fillna(1)
+            scarcity_factors = np.sqrt(ratio).clip(upper=1.25) # Cap premium
+            scarcity_premium = available_players_df['Tier'].map(scarcity_factors).fillna(1)
 
-    available_players_df['ScarcityPremium'] = available_players_df['ScarcityPremium'].clip(upper=max_premium)
-    available_players_df['AdjValue'] *= available_players_df['ScarcityPremium']
+        elif effective_model == "Position Scarcity":
+            current_pos_counts = available_players_df['Position'].value_counts()
+            initial_pos_counts_s = pd.Series(initial_pos_counts)
+            ratio = (initial_pos_counts_s / current_pos_counts).replace([np.inf, -np.inf], 1).fillna(1)
+            scarcity_factors = np.sqrt(ratio).clip(upper=1.25) # Cap premium
+            scarcity_premium = available_players_df['Position'].map(scarcity_factors).fillna(1)
 
-    available_players_df.loc[available_players_df['VORP'] > 0, 'AdjValue'] = available_players_df.loc[available_players_df['VORP'] > 0, 'AdjValue'].clip(lower=1)
-    available_players_df['AdjValue'] = available_players_df['AdjValue'].round()
+        # Apply premium and post-process
+        final_adj_value = prelim_adj_value * scarcity_premium
+        final_adj_value.loc[available_players_df['VORP'] > 0] = final_adj_value.loc[available_players_df['VORP'] > 0].clip(lower=1)
+        available_players_df[col_name] = final_adj_value.round()
+
+        # The first model sets the primary 'AdjValue' for core logic
+        if i == 0:
+            available_players_df['AdjValue'] = available_players_df[col_name]
 
     return available_players_df

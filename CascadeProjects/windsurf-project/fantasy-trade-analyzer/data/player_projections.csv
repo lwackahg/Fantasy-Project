@@ -1,4 +1,5 @@
 PlayerName,Position,MarketValue,PPS
+Nikola Jokic,"C,Flx",101.0,97.22694013303769
 Shai Gilgeous-Alexander,"G,Flx",60.0,70.0592211751663
 Giannis Antetokounmpo,"F,C,Flx",77.0,69.6386502217295
 Domantas Sabonis,"F,C,Flx",61.0,67.2829822616408
@@ -37,7 +38,6 @@ Mikal Bridges,"G,F,Flx",12.0,45.56083702882484
 Jordan Poole,"G,Flx",8.0,45.349007760532146
 Deni Avdija,"G,F,Flx",1.0,45.111369179600885
 Austin Reaves,"G,F,Flx",3.0,45.0954268292683
-Dejounte Murray,"G,Flx",29.0,44.90825249445676
 Darius Garland,"G,Flx",12.0,44.762727272727275
 Cade Cunningham,"G,Flx",26.0,44.71271341463415
 Jaylen Brown,"G,F,Flx",26.0,44.184623059866965
@@ -66,7 +66,6 @@ Kristaps Porzingis,"F,C,Flx",19.0,37.137657982261636
 Malik Beasley,"G,F,Flx",0.0,37.0527189578714
 Onyeka Okongwu,"C,Flx",1.0,37.02454961197339
 Jonas Valanciunas,"C,Flx",20.0,36.920625
-Kyrie Irving,"G,Flx",34.0,36.85276607538804
 Immanuel Quickley,"G,Flx",8.0,36.64270925720621
 Joel Embiid,"C,Flx",67.0,36.58048087583149
 Jalen Williams,"G,F,C,Flx",9.0,36.42643154101996
@@ -140,6 +139,7 @@ Chris Boucher,"F,C,Flx",0.0,23.13446369179601
 Kelly Olynyk,"F,C,Flx",1.0,22.952975332594235
 Alex Caruso,"G,Flx",3.0,22.750631929046566
 Jaden Ivey,"G,Flx",1.0,22.57751524390244
+Dejounte Murray,"G,Flx",29.0,22.45412624722838
 Khris Middleton,"F,Flx",12.0,22.395683203991133
 Jabari Smith,"F,C,Flx",5.0,22.360291019955657
 Isaiah Stewart,"C,Flx",0.0,22.261173780487805
@@ -151,6 +151,7 @@ Precious Achiuwa,"F,C,Flx",0.0,20.890838414634146
 Amen Thompson,"G,F,Flx",1.0,19.785564024390244
 Kyle Anderson,"F,Flx",0.0,19.48807095343681
 Malcolm Brogdon,"G,Flx",2.0,19.113395232815968
+Kyrie Irving,"G,Flx",34.0,18.42638303769402
 Brandon Clarke,"F,C,Flx",0.0,18.239717294900228
 Alec Burks,"G,Flx",0.0,17.35493763858093
 Keyonte George,"G,Flx",1.0,17.249667405764967
@@ -192,6 +193,5 @@ Gordon Hayward,"F,Flx",3.0,2.2696493902439028
 Robert Covington,"F,Flx",0.0,1.7118209534368074
 Will Barton,"G,Flx",0.0,0.739843403547672
 Kemba Walker,"G,Flx",0.0,0.2291712860310422
-Nikola Jokic,"C,Flx",101.0,0.0
 John Wall,"G,Flx",2.0,0.0
 ,Flx,,0.0
