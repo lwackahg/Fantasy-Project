@@ -62,20 +62,52 @@ def _get_model_col_name(model_name, prefix):
     clean_name = ''.join(word.title() for word in model_name.replace('(', '').replace(')', '').replace('-', '').split())
     return f"{prefix}{clean_name}"
 
-def calculate_initial_values(pps_df, num_teams, roster_spots_per_team, budget_per_team, base_value_models, tier_cutoffs=None, injured_players=None, vorp_budget_pct=0.97, market_value_weight=0.5):
+def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composition, base_value_models, tier_cutoffs=None, injured_players=None, vorp_budget_pct=0.97, market_value_weight=0.5):
     """
     Calculates the initial Base Value for all players based on the selected valuation models.
     """
+    # Load and merge historical data
+    try:
+        from pathlib import Path
+        data_path = Path(__file__).resolve().parent.parent / "data"
+        gp_hist_df = pd.read_csv(data_path / "PlayerGPOverYears.csv")
+        fpg_hist_df = pd.read_csv(data_path / "PlayerFPperGameOverYears.csv")
+
+        # Align column names for merging
+        gp_hist_df.rename(columns={'Player': 'PlayerName'}, inplace=True)
+        fpg_hist_df.rename(columns={'Player': 'PlayerName'}, inplace=True)
+
+        # Rename stat columns for clarity, e.g., 'S1 GP' -> 'S1_GP'
+        gp_hist_df.rename(columns={f'S{i} GP': f'S{i}_GP' for i in range(1, 13)}, inplace=True)
+        fpg_hist_df.rename(columns={f'S{i} FP/G': f'S{i}_FP/G' for i in range(1, 13)}, inplace=True)
+
+        # Select only the necessary historical columns to merge
+        gp_cols_to_merge = ['PlayerName'] + [f'S{i}_GP' for i in range(1, 5)]
+        fpg_cols_to_merge = ['PlayerName'] + [f'S{i}_FP/G' for i in range(1, 5)]
+
+        # Merge historical data into the main pps_df
+        pps_df = pps_df.merge(gp_hist_df[gp_cols_to_merge], on='PlayerName', how='left')
+        pps_df = pps_df.merge(fpg_hist_df[fpg_cols_to_merge], on='PlayerName', how='left')
+
+    except FileNotFoundError:
+        # If files are not found, historical data will be missing, but the app won't crash
+        pass
+
     # Apply injury adjustments before any calculations
     if injured_players:
         for player, status in injured_players.items():
             if player in pps_df['PlayerName'].values:
                 if status == "Full Season":
                     pps_df.loc[pps_df['PlayerName'] == player, 'PPS'] = 0
+                elif status == "3/4 Season":
+                    pps_df.loc[pps_df['PlayerName'] == player, 'PPS'] *= 0.25
                 elif status == "Half Season":
-                    pps_df.loc[pps_df['PlayerName'] == player, 'PPS'] /= 2
+                    pps_df.loc[pps_df['PlayerName'] == player, 'PPS'] *= 0.5
+                elif status == "1/4 Season":
+                    pps_df.loc[pps_df['PlayerName'] == player, 'PPS'] *= 0.75
 
     vorp_budget_pct = 0.8  # 80% of the budget is allocated based on VORP
+    roster_spots_per_team = sum(roster_composition.values())
     replacement_level_players = int(num_teams * roster_spots_per_team * 0.85) # Top 85% of drafted players
 
     # 1. Calculate VORP and Tiers
@@ -118,7 +150,8 @@ def calculate_initial_values(pps_df, num_teams, roster_spots_per_team, budget_pe
             # Placeholder: Blends VORP with a simulated expert rank/value
             final_df[col_name] = (final_df['VORPValue'] * 0.7) + (final_df['MarketValue'] * 0.3)
         elif model == "No Adjustment":
-            final_df[col_name] = final_df['BaseValue']
+            # This model simply uses the calculated VORP value without any other adjustments.
+            final_df[col_name] = final_df['VORPValue']
         else:
             final_df[col_name] = final_df['VORPValue'] # Default to VORP
 
@@ -126,10 +159,10 @@ def calculate_initial_values(pps_df, num_teams, roster_spots_per_team, budget_pe
         final_df[col_name] = final_df[col_name].round()
         final_df.loc[final_df['VORP'] > 0, col_name] = final_df.loc[final_df['VORP'] > 0, col_name].clip(lower=1)
 
-    # Set the primary 'BaseValue' to the first selected model's value
+    # Set 'BaseValue' to the average of the selected models' values
     if base_value_models:
-        primary_model_col = _get_model_col_name(base_value_models[0], 'BV_')
-        final_df['BaseValue'] = final_df[primary_model_col]
+        bv_cols = [_get_model_col_name(model, 'BV_') for model in base_value_models]
+        final_df['BaseValue'] = final_df[bv_cols].mean(axis=1).round()
     else:
         final_df['BaseValue'] = 0
 
@@ -197,9 +230,12 @@ def recalculate_dynamic_values(available_players_df, remaining_money_pool, total
         final_adj_value.loc[available_players_df['VORP'] > 0] = final_adj_value.loc[available_players_df['VORP'] > 0].clip(lower=1)
         available_players_df[col_name] = final_adj_value
 
-        # The first model sets the primary 'AdjValue' for core logic
-        if i == 0:
-            available_players_df['AdjValue'] = available_players_df[col_name]
+    # Set 'AdjValue' to the average of the selected models' values
+    if scarcity_models:
+        av_cols = [_get_model_col_name(model, 'AV_') for model in scarcity_models]
+        available_players_df['AdjValue'] = available_players_df[av_cols].mean(axis=1).round()
+    else:
+        available_players_df['AdjValue'] = available_players_df['BaseValue'] # Default to BaseValue if no scarcity model
 
     # --- Confidence Score Calculation ---
     base_model_cols = [_get_model_col_name(m, 'BV_') for m in base_value_models]
@@ -222,51 +258,3 @@ def recalculate_dynamic_values(available_players_df, remaining_money_pool, total
 
     return available_players_df
 
-def generate_draft_advice(selected_player, team_data, roster_composition, roster_spots_per_team):
-    """Generates contextual advice for drafting a player for a specific team."""
-    advice = []
-    if selected_player is None or team_data is None:
-        return ["Select a player to see draft advice."]
-
-    # 1. Positional Need Analysis
-    team_roster_df = pd.DataFrame(team_data['players'])
-    current_pos_counts = team_roster_df['Position'].value_counts().to_dict() if not team_roster_df.empty else {}
-    player_pos = selected_player.get('Position')
-
-    needed_spots = roster_composition.get(player_pos, 0)
-    current_spots = current_pos_counts.get(player_pos, 0)
-
-    if current_spots < needed_spots:
-        advice.append(f"✅ **Positional Need:** Your team needs {needed_spots - current_spots} more {player_pos}(s). This player fits a key spot.")
-    elif needed_spots > 0:
-        advice.append(f"⚠️ **Positional Surplus:** You have already filled your {needed_spots} required {player_pos} spot(s).")
-    else: # Flex or Bench
-        pass # General advice will cover this
-
-    # 2. Value Analysis
-    adj_value = selected_player.get('AdjValue', 0)
-    base_value = selected_player.get('BaseValue', 0)
-    if adj_value > base_value * 1.15:
-        advice.append(f"📈 **Great Value:** This player's value has increased by ${adj_value - base_value:.0f} during the draft due to scarcity. They are a high-priority target.")
-    elif adj_value < base_value * 0.85:
-        advice.append(f"📉 **Falling Value:** This player's value has dropped. They could be a potential bargain if you can get them for less than their base value of ${base_value:.0f}.")
-
-    # 3. Budget and Roster Slot Analysis
-    team_budget = team_data.get('budget', 0)
-    spots_to_fill = roster_spots_per_team - len(team_data.get('players', []))
-    
-    if spots_to_fill <= 1:
-        advice.append("🏆 **Final Roster Spot:** This is your last pick! Make it count.")
-    else:
-        # Calculate max bid for this player while leaving $1 for each remaining spot
-        max_bid = team_budget - (spots_to_fill - 1)
-        advice.append(f"💰 **Budget Insight:** You can bid up to ${max_bid:.0f} on this player and still have at least $1 for each of your remaining {spots_to_fill - 1} roster spots.")
-        
-        # Check if the player's value is affordable
-        if adj_value > max_bid:
-            advice.append(f"🚨 **Budget Alert:** This player's adjusted value of ${adj_value:.0f} is higher than your maximum recommended bid. Drafting them may be risky.")
-
-    if not advice:
-        advice.append("🤔 **Solid Pick:** This player seems like a reasonable choice. Assess their value against your draft strategy.")
-
-    return advice

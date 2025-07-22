@@ -6,3 +6,5 @@ pytest>=7.4.3
 matplotlib>=3.8.2
 selenium>=4.20.0
 python-dotenv
+deap>=1.4.1
+streamlit-aggrid
