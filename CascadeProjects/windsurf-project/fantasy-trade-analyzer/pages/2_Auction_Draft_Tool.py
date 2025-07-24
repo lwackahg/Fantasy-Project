@@ -35,7 +35,9 @@ def initialize_session_state():
         st.session_state.trend_weights = {'S1': 0.0, 'S2': 0.05, 'S3': 0.10, 'S4': 1.00}
         st.session_state.roster_composition = {'G': 3, 'F': 3, 'C': 2, 'Flx': 2, 'Bench': 0}
 
-        # Load injured players from JSON file
+
+    # Load injured players from JSON file, ensuring it runs only once
+    if 'injured_players_text' not in st.session_state:
         try:
             from pathlib import Path
             import json

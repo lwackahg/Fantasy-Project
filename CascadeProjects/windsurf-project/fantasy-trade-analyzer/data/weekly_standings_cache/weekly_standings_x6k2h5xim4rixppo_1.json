@@ -1,0 +1,175 @@
+{
+    "metadata": {
+        "min_games": 25
+    },
+    "data": [
+        {
+            "rank": "1",
+            "team_name": "Stevens Underaged Experience",
+            "team_id": "c9jlz0nhm4rixpps",
+            "FPts": 1420.0,
+            "Adj": 0.0,
+            "Total": 1420.0,
+            "FP/G": 56.8,
+            "GP": 25.0,
+            "WW": 5.0,
+            "PBL": 0.0
+        },
+        {
+            "rank": "2",
+            "team_name": "Kevin O\u2019Leary",
+            "team_id": "8uhsqou5m4rixpps",
+            "FPts": 1383.0,
+            "Adj": 0.0,
+            "Total": 1383.0,
+            "FP/G": 55.32,
+            "GP": 25.0,
+            "WW": 9.0,
+            "PBL": 37.0
+        },
+        {
+            "rank": "3",
+            "team_name": "Epstein Experience",
+            "team_id": "tmzs5h37m4rixpps",
+            "FPts": 1335.0,
+            "Adj": 0.0,
+            "Total": 1335.0,
+            "FP/G": 53.4,
+            "GP": 25.0,
+            "WW": 1.0,
+            "PBL": 85.0
+        },
+        {
+            "rank": "4",
+            "team_name": "Shaq's Anus Ripples",
+            "team_id": "k60qyep3m4rixpps",
+            "FPts": 1387.0,
+            "Adj": -53.0,
+            "Total": 1334.0,
+            "FP/G": 51.31,
+            "GP": 26.0,
+            "WW": 11.0,
+            "PBL": 86.0
+        },
+        {
+            "rank": "5",
+            "team_name": "Give me the fentanyl",
+            "team_id": "a4dthlrcm4rixpps",
+            "FPts": 1437.0,
+            "Adj": -106.0,
+            "Total": 1331.0,
+            "FP/G": 49.3,
+            "GP": 27.0,
+            "WW": 10.0,
+            "PBL": 89.0
+        },
+        {
+            "rank": "6",
+            "team_name": "P Diddy\u2019s Slip & Slide",
+            "team_id": "bsijqbivm4rixpps",
+            "FPts": 1297.0,
+            "Adj": 0.0,
+            "Total": 1297.0,
+            "FP/G": 51.88,
+            "GP": 25.0,
+            "WW": 13.0,
+            "PBL": 123.0
+        },
+        {
+            "rank": "7",
+            "team_name": "Ligma Johnson",
+            "team_id": "0ni4tw46m4rixpps",
+            "FPts": 1386.0,
+            "Adj": -103.0,
+            "Total": 1283.0,
+            "FP/G": 47.52,
+            "GP": 27.0,
+            "WW": 4.0,
+            "PBL": 137.0
+        },
+        {
+            "rank": "8",
+            "team_name": "The Retirement Home",
+            "team_id": "t0g8e5zgm4rixpps",
+            "FPts": 1466.0,
+            "Adj": -202.0,
+            "Total": 1264.0,
+            "FP/G": 43.59,
+            "GP": 29.0,
+            "WW": 12.0,
+            "PBL": 156.0
+        },
+        {
+            "rank": "9",
+            "team_name": "Rudy Homo",
+            "team_id": "bhqtd2gjm4rixpps",
+            "FPts": 1240.0,
+            "Adj": 0.0,
+            "Total": 1240.0,
+            "FP/G": 49.6,
+            "GP": 25.0,
+            "WW": 3.0,
+            "PBL": 180.0
+        },
+        {
+            "rank": "10",
+            "team_name": "Diddled By Diddy",
+            "team_id": "f8t9qtgqm4rixpps",
+            "FPts": 1232.0,
+            "Adj": 0.0,
+            "Total": 1232.0,
+            "FP/G": 49.28,
+            "GP": 25.0,
+            "WW": 6.0,
+            "PBL": 188.0
+        },
+        {
+            "rank": "11",
+            "team_name": "Kamala's Gunz",
+            "team_id": "fibeu6xym4rixpps",
+            "FPts": 1213.0,
+            "Adj": 0.0,
+            "Total": 1213.0,
+            "FP/G": 48.52,
+            "GP": 25.0,
+            "WW": 8.0,
+            "PBL": 207.0
+        },
+        {
+            "rank": "12",
+            "team_name": "15 Dream Team",
+            "team_id": "7lo5vz7ym4rixpps",
+            "FPts": 1210.0,
+            "Adj": 0.0,
+            "Total": 1210.0,
+            "FP/G": 48.4,
+            "GP": 25.0,
+            "WW": 14.0,
+            "PBL": 210.0
+        },
+        {
+            "rank": "13",
+            "team_name": "President of Retarded Operations",
+            "team_id": "825wyt8km4rixpps",
+            "FPts": 1183.0,
+            "Adj": 0.0,
+            "Total": 1183.0,
+            "FP/G": 47.32,
+            "GP": 25.0,
+            "WW": 7.0,
+            "PBL": 237.0
+        },
+        {
+            "rank": "14",
+            "team_name": "Weinstein Wranglers",
+            "team_id": "cjtsh4ofm4rixpps",
+            "FPts": 1152.0,
+            "Adj": 0.0,
+            "Total": 1152.0,
+            "FP/G": 46.08,
+            "GP": 25.0,
+            "WW": 2.0,
+            "PBL": 268.0
+        }
+    ]
+}
