@@ -179,9 +179,9 @@ def calculate_adjusted_scores(df, min_games):
     df['Adjustment'] = df['Games Over'] * df['FPts'] / df['GP']
     df['Adjusted FPts'] = df['FPts'] - df['Adjustment']
 
-    # Round calculated columns to 2 decimal points
+    # Round calculated columns to 0 decimal points and convert to integer
     for col in ['Adjustment', 'Adjusted FPts']:
         if col in df.columns:
-            df[col] = df[col].round(2)
+            df[col] = df[col].round(0).astype(int)
 
     return df

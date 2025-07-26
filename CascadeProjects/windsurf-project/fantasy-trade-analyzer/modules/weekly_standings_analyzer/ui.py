@@ -55,7 +55,24 @@ def show_weekly_standings_analyzer():
             st.info(f"Cached periods for **{selected_league_name}**: {', '.join(map(str, sorted(cached_periods.keys())))}")
 
     periods_input = st.text_input("Scoring Period(s)", value="1", help="Enter a single period, a range (e.g., 1-4), or a comma-separated list (e.g., 1,3,5).")
-    min_games = st.number_input("Minimum Games Played", min_value=0, value=25)
+
+    periods_to_run = parse_periods(periods_input)
+    min_games_map = {}
+
+    if periods_to_run:
+        st.markdown("--- ")
+        st.subheader("Set Minimum Games per Period")
+        cols = st.columns(min(len(periods_to_run), 4))
+        for i, period in enumerate(periods_to_run):
+            with cols[i % 4]:
+                min_games_map[period] = st.number_input(
+                    f"Period {period}",
+                    min_value=0,
+                    value=30,
+                    key=f"min_games_{period}"
+                )
+        st.markdown("--- ")
+
     force_refresh = st.checkbox("Force Refresh (ignore cache)", help="Check this box to bypass the local cache and download the latest data from Fantrax.")
 
     if st.button("Get Weekly Standings"):
@@ -66,7 +83,6 @@ def show_weekly_standings_analyzer():
             st.error("Fantrax username or password not found. Please set them in your `fantrax.env` file.")
             return
 
-        periods_to_run = parse_periods(periods_input)
         if not periods_to_run:
             st.error("Invalid period format. Please enter periods like '1', '1-4', or '1,3,5'.")
             return
@@ -74,16 +90,17 @@ def show_weekly_standings_analyzer():
         for period in periods_to_run:
             st.subheader(f"Results for Period {period}")
             try:
+                min_games_for_period = min_games_map.get(period, 25)
                 with st.spinner(f"Fetching and calculating standings for period {period}..."):
                     df, from_cache = get_weekly_standings(
-                        league_id, period, FANTRAX_USERNAME, FANTRAX_PASSWORD, min_games, force_refresh
+                        league_id, period, FANTRAX_USERNAME, FANTRAX_PASSWORD, min_games_for_period, force_refresh
                     )
                     st.success(f"Got standings for period {period}. From cache: {from_cache}")
 
                     if 'Calc FP/G' not in df.columns:
                         df['Calc FP/G'] = df.apply(lambda row: row['FPts'] / row['GP'] if row['GP'] > 0 else 0, axis=1)
 
-                    adjusted_df = calculate_adjusted_scores(df.copy(), min_games)
+                    adjusted_df = calculate_adjusted_scores(df.copy(), min_games_for_period)
 
                     st.header("Adjusted Standings")
                     display_cols = [
