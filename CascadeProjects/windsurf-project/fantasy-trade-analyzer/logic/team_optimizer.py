@@ -17,6 +17,14 @@ def run_team_optimizer(available_players, budget, roster_composition, generation
     if available_players.empty:
         return pd.DataFrame()
 
+    # Ensure 'AdjValue' column exists, falling back to 'BaseValue' if it doesn't.
+    if 'AdjValue' not in available_players.columns:
+        if 'BaseValue' in available_players.columns:
+            available_players['AdjValue'] = available_players['BaseValue']
+        else:
+            # If neither is present, return an empty frame to avoid crashing.
+            return pd.DataFrame()
+
     # --- 1. Problem Definition ---
     creator.create("FitnessMax", base.Fitness, weights=(1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMax)
@@ -34,7 +42,9 @@ def run_team_optimizer(available_players, budget, roster_composition, generation
     # --- 3. Genetic Operators ---
     def evaluate(individual):
         team_df = available_players.loc[individual]
-        total_cost = team_df['AdjValue'].sum()
+        # Fallback to BaseValue if AdjValue is not available
+        value_col = 'AdjValue' if 'AdjValue' in team_df.columns else 'BaseValue'
+        total_cost = team_df[value_col].sum()
         total_value = team_df['VORP'].sum()
 
         # Constraint 1: Budget
@@ -84,7 +94,10 @@ def run_team_optimizer(available_players, budget, roster_composition, generation
     # --- 5. Return Best Result ---
     if hof:
         best_individual = hof[0]
-        best_team_df = available_players.loc[best_individual].sort_values(by='AdjValue', ascending=False)
+        best_team_df = available_players.loc[best_individual]
+        # Fallback to BaseValue if AdjValue is not available for sorting
+        sort_col = 'AdjValue' if 'AdjValue' in best_team_df.columns else 'BaseValue'
+        best_team_df = best_team_df.sort_values(by=sort_col, ascending=False)
         return best_team_df
     else:
         return pd.DataFrame() # Return empty if no solution found

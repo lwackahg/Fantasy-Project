@@ -144,7 +144,8 @@ def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composit
             final_df[col_name] = (final_df['VORPValue'] * 0.5) + (final_df['MarketValue'] * 0.5)
         elif model == "Risk-Adjusted VORP":
             # Simple risk model: reduce value by a percentage of games missed
-            games_played_factor = (final_df.get('S4_GP', 82) / 82) ** 2 # Heavier penalty for missed games
+            s4_gp_series = pd.to_numeric(final_df['S4_GP'], errors='coerce').fillna(82) if 'S4_GP' in final_df else pd.Series(82, index=final_df.index)
+            games_played_factor = (s4_gp_series / 82) ** 2
             final_df[col_name] = final_df['VORPValue'] * games_played_factor
         elif model == "Expert Consensus Value (ECV)":
             # Placeholder: Blends VORP with a simulated expert rank/value
