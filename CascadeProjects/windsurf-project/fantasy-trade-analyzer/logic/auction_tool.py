@@ -257,5 +257,9 @@ def recalculate_dynamic_values(available_players_df, remaining_money_pool, total
         else:
             available_players_df['ValueMean'] = available_players_df['BaseValue']
 
+    # Final type check to prevent UI errors
+    if 'PlayerName' in available_players_df.columns:
+        available_players_df['PlayerName'] = available_players_df['PlayerName'].astype(str)
+
     return available_players_df
 

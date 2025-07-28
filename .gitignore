@@ -125,5 +125,7 @@ automation.log
 
 # Other
 page_source.html
+/CascadeProjects/plan
 
-.gitignore
+# windsurf rules
+.windsurfrules

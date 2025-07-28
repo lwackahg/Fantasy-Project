@@ -240,37 +240,58 @@ def render_player_analysis(selected_player_name, recalculated_df):
     if not selected_player_name:
         return
 
-    player_values = recalculated_df[recalculated_df['PlayerName'] == selected_player_name].iloc[0]
+    # Ensure the index is what we expect, if not, set it.
+    if 'PlayerName' in recalculated_df.columns:
+        recalculated_df = recalculated_df.set_index('PlayerName')
+
+    if selected_player_name not in recalculated_df.index:
+        st.warning(f"Could not find player: {selected_player_name}")
+        return
+
+    player_values = recalculated_df.loc[selected_player_name]
 
     with st.form(key='draft_form'):
         st.markdown(f"#### Draft **{selected_player_name}**")
         draft_col1, draft_col2, draft_col3 = st.columns(3)
         team_selection = draft_col1.selectbox("Select Team", options=st.session_state.team_names)
         draft_price = draft_col2.number_input("Draft Price", min_value=1, value=max(1, int(player_values.get('AdjValue', 1))))
-        submit_button = draft_col3.form_submit_button(label="Draft Player")
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            draft_button = st.form_submit_button(f"Draft Player", use_container_width=True)
+        with col2:
+            on_the_block_button = st.form_submit_button("Set On The Block", use_container_width=True, type="secondary")
 
-        if submit_button:
+    if on_the_block_button:
+        st.session_state.player_on_the_block = selected_player_name
+        st.toast(f"{selected_player_name} is now on the block!")
+
+    if draft_button:
             if draft_price > st.session_state.teams[team_selection]['budget']:
                 st.error(f"{team_selection} cannot afford {selected_player_name} at this price.")
             else:
-                st.session_state.teams[team_selection]['budget'] -= draft_price
-                player_data = {
-                    'PlayerName': selected_player_name,
-                    'Position': player_values['Position'],
-                    'DraftPrice': draft_price,
-                    'Tier': player_values.get('Tier', 'N/A'),
-                    'BaseValue': player_values.get('Value', 0),
-                    'Confidence': f"{player_values.get('Confidence', 100.0):.1f}%"
-                }
-                st.session_state.teams[team_selection]['players'].append(player_data)
-                st.session_state.total_money_spent += draft_price
-                draft_entry = player_values.to_dict()
+                    # Get the full player row as a dictionary
+                draft_entry = st.session_state.available_players[st.session_state.available_players['PlayerName'] == selected_player_name].to_dict('records')[0]
                 draft_entry.update({'DraftPrice': draft_price, 'Team': team_selection})
+
+                # Add to drafted list and team's roster
                 st.session_state.drafted_players.append(draft_entry)
+                st.session_state.teams[team_selection]['players'].append(draft_entry)
+                st.session_state.teams[team_selection]['budget'] -= draft_price
+                st.session_state.total_money_spent += draft_price
+
+                # Remove from available players
                 st.session_state.available_players = st.session_state.available_players[st.session_state.available_players['PlayerName'] != selected_player_name]
-                st.success(f"{selected_player_name} drafted by {team_selection} for ${draft_price}!")
+
+                # Advance to the next nominating team
+                if st.session_state.draft_order:
+                    current_index = st.session_state.get('current_nominating_team_index', 0)
+                    next_index = (current_index + 1) % len(st.session_state.draft_order)
+                    st.session_state.current_nominating_team_index = next_index
+
+                st.toast(f"{selected_player_name} drafted by {team_selection} for ${draft_price}!", icon="🎉")
+                st.session_state.player_on_the_block = None # Clear player on block
                 st.rerun()
-    
+
     st.markdown("---")
 
     col1, col2 = st.columns(2)
@@ -344,10 +365,27 @@ def render_player_analysis(selected_player_name, recalculated_df):
 
             if 'optimal_team' in st.session_state and not st.session_state.optimal_team.empty:
                 st.success("Optimal Roster Found!")
-                st.dataframe(st.session_state.optimal_team[['PlayerName', 'Position', 'AdjValue', 'VORP']], use_container_width=True)
-                total_cost = st.session_state.optimal_team['AdjValue'].sum()
-                total_vorp = st.session_state.optimal_team['VORP'].sum()
-                st.info(f"**Total Cost:** ${total_cost:.0f} | **Total VORP:** {total_vorp:.2f}")
+                st.info("This is the optimal set of players to draft for your remaining spots and budget.")
+
+                # Combine with current team for a full view
+                current_team_df = pd.DataFrame(st.session_state.teams[st.session_state.main_team]['players'])
+                # Ensure columns align for concatenation
+                current_team_df_display = pd.DataFrame({
+                    'PlayerName': current_team_df['PlayerName'],
+                    'Position': current_team_df['Position'],
+                    'AdjValue': current_team_df['DraftPrice'],
+                    'VORP': current_team_df['VORP']
+                })
+                final_roster_df = pd.concat([current_team_df_display, st.session_state.optimal_team[['PlayerName', 'Position', 'AdjValue', 'VORP']]], ignore_index=True)
+
+                st.subheader("Projected Final Roster")
+                st.dataframe(final_roster_df, use_container_width=True)
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Total Projected VORP", f"{final_roster_df['VORP'].sum():.2f}")
+                with col2:
+                    st.metric("Total Team Cost", f"${final_roster_df['AdjValue'].sum():.0f}")
 
 def render_draft_summary():
     """Renders the draft summary table."""
@@ -361,12 +399,19 @@ def render_draft_summary():
         if col not in drafted_df.columns:
             drafted_df[col] = 0
 
-    drafted_df['Value'] = drafted_df['AdjValue'] - drafted_df['DraftPrice']
-    
-    summary_df = drafted_df[['PlayerName', 'Team', 'Position', 'DraftPrice', 'AdjValue', 'BaseValue', 'Value']].copy()
-    summary_df['DraftPrice'] = summary_df['DraftPrice'].apply(lambda x: f"${x:,.0f}")
-    summary_df['AdjValue'] = summary_df['AdjValue'].apply(lambda x: f"${x:,.0f}")
-    summary_df['BaseValue'] = summary_df['BaseValue'].apply(lambda x: f"${x:,.0f}")
+    summary_df = drafted_df.groupby('Team').agg(
+        Players_Drafted=('PlayerName', 'count'),
+        Budget_Spent=('DraftPrice', 'sum'),
+        Total_BaseValue=('BaseValue', 'sum'),
+        Total_AdjValue=('AdjValue', 'sum')
+    ).reset_index()
+
+    summary_df['Budget_Remaining'] = summary_df['Team'].apply(lambda team: st.session_state.teams[team]['budget'])
+    summary_df['Value'] = summary_df['Total_AdjValue'] - summary_df['Budget_Spent']
+
+    # Formatting for display
+    for col in ['Budget_Spent', 'Total_BaseValue', 'Total_AdjValue', 'Budget_Remaining']:
+        summary_df[col] = summary_df[col].apply(lambda x: f"${x:,.0f}")
     
     def color_value(val):
         if val > 0:
