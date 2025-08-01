@@ -3,10 +3,44 @@ import pandas as pd
 from logic.auction_tool import (calculate_initial_values, recalculate_dynamic_values, BASE_VALUE_MODELS, SCARCITY_MODELS)
 from modules.data_preparation import generate_pps_projections
 from logic.smart_auction_bot import SmartAuctionBot
+
 from logic.ui_components import (
     render_setup_page, render_sidebar_in_draft, render_value_calculation_expander,
     render_draft_board, render_team_rosters, render_player_analysis, render_draft_summary
 )
+
+def clear_player_on_block():
+    """Callback function to reset the player on the block."""
+    st.session_state.player_on_the_block = None
+
+def drafting_callback(selected_player_name, team_selection, draft_price, assigned_position, player_values):
+    """Handles the logic for drafting a player and then clearing the selection."""
+    if draft_price > st.session_state.teams[team_selection]['budget']:
+        st.error(f"{team_selection} cannot afford {selected_player_name} at this price.")
+        return
+
+    if not assigned_position or assigned_position == '':
+        st.error("You must assign a position to this player before drafting.")
+        return
+
+    # Proceed with draft
+    draft_entry = player_values.to_dict()
+    draft_entry['PlayerName'] = player_values.name
+    draft_entry.update({'DraftPrice': draft_price, 'Team': team_selection, 'Position': assigned_position})
+
+    st.session_state.drafted_players.append(draft_entry)
+    st.session_state.teams[team_selection]['players'].append(draft_entry)
+    st.session_state.teams[team_selection]['budget'] -= draft_price
+    st.session_state.total_money_spent += draft_price
+    st.session_state.available_players = st.session_state.available_players[st.session_state.available_players['PlayerName'] != selected_player_name]
+
+    if st.session_state.draft_order:
+        current_index = st.session_state.get('current_nominating_team_index', 0)
+        next_index = (current_index + 1) % len(st.session_state.draft_order)
+        st.session_state.current_nominating_team_index = next_index
+
+    st.toast(f"{selected_player_name} drafted by {team_selection} for ${draft_price}!", icon="🎉")
+    st.session_state.player_on_the_block = None
 
 st.set_page_config(layout="wide")
 
@@ -133,16 +167,6 @@ else: # Draft is in progress
             - **Positional Scarcity**: As players at a certain position are drafted, the value of remaining players at that position increases.
             - **Inflation/Deflation**: The model tracks the total money spent versus the total value of players drafted. If teams overpay, inflation occurs, and the value of remaining players goes up. If players are acquired for less than their value, deflation occurs.
         - **VORP (Value Over Replacement Player)**: A measure of how much a player is expected to contribute beyond a readily available replacement player.
-
-        ### Smart Auction Bot Logic
-        The bot provides two types of recommendations:
-        - **Nomination Advice**: This is a strategic recommendation for who you should nominate next. It is based on the overall state of the draft and does not change when you select different players in the dropdown below. The bot uses several tactics:
-            - **Target High Value**: Recommends a player who provides the highest *marginal value* specifically for your team's build.
-            - **Pressure Opponents**: Suggests nominating a top player you don't need to force other teams to spend their budget.
-            - **Find a Bargain**: Identifies players with high potential (VORP) relative to their expected cost.
-        - **Bidding Advice**: This advice appears when a player is 'On The Block'. The bot calculates a **Max Bid** based on:
-            - The player's **Adjusted Value**.
-            - The player's **Marginal Value**: The bot runs a rapid simulation to measure how much that specific player improves your team's optimal lineup. A high marginal value means the player is a perfect fit for your roster, justifying a higher bid.
         """)
 
 
@@ -150,65 +174,18 @@ else: # Draft is in progress
     nominating_team_name = st.session_state.draft_order[st.session_state.current_nominating_team_index] if st.session_state.draft_order else 'N/A'
     st.subheader(f"On the Clock: {nominating_team_name}")
 
-    if 'available_players' in st.session_state and not st.session_state.available_players.empty:
-        # Find the user's team name, default to the first team if not set
-        my_team_name = st.session_state.get('main_team')
-        if not my_team_name:
-            my_team_name = st.session_state.team_names[0]
-        
-        bot = SmartAuctionBot(
-            available_players=st.session_state.available_players,
-            my_team=st.session_state.teams[my_team_name].get('players', pd.DataFrame()),
-            budget=st.session_state.budget_per_team,
-            roster_composition=st.session_state.roster_composition,
-            team_strategy_name=st.session_state.get('team_strategy', 'balanced')
-        )
-
-        rec_col1, rec_col2 = st.columns(2)
-        with rec_col1:
-            my_team_name = st.session_state.get('main_team')
-            if nominating_team_name == my_team_name:
-                with st.expander("🤖 **Nomination Advice**", expanded=True):
-                    # Display simple advice by default or if no advanced advice has been generated yet
-                    if 'nomination_reason' not in st.session_state or st.session_state.nomination_reason is None:
-                        simple_advice = bot.get_simple_nomination_recommendation()
-                        st.session_state.nomination_reason = simple_advice.get('reason')
-                        st.session_state.recommended_nominee = simple_advice.get('player')
-
-                    # Display the current recommendation
-                    if st.session_state.get('recommended_nominee'):
-                        st.metric("Recommended Nomination", st.session_state.recommended_nominee)
-                        st.info(f"Reasoning: {st.session_state.nomination_reason}")
-                    else:
-                        st.warning("No nomination recommendations at this time.")
-
-                    # Button to get advanced advice
-                    if st.button("Get Advanced Advice"):
-                        with st.spinner("Running advanced analysis..."):
-                            advanced_advice = bot.get_nomination_recommendation()
-                            st.session_state.nomination_reason = advanced_advice['reason']
-                            st.session_state.recommended_nominee = advanced_advice['player']
-                            st.rerun()
-            else:
-                st.empty()
-        
-        with rec_col2:
-            with st.expander("💰 **Bidding Advice**", expanded=True):
-                player_on_block = st.session_state.get('player_on_the_block')
-                if player_on_block:
-                    st.markdown(f"#### Advice for **{player_on_block}**")
-                    advice = bot.get_bidding_advice(player_on_block)
-                    st.metric(label="Recommended Max Bid", value=f"${advice['max_bid']}")
-                    st.markdown(f"**Reasoning:** {advice['reason']}")
-                else:
-                    st.info("Select a player from the dropdown below, then click 'Set On The Block' to get bidding advice.")
-
-    total_league_money = st.session_state.num_teams * st.session_state.budget_per_team
-    remaining_money_pool = total_league_money - st.session_state.total_money_spent
-
+    # --- Value Recalculation and Bot Logic ---
     if not st.session_state.available_players.empty:
+        # Define money pool variables before they are used
+        total_league_money = st.session_state.num_teams * st.session_state.budget_per_team
+        total_money_spent = sum(player['DraftPrice'] for player in st.session_state.drafted_players)
+        remaining_money_pool = total_league_money - total_money_spent
+
+        # 1. Recalculate dynamic values for the current available players.
+        # The result is stored in a temporary variable for this script run and not written back to session_state
+        # to prevent data corruption. The session_state.available_players is the source of truth.
         recalculated_df = recalculate_dynamic_values(
-            available_players_df=st.session_state.available_players.copy(),
+            available_players_df=st.session_state.available_players.copy(), # Use a copy to be safe
             remaining_money_pool=remaining_money_pool,
             total_league_money=total_league_money,
             base_value_models=st.session_state.base_value_models,
@@ -219,31 +196,62 @@ else: # Draft is in progress
             roster_composition=st.session_state.get('roster_composition'),
             num_teams=st.session_state.get('num_teams')
         )
+
+        # 2. Now, initialize and use the Smart Auction Bot with the recalculated data
+        my_team_name = st.session_state.get('main_team', st.session_state.team_names[0])
+        bot = SmartAuctionBot(
+            my_team_name=my_team_name,
+            teams=st.session_state.teams,
+            available_players=recalculated_df, # Pass the recalculated df
+            draft_history=st.session_state.drafted_players,
+            budget=st.session_state.budget_per_team,
+            roster_composition=st.session_state.roster_composition
+        )
+
+        if nominating_team_name == my_team_name:
+            with st.expander("🤖 **Nomination Advice**", expanded=True):
+                advice = bot.get_nomination_recommendation()
+                if advice and advice.get('player'):
+                    st.metric("Recommended Nomination", advice['player'])
+                    st.info(f"**Reasoning:** {advice['reason']}")
+                else:
+                    st.warning("No nomination recommendation available at this time.")
+
     else:
         recalculated_df = pd.DataFrame()
         st.balloons()
         st.success("Draft Complete!")
 
     st.subheader("Analyze or Draft a Player")
+    player_options = []
     if not recalculated_df.empty:
+        # First, get the list of player names for the dropdown
+        if 'PlayerName' in recalculated_df.columns:
+            player_options = recalculated_df['PlayerName'].tolist()
+        
+        # Then, set the index for fast lookups later
         if 'PlayerName' in recalculated_df.columns:
             recalculated_df.set_index('PlayerName', inplace=True)
-    
-    player_options = st.session_state.available_players['PlayerName'].tolist()
-    selected_player_for_block = st.selectbox(
-        "Select a player to put on the block:", 
-        options=player_options, 
-        index=None, 
-        key="player_select_for_block"
-    )
 
-    # Button to set the player on the block
-    if st.button("Set On The Block", key="set_on_block_button"):
-        if selected_player_for_block:
-            st.session_state.player_on_the_block = selected_player_for_block
-            st.rerun()
-        else:
-            st.warning("Please select a player first.")
+    # The selectbox now directly controls the 'player_on_the_block' state
+    # Initialize the key in session state if it doesn't exist
+    if 'player_on_the_block' not in st.session_state:
+        st.session_state.player_on_the_block = None
+
+    # Determine the index of the currently selected player to ensure the selectbox is synchronized
+    try:
+        current_selection_index = player_options.index(st.session_state.player_on_the_block)
+    except (ValueError, TypeError):
+        current_selection_index = None # Handles case where player is not in list or is None
+
+    # The selectbox's state is now fully managed
+    st.selectbox(
+        "Select a player to put on the block:",
+        options=player_options,
+        index=current_selection_index,
+        key='player_on_the_block',
+        placeholder="Choose a player..."
+    )
 
     st.markdown("---")
 
@@ -253,5 +261,6 @@ else: # Draft is in progress
 
     draft_analysis_container = st.container()
     with draft_analysis_container:
-        if 'player_on_the_block' in st.session_state:
-            render_player_analysis(st.session_state.player_on_the_block, recalculated_df)
+        # Check for a truthy value to ensure a player is actually selected
+        if st.session_state.get('player_on_the_block'):
+            render_player_analysis(st.session_state.player_on_the_block, recalculated_df, drafting_callback)

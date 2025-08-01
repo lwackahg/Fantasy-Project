@@ -255,11 +255,11 @@ def recalculate_dynamic_values(available_players_df, remaining_money_pool, total
         if len(all_model_cols) == 1:
             available_players_df['ValueMean'] = available_players_df[all_model_cols[0]]
         else:
-            available_players_df['ValueMean'] = available_players_df['BaseValue']
+            # If no models, or only one, there's no variance, so mean is just the base value or 0
+            available_players_df['ValueMean'] = available_players_df.get('BaseValue', 0)
 
     # Final type check to prevent UI errors
     if 'PlayerName' in available_players_df.columns:
         available_players_df['PlayerName'] = available_players_df['PlayerName'].astype(str)
 
     return available_players_df
-

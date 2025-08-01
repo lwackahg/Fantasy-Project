@@ -17,9 +17,6 @@ env/
 .env
 fantrax.env
 
-# Test files
-/CascadeProjects/windsurf-project/fantasy-trade-analyzer/tests/
-/CascadeProjects/windsurf-project/fantasy-trade-analyzer/pytest.ini
 
 # Unused Modules
 /CascadeProjects/windsurf-project/fantasy-trade-analyzer/src/modules/unused_team_scouting
@@ -130,3 +127,7 @@ page_source.html
 # windsurf rules
 .windsurf/rules
 
+
+# Test files
+/CascadeProjects/windsurf-project/fantasy-trade-analyzer/tests/
+/CascadeProjects/windsurf-project/fantasy-trade-analyzer/pytest.ini

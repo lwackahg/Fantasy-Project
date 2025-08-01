@@ -235,62 +235,44 @@ def render_team_rosters():
             else:
                 st.text("No players drafted.")
 
-def render_player_analysis(selected_player_name, recalculated_df):
+def render_player_analysis(selected_player_name, available_players_df, on_draft_callback):
     """Renders the analysis section for a selected player, including the draft form."""
     if not selected_player_name:
         return
 
     # Ensure the index is what we expect, if not, set it.
-    if 'PlayerName' in recalculated_df.columns:
-        recalculated_df = recalculated_df.set_index('PlayerName')
+    if 'PlayerName' in available_players_df.columns:
+        available_players_df = available_players_df.set_index('PlayerName')
 
-    if selected_player_name not in recalculated_df.index:
+    if selected_player_name not in available_players_df.index:
         st.warning(f"Could not find player: {selected_player_name}")
         return
 
-    player_values = recalculated_df.loc[selected_player_name]
+    player_values = available_players_df.loc[selected_player_name]
 
     with st.form(key='draft_form'):
         st.markdown(f"#### Draft **{selected_player_name}**")
         draft_col1, draft_col2, draft_col3 = st.columns(3)
         team_selection = draft_col1.selectbox("Select Team", options=st.session_state.team_names)
         draft_price = draft_col2.number_input("Draft Price", min_value=1, value=max(1, int(player_values.get('AdjValue', 1))))
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            draft_button = st.form_submit_button(f"Draft Player", use_container_width=True)
-        with col2:
-            on_the_block_button = st.form_submit_button("Set On The Block", use_container_width=True, type="secondary")
 
-    if on_the_block_button:
-        st.session_state.player_on_the_block = selected_player_name
-        st.toast(f"{selected_player_name} is now on the block!")
+        player_positions = player_values.get('Position', '').split('/')
+        if len(player_positions) > 1:
+            assigned_position = draft_col3.selectbox(
+                "Assign Position",
+                options=player_positions,
+                help="This player is eligible for multiple positions. You must assign one."
+            )
+        else:
+            assigned_position = player_positions[0]
 
-    if draft_button:
-            if draft_price > st.session_state.teams[team_selection]['budget']:
-                st.error(f"{team_selection} cannot afford {selected_player_name} at this price.")
-            else:
-                    # Get the full player row as a dictionary
-                draft_entry = st.session_state.available_players[st.session_state.available_players['PlayerName'] == selected_player_name].to_dict('records')[0]
-                draft_entry.update({'DraftPrice': draft_price, 'Team': team_selection})
-
-                # Add to drafted list and team's roster
-                st.session_state.drafted_players.append(draft_entry)
-                st.session_state.teams[team_selection]['players'].append(draft_entry)
-                st.session_state.teams[team_selection]['budget'] -= draft_price
-                st.session_state.total_money_spent += draft_price
-
-                # Remove from available players
-                st.session_state.available_players = st.session_state.available_players[st.session_state.available_players['PlayerName'] != selected_player_name]
-
-                # Advance to the next nominating team
-                if st.session_state.draft_order:
-                    current_index = st.session_state.get('current_nominating_team_index', 0)
-                    next_index = (current_index + 1) % len(st.session_state.draft_order)
-                    st.session_state.current_nominating_team_index = next_index
-
-                st.toast(f"{selected_player_name} drafted by {team_selection} for ${draft_price}!", icon="🎉")
-                st.session_state.player_on_the_block = None # Clear player on block
-                st.rerun()
+        st.form_submit_button(
+            f"Draft {selected_player_name}", 
+            use_container_width=True, 
+            type="primary", 
+            on_click=on_draft_callback, 
+            args=(selected_player_name, team_selection, draft_price, assigned_position, player_values)
+        )
 
     st.markdown("---")
 
@@ -449,9 +431,11 @@ def render_sidebar_in_draft():
             draft_price = player_to_restore.pop('DraftPrice')
             team_name = player_to_restore.pop('Team')
 
+            # Restore budget and remove player from team
             st.session_state.teams[team_name]['budget'] += draft_price
-            st.session_state.teams[team_name]['players'] = [p for p in st.session_state.teams[team_name]['players'] if p['PlayerName'] != player_name]
+            st.session_state.teams[team_name]['players'] = [p for p in st.session_state.teams[team_name]['players'] if p.get('PlayerName') != player_name]
 
+            # Add player back to available players
             player_to_restore_df = pd.DataFrame([player_to_restore], index=[player_name])
             player_to_restore_df.index.name = 'PlayerName'
             player_to_restore_df.reset_index(inplace=True)

@@ -1,196 +1,163 @@
 import pandas as pd
-import numpy as np
-from logic.team_optimizer import EnhancedTeamOptimizer
-from logic.optimizer_strategies import STRATEGIES
 
 class SmartAuctionBot:
-    """Provides intelligent auction recommendations based on team strategy and auction dynamics."""
+    """
+    A strategic auction bot that recommends nominations to maximize budget drain
+    from opponents.
+    """
+    def __init__(self, my_team_name: str, teams: dict, available_players: pd.DataFrame, draft_history: list, budget: int, roster_composition: dict):
+        """
+        Initializes the bot with the current state of the draft.
 
-    def __init__(self, available_players, my_team, budget, roster_composition, team_strategy_name='balanced'):
-        self.initial_players = available_players.copy()
-        self.available_players = available_players.copy()
-
-        # Ensure PlayerName is the index for consistent lookups
-        if 'PlayerName' in self.available_players.columns:
-            self.available_players.set_index('PlayerName', inplace=True)
-        
-        # Ensure 'AdjValue' column exists, falling back to 'BaseValue' if it doesn't.
-        if 'AdjValue' not in self.available_players.columns:
-            if 'BaseValue' in self.available_players.columns:
-                self.available_players['AdjValue'] = self.available_players['BaseValue']
-            else:
-                # As a last resort, create a default value to prevent crashes.
-                self.available_players['AdjValue'] = 1
-        if isinstance(my_team, pd.DataFrame):
-            self.my_team = my_team
-        elif my_team:
-            self.my_team = pd.DataFrame(my_team)
-        else:
-            self.my_team = pd.DataFrame(columns=['PlayerName', 'Position', 'DraftPrice'])
+        Args:
+            my_team_name (str): The name of the user's team.
+            teams (dict): A dictionary containing all teams, their budgets, and drafted players.
+            available_players (pd.DataFrame): A DataFrame of players still available.
+            draft_history (list): A list of dictionaries, where each dict represents a drafted player.
+            budget (int): The starting budget for each team.
+            roster_composition (dict): A dictionary defining the required number of players for each position.
+        """
+        self.my_team_name = my_team_name
+        self.teams = teams
+        self.available_players = available_players
+        self.draft_history = draft_history
         self.budget = budget
         self.roster_composition = roster_composition
-        self.team_strategy = STRATEGIES[team_strategy_name]
-        self.optimizer = EnhancedTeamOptimizer()
+        self.opponent_teams = {name: data for name, data in teams.items() if name != my_team_name}
 
-    def analyze_situation(self):
-        """Analyzes the current state of the auction to determine needs and resources."""
-        spent = self.my_team['DraftPrice'].sum() if not self.my_team.empty else 0
-        remaining_budget = self.budget - spent
+    def _calculate_opponent_needs(self) -> dict:
+        """
+        Calculates the remaining roster needs for each opponent.
+        """
+        needs = {}
+        for team_name, data in self.opponent_teams.items():
+            needs[team_name] = self.roster_composition.copy()
+            # Create a deep copy for manipulation
+            team_needs = {k: v for k, v in self.roster_composition.items()}
 
-        remaining_roster = self.roster_composition.copy()
-        if not self.my_team.empty:
-            current_counts = self.my_team['Position'].value_counts()
-            for pos, count in current_counts.items():
-                if pos in remaining_roster:
-                    remaining_roster[pos] -= count
+            for player in data.get('players', []):
+                pos = player.get('Position') # Corrected from 'AssignedPosition'
+                if pos in team_needs and team_needs[pos] > 0:
+                    team_needs[pos] -= 1
+                # Handle flex positions if a primary position is full
+                elif 'Flx' in team_needs and team_needs['Flx'] > 0:
+                    team_needs['Flx'] -= 1
+            needs[team_name] = team_needs
+        return needs
+
+    def _calculate_budget_pressure_score(self, player: pd.Series, opponent_needs: dict) -> float:
+        """Calculates the financial pressure a player's nomination would cause."""
+        opponents_who_need_player = []
+        for team_name, needs in opponent_needs.items():
+            for pos in player['Position'].split('/'):
+                if needs.get(pos, 0) > 0:
+                    opponents_who_need_player.append(team_name)
+                    break
         
-        needs = {pos: count for pos, count in remaining_roster.items() if count > 0}
-        remaining_spots = sum(needs.values())
+        if not opponents_who_need_player:
+            return 0.0
 
-        return {
-            "remaining_budget": remaining_budget,
-            "remaining_spots": remaining_spots,
-            "needs": needs
+        avg_budget_of_needy_opponents = sum(self.opponent_teams[name]['budget'] for name in opponents_who_need_player) / len(opponents_who_need_player)
+        
+        if avg_budget_of_needy_opponents == 0:
+            return 1.0 # Max pressure if they have no money but need the spot
+
+        pressure_score = player['AdjValue'] / avg_budget_of_needy_opponents
+        return min(pressure_score, 1.0) # Cap score at 1.0
+
+    def _calculate_positional_scarcity_score(self, player: pd.Series) -> float:
+        """Calculates the scarcity of a player's position among top-tier available players."""
+        # Filter for Tier 1 players only
+        top_tier_players = self.available_players[self.available_players['Tier'] == 1]
+        if top_tier_players.empty:
+            return 0.5  # Return a neutral score if no elite players are left
+
+        # Get the positions the player is eligible for
+        player_positions = player['Position'].split('/')
+        
+        final_scarcity_scores = []
+
+        # Calculate scarcity for each of the player's positions
+        for position_to_check in player_positions:
+            count_at_pos = 0
+            # Count how many top-tier players are eligible for this position
+            for _, other_player in top_tier_players.iterrows():
+                if position_to_check in other_player['Position'].split('/'):
+                    count_at_pos += 1
+            
+            # The score is inversely proportional to the count
+            scarcity_score = 1 / (1 + count_at_pos)
+            final_scarcity_scores.append(scarcity_score)
+
+        # For multi-position players, use the highest scarcity score
+        return max(final_scarcity_scores)
+
+    def _calculate_value_inflation_score(self, player: pd.Series) -> float:
+        """Calculates the potential for a player to be overpaid, driving inflation."""
+        if player['BaseValue'] == 0:
+            return 0.0
+        
+        inflation_ratio = (player['AdjValue'] - player['BaseValue']) / player['BaseValue']
+        # Normalize to a 0-1 scale, assuming max inflation of 100% (ratio=1.0)
+        return min(max(inflation_ratio, 0), 1)
+
+    def get_nomination_recommendation(self) -> dict:
+        """
+        Calculates a NominationScore for each available player and returns the best one.
+
+        The score is based on:
+        1. Budget Pressure: How much a player will drain opponents' budgets.
+        2. Positional Scarcity: How rare the player's position is among remaining top-tier players.
+        3. Value Inflation: How overpriced a player is compared to their base value.
+
+        Returns:
+            dict: A dictionary containing the recommended player and the reason.
+        """
+        if self.available_players.empty:
+            return {'player': None, 'reason': "The draft is complete."}
+
+        opponent_needs = self._calculate_opponent_needs()
+
+        # Tunable weights for each strategic component
+        weights = {
+            'budget_pressure': 0.5,
+            'positional_scarcity': 0.3,
+            'value_inflation': 0.2
         }
 
-    def get_simple_nomination_recommendation(self):
-        """Recommends a player to nominate based on the highest value player that fills a need."""
-        situation = self.analyze_situation()
-        if not situation['needs']:
-            return {"player": None, "reason": "Your roster is full."}
+        recommendations = []
+        for _, player in self.available_players.iterrows():
+            budget_score = self._calculate_budget_pressure_score(player, opponent_needs)
+            scarcity_score = self._calculate_positional_scarcity_score(player)
+            inflation_score = self._calculate_value_inflation_score(player)
 
-        candidate_players = self.available_players[self.available_players['Position'].isin(situation['needs'].keys())].copy()
+            nomination_score = (
+                weights['budget_pressure'] * budget_score +
+                weights['positional_scarcity'] * scarcity_score +
+                weights['value_inflation'] * inflation_score
+            )
+
+            recommendations.append({
+                'player': player['PlayerName'],
+                'nomination_score': nomination_score,
+                'budget_score': budget_score,
+                'scarcity_score': scarcity_score,
+                'inflation_score': inflation_score
+            })
         
-        if candidate_players.empty:
-            return {"player": None, "reason": "No available players match your team's needs."}
+        if not recommendations:
+            return {'player': None, 'reason': "Could not generate a recommendation."}
 
-        # Ensure 'AdjValue' is numeric and handle NaNs
-        candidate_players['AdjValue'] = pd.to_numeric(candidate_players['AdjValue'], errors='coerce')
-        candidate_players.dropna(subset=['AdjValue'], inplace=True)
+        # Select the player with the highest nomination score
+        best_nominee = max(recommendations, key=lambda x: x['nomination_score'])
 
-        if candidate_players.empty:
-            return {"player": None, "reason": "Could not determine value for available players."}
+        # Construct the reason string
+        reason = f"**Nomination Score: {best_nominee['nomination_score']:.2f}**\n\n"
+        reason += f"- **Budget Pressure ({weights['budget_pressure'] * 100:.0f}%):** This player is projected to cost a significant portion of the remaining budget for opponents who need their position (Score: {best_nominee['budget_score']:.2f}).\n"
+        reason += f"- **Positional Scarcity ({weights['positional_scarcity'] * 100:.0f}%):** They play a position where top-tier talent is becoming scarce, increasing their strategic value (Score: {best_nominee['scarcity_score']:.2f}).\n"
+        reason += f"- **Value Inflation ({weights['value_inflation'] * 100:.0f}%):** Their adjusted value is high compared to their base value, making them a prime candidate to drive up market prices (Score: {best_nominee['inflation_score']:.2f})."
 
-        best_player = candidate_players.loc[candidate_players['AdjValue'].idxmax()]
-        
-        player_name = best_player.name
-        reason = f"Nominate the highest-valued player needed, {player_name}, projected at ${best_player['AdjValue']:.0f}."
-        
-        return {"player": player_name, "reason": reason}
-
-    def get_nomination_recommendation(self):
-        """Recommends a player to nominate based on multiple strategies."""
-        situation = self.analyze_situation()
-        if not situation['needs']:
-            return {"player": None, "reason": "Your roster is full."}
-
-        needed_positions = list(situation['needs'].keys())
-        candidate_players = self.available_players[self.available_players['Position'].isin(needed_positions)]
-        if candidate_players.empty:
-            return {"player": None, "reason": "No available players match your team's needs."}
-
-        # Strategy 1: Target player with highest marginal value for my team
-        top_candidates = candidate_players.sort_values('AdjValue', ascending=False).head(10)
-        top_candidates['marginal_value'] = top_candidates.index.to_series().apply(self._calculate_marginal_value)
-        top_candidates.dropna(subset=['marginal_value'], inplace=True)
-
-        if not top_candidates.empty:
-            best_fit_player_series = top_candidates.sort_values('marginal_value', ascending=False).iloc[0]
-            best_fit_player = best_fit_player_series.name
-            max_marginal_value = best_fit_player_series['marginal_value']
-        else:
-            best_fit_player = None
-            max_marginal_value = -1
-
-        if best_fit_player and max_marginal_value > 5:
-            reason = f"This player has the highest marginal value for your team, adding an estimated ${max_marginal_value:.2f} in value. Securing them would be a significant boost."
-            return {"player": best_fit_player, "reason": reason}
-
-        # Strategy 2: Pressure opponents by nominating a high-value player you DON'T need
-        my_positions = [pos for pos, count in self.roster_composition.items() if pos not in needed_positions]
-        if my_positions:
-            pressure_candidates = self.available_players[~self.available_players['Position'].isin(needed_positions)]
-            pressure_candidates = pressure_candidates[pressure_candidates['Tier'] == 1]
-            if not pressure_candidates.empty:
-                player_to_nominate = pressure_candidates.sort_values('AdjValue', ascending=False).index[0]
-                reason = f"Nominate a top-tier player like {player_to_nominate} that you don't need. This pressures opponents to spend their budget, giving you an advantage later."
-                return {"player": player_to_nominate, "reason": reason}
-
-        # Strategy 3: Find a bargain - high VORP to AdjValue ratio
-        # Create a copy to avoid SettingWithCopyWarning
-        candidate_players_copy = candidate_players.copy()
-        candidate_players_copy['ValueRatio'] = candidate_players_copy['VORP'] / candidate_players_copy['AdjValue'].replace(0, 1)
-        best_bargain = candidate_players_copy.sort_values('ValueRatio', ascending=False).iloc[0]
-        if best_bargain['ValueRatio'] > 1.5: # If VORP is 50% higher than cost
-            reason = f"This player is a potential bargain. With a VORP of {best_bargain['VORP']:.2f} and a projected cost of ${best_bargain['AdjValue']:.0f}, they offer excellent value."
-            return {"player": best_bargain.name, "reason": reason}
-
-        # Strategy 4: Fallback to highest value player if no other strategy fits
-        best_overall_player = candidate_players.sort_values('AdjValue', ascending=False).iloc[0]
-        reason = f"As a safe bet, nominate the highest-valued player available that fits your team's needs. This player has a solid projected value of ${best_overall_player['AdjValue']:.0f}."
-        return {"player": best_overall_player.name, "reason": reason}
-
-    def _calculate_marginal_value(self, player_name):
-        """Calculates the marginal value of a player by running optimizer simulations."""
-        situation = self.analyze_situation()
-        player_series = self.available_players.loc[player_name]
-
-        # 1. Get baseline score without the player
-        baseline_results = self.optimizer.run_optimized_ga(
-            self.available_players.drop(player_name),
-            situation['remaining_budget'],
-            situation['needs'],
-            self.team_strategy.name,
-            time_limit=1.0, # Quick simulation
-            generations=15
-        )
-        baseline_score = baseline_results[0]['VORP'].sum() if baseline_results else 0
-
-        # 2. Simulate acquiring the player for their base value
-        sim_budget = situation['remaining_budget'] - player_series['AdjValue']
-        if sim_budget < 0:
-            return 0 # Cannot afford
-
-        sim_needs = situation['needs'].copy()
-        sim_needs[player_series['Position']] -= 1
-        sim_needs = {pos: count for pos, count in sim_needs.items() if count > 0}
-        if not sim_needs: # This player fills the last spot
-            return player_series['VORP'] # Marginal value is just their VORP
-
-        # 3. Get score of remaining team
-        remaining_team_results = self.optimizer.run_optimized_ga(
-            self.available_players.drop(player_name),
-            sim_budget,
-            sim_needs,
-            self.team_strategy.name,
-            time_limit=1.0,
-            generations=15
-        )
-        remaining_team_score = remaining_team_results[0]['VORP'].sum() if remaining_team_results else 0
-
-        # 4. Calculate marginal value
-        total_value_with_player = player_series['VORP'] + remaining_team_score
-        marginal_value = total_value_with_player - baseline_score
-        return marginal_value
-
-    def get_bidding_advice(self, player_name):
-        """Provides bidding advice for a player currently on the block."""
-        try:
-            if player_name in self.available_players.index:
-                player_series = self.available_players.loc[player_name]
-            elif self.initial_players is not None and player_name in self.initial_players.index:
-                player_series = self.initial_players.loc[player_name]
-            else:
-                return {"max_bid": 0, "reason": f"Player {player_name} not found in our database."}
-        except (KeyError, AttributeError):
-            return {"max_bid": 0, "reason": f"Could not retrieve data for player {player_name}."}
-
-        max_bid = int(player_series['AdjValue'] * 1.1)  # Allow bidding up to 10% over projected value
-
-        situation = self.analyze_situation()
-        if max_bid > situation['remaining_budget']:
-            max_bid = situation['remaining_budget']
-
-        reason = f"Based on our projection of \\${player_series['AdjValue']:.0f}, we recommend a max bid of \\${max_bid:.0f}. "
-
-        return {"max_bid": max_bid, "reason": reason}
+        return {
+            'player': best_nominee['player'],
+            'reason': reason
+        }
