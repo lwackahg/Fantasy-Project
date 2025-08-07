@@ -1,3 +1,4 @@
+import streamlit as st
 import pandas as pd
 
 class SmartAuctionBot:
@@ -98,35 +99,34 @@ class SmartAuctionBot:
             return 0.0
         
         inflation_ratio = (player['AdjValue'] - player['BaseValue']) / player['BaseValue']
-        # Normalize to a 0-1 scale, assuming max inflation of 100% (ratio=1.0)
-        return min(max(inflation_ratio, 0), 1)
 
-    def get_nomination_recommendation(self) -> dict:
-        """
-        Calculates a NominationScore for each available player and returns the best one.
+        # Non-linear scoring to heavily reward high inflation
+        if inflation_ratio > 0.75:
+            return 1.5  # Strong signal for a money pit
+        elif inflation_ratio > 0.5:
+            return 1.0
+        else:
+            return max(inflation_ratio, 0) # Linear for lower values
 
-        The score is based on:
-        1. Budget Pressure: How much a player will drain opponents' budgets.
-        2. Positional Scarcity: How rare the player's position is among remaining top-tier players.
-        3. Value Inflation: How overpriced a player is compared to their base value.
-
-        Returns:
-            dict: A dictionary containing the recommended player and the reason.
-        """
+    def get_nomination_recommendation(self, weights=None):
+        """Generate the best player nomination recommendation."""
         if self.available_players.empty:
-            return {'player': None, 'reason': "The draft is complete."}
+            return [{'player': None, 'reason': "The draft is complete."}]
 
         opponent_needs = self._calculate_opponent_needs()
+        my_team_needs = self._calculate_opponent_needs().get(self.my_team_name, {})
 
-        # Tunable weights for each strategic component
-        weights = {
-            'budget_pressure': 0.5,
-            'positional_scarcity': 0.3,
-            'value_inflation': 0.2
-        }
+        weights = weights or {'budget_pressure': 0.5, 'positional_scarcity': 0.3, 'value_inflation': 0.2}
 
         recommendations = []
         for _, player in self.available_players.iterrows():
+            if player['AdjValue'] <= 0:
+                continue
+
+            # Exclude players that are a good value for our team
+            if player['AdjValue'] > player['MarketValue'] * 1.15:
+                continue
+
             budget_score = self._calculate_budget_pressure_score(player, opponent_needs)
             scarcity_score = self._calculate_positional_scarcity_score(player)
             inflation_score = self._calculate_value_inflation_score(player)
@@ -137,27 +137,19 @@ class SmartAuctionBot:
                 weights['value_inflation'] * inflation_score
             )
 
+            adj_value = player['AdjValue']
+            target_nom_price = max(adj_value, player['MarketValue']) * 1.10
+
             recommendations.append({
-                'player': player['PlayerName'],
+                'player': player.name,
                 'nomination_score': nomination_score,
-                'budget_score': budget_score,
-                'scarcity_score': scarcity_score,
-                'inflation_score': inflation_score
+                'reason': f"Budget pressure {budget_score:.2f}, scarcity {scarcity_score:.2f}, inflation {inflation_score:.2f}",
+                'adj_value': adj_value,
+                'target_nom_price': target_nom_price
             })
         
         if not recommendations:
-            return {'player': None, 'reason': "Could not generate a recommendation."}
+            return [{'player': None, 'reason': "Could not generate a recommendation."}]
 
-        # Select the player with the highest nomination score
-        best_nominee = max(recommendations, key=lambda x: x['nomination_score'])
-
-        # Construct the reason string
-        reason = f"**Nomination Score: {best_nominee['nomination_score']:.2f}**\n\n"
-        reason += f"- **Budget Pressure ({weights['budget_pressure'] * 100:.0f}%):** This player is projected to cost a significant portion of the remaining budget for opponents who need their position (Score: {best_nominee['budget_score']:.2f}).\n"
-        reason += f"- **Positional Scarcity ({weights['positional_scarcity'] * 100:.0f}%):** They play a position where top-tier talent is becoming scarce, increasing their strategic value (Score: {best_nominee['scarcity_score']:.2f}).\n"
-        reason += f"- **Value Inflation ({weights['value_inflation'] * 100:.0f}%):** Their adjusted value is high compared to their base value, making them a prime candidate to drive up market prices (Score: {best_nominee['inflation_score']:.2f})."
-
-        return {
-            'player': best_nominee['player'],
-            'reason': reason
-        }
+        top_five = sorted(recommendations, key=lambda x: x['nomination_score'], reverse=True)[:5]
+        return top_five

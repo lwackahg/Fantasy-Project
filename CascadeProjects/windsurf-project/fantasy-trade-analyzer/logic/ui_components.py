@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import re
 from st_aggrid import AgGrid, GridOptionsBuilder, JsCode, GridUpdateMode
 import json
 from logic.auction_tool import BASE_VALUE_MODELS, SCARCITY_MODELS
@@ -145,12 +146,15 @@ def render_setup_page():
                 0.01
             )
         
+        # Normalize weights
         total_weight = sum(weights.values())
-        if abs(total_weight - 1.0) > 0.01:
-            st.warning(f"Weights should sum to 1.0 (current sum: {total_weight:.2f})")
+        if total_weight > 0:
+            normalized_weights = {k: v / total_weight for k, v in weights.items()}
         else:
-            st.success(f"Weights Normalized (Sum: {total_weight:.2f})")
-        st.session_state.trend_weights = weights
+            normalized_weights = weights
+
+        st.session_state.trend_weights = normalized_weights
+        st.info(f"Weights have been normalized to sum to 1.0")
 
 def render_draft_board(df):
     """Renders the main AgGrid component for the draft board."""
@@ -169,8 +173,7 @@ def render_draft_board(df):
             model_cols.append(_get_model_col_name(model, 'BV_'))
     if len(st.session_state.scarcity_models) > 1:
         for model in st.session_state.scarcity_models:
-            if model != "No Scarcity Adjustment":
-                model_cols.append(_get_model_col_name(model, 'AV_'))
+            model_cols.append(_get_model_col_name(model, 'AV_'))
 
     # Combine and filter columns to ensure they exist in the dataframe.
     display_cols = core_cols + model_cols
@@ -222,152 +225,129 @@ def render_draft_board(df):
     AgGrid(final_display_df, gridOptions=gridOptions, enable_enterprise_modules=False, allow_unsafe_jscode=True, update_mode=GridUpdateMode.MODEL_CHANGED, height=600)
 
 def render_team_rosters():
-    """Renders the compact team rosters and budgets in columns."""
-    st.markdown("---_**Team Rosters & Budgets**_---")
-    team_cols = st.columns(st.session_state.num_teams)
-    for i, team_name in enumerate(st.session_state.team_names):
-        with team_cols[i]:
-            st.markdown(f"**{team_name}**")
-            st.markdown(f"*Budget: ${st.session_state.teams[team_name]['budget']}*", help="Remaining Budget")
-            team_roster_df = pd.DataFrame(st.session_state.teams[team_name]['players'])
-            if not team_roster_df.empty:
-                st.dataframe(team_roster_df[['PlayerName', 'Position', 'DraftPrice']], hide_index=True, use_container_width=True)
-            else:
-                st.text("No players drafted.")
+    """Renders the rosters and budgets for each team in a 5-column grid."""
+    st.subheader("Team Rosters & Budgets")
+    team_names = st.session_state.team_names
+    num_teams = len(team_names)
+    
+    # Calculate number of rows needed for a 5-column grid
+    num_rows = (num_teams + 4) // 5
 
-def render_player_analysis(selected_player_name, available_players_df, on_draft_callback):
-    """Renders the analysis section for a selected player, including the draft form."""
-    if not selected_player_name:
-        return
+    for i in range(num_rows):
+        cols = st.columns(5)
+        for j in range(5):
+            team_index = i * 5 + j
+            if team_index < num_teams:
+                team_name = team_names[team_index]
+                team_data = st.session_state.teams[team_name]
+                with cols[j]:
+                    with st.expander(f"{team_name} (${team_data['budget']})", expanded=False):
+                        if team_data['players']:
+                            roster_df = pd.DataFrame(team_data['players'])
+                            st.dataframe(roster_df[['Player', 'Position', 'Price']])
+                        else:
+                            st.write("No players drafted.")
 
-    # Ensure the index is what we expect, if not, set it.
-    if 'PlayerName' in available_players_df.columns:
-        available_players_df = available_players_df.set_index('PlayerName')
+def render_drafting_form(player_series, drafting_callback):
+    """Renders the form for drafting a player."""
+    st.subheader("Draft Player")
 
-    if selected_player_name not in available_players_df.index:
-        st.warning(f"Could not find player: {selected_player_name}")
-        return
+    # Prepare position options BEFORE the form to prevent state lag
+    # Split by comma or slash to handle formats like 'G/F' or 'C,Flx'
+    position_options = [pos.strip() for pos in player_series['Position'].replace(',', '/').split('/')]
+    if 'Bench' not in position_options:
+        position_options.append('Bench')
 
-    player_values = available_players_df.loc[selected_player_name]
+    with st.form(key=f"draft_{player_series.name}"):
+        team_selection = st.selectbox("Select Team", options=st.session_state.team_names, key=f"team_select_{player_series.name}")
+        
+        # Ensure the default value is at least 1 to prevent crashes
+        default_price = max(1, int(player_series.get('AdjValue', 1)))
+        draft_price = st.number_input("Draft Price", min_value=1, value=default_price, key=f"price_input_{player_series.name}")
+        
+        assigned_position = st.radio("Assign Position", options=position_options, horizontal=True, key=f"pos_radio_{player_series.name}")
 
-    with st.form(key='draft_form'):
-        st.markdown(f"#### Draft **{selected_player_name}**")
-        draft_col1, draft_col2, draft_col3 = st.columns(3)
-        team_selection = draft_col1.selectbox("Select Team", options=st.session_state.team_names)
-        draft_price = draft_col2.number_input("Draft Price", min_value=1, value=max(1, int(player_values.get('AdjValue', 1))))
+        submitted = st.form_submit_button("Draft Player", use_container_width=True, type="primary")
+        if submitted:
+            drafting_callback(player_series.name, team_selection, draft_price, assigned_position, player_series)
 
-        player_positions = player_values.get('Position', '').split('/')
-        if len(player_positions) > 1:
-            assigned_position = draft_col3.selectbox(
-                "Assign Position",
-                options=player_positions,
-                help="This player is eligible for multiple positions. You must assign one."
-            )
+def render_player_analysis_metrics(selected_player_name, recalculated_df):
+    """Renders the metrics and analysis for a selected player, handling missing keys gracefully."""
+    st.subheader(f"Analysis for: {selected_player_name}")
+    player_series = recalculated_df.loc[selected_player_name]
+
+    # --- Main two columns for player metrics ---
+    main_col1, main_col2 = st.columns(2)
+
+    with main_col1:
+        st.markdown("##### Average Values & Confidence")
+        confidence = player_series.get('Confidence', 0.0)
+        st.progress(confidence / 100, text=f"Confidence: {confidence:.1f}%")
+        
+        val_col1, val_col2, val_col3 = st.columns(3)
+        val_col1.metric("Adjusted Value", f"${player_series.get('AdjValue', 0.0):.2f}")
+        val_col2.metric("Base Value", f"${player_series.get('BaseValue', 0.0):.2f}")
+        val_col3.metric("Market Value", f"${player_series.get('MarketValue', 0.0):.2f}")
+
+    with main_col2:
+        st.markdown("##### Historical Performance (Last 4 Seasons)")
+        hist_data = {}
+        for col in player_series.index:
+            match = re.match(r'S(\d)_(GP|FP/G)', col)
+            if match:
+                season_num, metric = match.groups()
+                # Only process seasons with a weight > 0
+                if st.session_state.trend_weights.get(f'S{season_num}', 0) > 0:
+                    season_label = f"Last Season" if int(season_num) == 4 else f"Season -{4 - int(season_num)}"
+                    if season_label not in hist_data:
+                        hist_data[season_label] = {}
+                    value = player_series.get(col, 'N/A')
+                    hist_data[season_label][metric] = f"{value:.1f}" if metric == 'FP/G' and isinstance(value, (int, float)) else value
+
+        # Sort seasons from most recent to oldest
+        sorted_seasons = sorted(hist_data.keys(), key=lambda x: (4 if 'Last' in x else int(x.split('-')[1])), reverse=True)
+        if sorted_seasons:
+            perf_data = [[season, hist_data[season].get('GP', 'N/A'), hist_data[season].get('FP/G', 'N/A')] for season in sorted_seasons]
+            df_perf = pd.DataFrame(perf_data, columns=["Season", "GP", "FP/G"])
+            st.dataframe(df_perf, hide_index=True, use_container_width=True)
         else:
-            assigned_position = player_positions[0]
+            st.info("No historical performance data available.")
 
-        st.form_submit_button(
-            f"Draft {selected_player_name}", 
-            use_container_width=True, 
-            type="primary", 
-            on_click=on_draft_callback, 
-            args=(selected_player_name, team_selection, draft_price, assigned_position, player_values)
-        )
+    st.markdown("---_**Valuation Models Used**_---")
+    base_models_used = st.session_state.get('base_value_models', ['N/A'])
+    scarcity_models_used = st.session_state.get('scarcity_models', ['N/A'])
+    st.write(f"**Base Model(s):** {', '.join(base_models_used)}")
+    st.write(f"**Scarcity Model(s):** {', '.join(scarcity_models_used)}")
 
+    with st.expander("Detailed Model Values"):
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("**Base Model Values**")
+            base_models = base_models_used
+            for model_name in base_models:
+                if model_name != "No Adjustment":
+                    col_name = _get_model_col_name(model_name, 'BV_')
+                    value = player_series.get(col_name, 0.0)
+                    st.metric(label=model_name, value=f"${value:.2f}")
+
+        with col2:
+            st.markdown("**Scarcity Premiums & Values**")
+            scarcity_models = st.session_state.get('scarcity_models', [])
+            for model_name in scarcity_models:
+                if model_name != "No Scarcity Adjustment":
+                    premium_col = _get_model_col_name(model_name, 'SP_')
+                    adj_val_col = _get_model_col_name(model_name, 'AV_')
+                    premium = player_series.get(premium_col, 0.0)
+                    adj_value = player_series.get(adj_val_col, 0.0)
+                    st.metric(label=f"{model_name} Adj. Value", value=f"${adj_value:.2f}",
+                              help=f"Scarcity Premium: {premium:.2%}")
+
+    # --- Single column for optimal roster ---
     st.markdown("---")
-
-    col1, col2 = st.columns(2)
-    col1.metric("Valuation Confidence", f"{player_values.get('Confidence', 100.0):.1f}%")
-    col2.metric("Average Valuation", f"${player_values.get('ValueMean', 0):.0f}")
+    if st.button("Find Optimal Roster for this Player", use_container_width=True):
+        st.info("Optimal roster feature coming soon!")
     st.markdown("---")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**Base Valuations**")
-        st.markdown(f"**_Average Base Value_**: **${player_values.get('BaseValue', 0):,.0f}**")
-        st.markdown("&nbsp;")
-        for model in st.session_state.base_value_models:
-            st.markdown(f"_{model}_: **${player_values.get(_get_model_col_name(model, 'BV_'), 0):,.0f}**")
-    with col2:
-        st.markdown("**Adjusted Valuations (In-Draft)**")
-        st.markdown(f"**_Average Adj. Value_**: **${player_values.get('AdjValue', 0):,.0f}**")
-        st.markdown("&nbsp;")
-        for model in st.session_state.scarcity_models:
-            st.markdown(f"_{model}_: **${player_values.get(_get_model_col_name(model, 'AV_'), 0):,.0f}**")
-    st.markdown("---")
-
-    col1, col2 = st.columns([2,1])
-    with col1:
-        st.markdown("**Key Player Metrics**")
-        m_col1, m_col2, m_col3 = st.columns(3)
-        m_col1.metric("Tier", str(player_values.get('Tier', 'N/A')))
-        m_col2.metric("VORP", f"{player_values.get('VORP', 0):.2f}")
-        m_col3.metric("Market Value", f"${player_values.get('MarketValue', 0):.0f}")
-        stats_df = pd.DataFrame({
-            'Season': ['S4', 'S3', 'S2', 'S1'],
-            'GP': [player_values.get(f'S{i}_GP', 'N/A') for i in range(4, 0, -1)],
-            'FP/G': [f"{player_values.get(f'S{i}_FP/G', 0):.2f}" for i in range(4, 0, -1)]
-        })
-        st.markdown("**Historical Performance**")
-        st.dataframe(stats_df, use_container_width=True)
-    with col2:
-        st.markdown("**Team Optimizer**")
-        if not st.session_state.main_team:
-            st.warning("Select your main team from the sidebar to use the optimizer.")
-        else:
-            if st.button("Find Optimal Roster", key="run_optimizer_btn", use_container_width=True):
-                with st.spinner("Running genetic algorithm to find the best team..."):
-                    # Determine remaining budget and roster spots
-                    main_team_data = st.session_state.teams[st.session_state.main_team]
-                    remaining_budget = main_team_data['budget']
-                    current_roster_df = pd.DataFrame(main_team_data['players'])
-
-                    # Calculate remaining roster composition
-                    remaining_composition = st.session_state.roster_composition.copy()
-                    if not current_roster_df.empty:
-                        current_pos_counts = current_roster_df['Position'].value_counts().to_dict()
-                        for pos, count in current_pos_counts.items():
-                            if pos in remaining_composition:
-                                remaining_composition[pos] -= count
-                    
-                    # Filter out positions that are already full
-                    remaining_composition = {pos: count for pos, count in remaining_composition.items() if count > 0}
-
-                    if not remaining_composition:
-                        st.session_state.optimal_team = pd.DataFrame()
-                        st.warning("Your roster is already full!")
-                    else:
-                        # Run the optimizer
-                        optimal_team_df = run_team_optimizer(
-                            available_players=st.session_state.available_players,
-                            budget=remaining_budget,
-                            roster_composition=remaining_composition
-                        )
-                        st.session_state.optimal_team = optimal_team_df
-
-            if 'optimal_team' in st.session_state and not st.session_state.optimal_team.empty:
-                st.success("Optimal Roster Found!")
-                st.info("This is the optimal set of players to draft for your remaining spots and budget.")
-
-                # Combine with current team for a full view
-                current_team_df = pd.DataFrame(st.session_state.teams[st.session_state.main_team]['players'])
-                # Ensure columns align for concatenation
-                current_team_df_display = pd.DataFrame({
-                    'PlayerName': current_team_df['PlayerName'],
-                    'Position': current_team_df['Position'],
-                    'AdjValue': current_team_df['DraftPrice'],
-                    'VORP': current_team_df['VORP']
-                })
-                final_roster_df = pd.concat([current_team_df_display, st.session_state.optimal_team[['PlayerName', 'Position', 'AdjValue', 'VORP']]], ignore_index=True)
-
-                st.subheader("Projected Final Roster")
-                st.dataframe(final_roster_df, use_container_width=True)
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("Total Projected VORP", f"{final_roster_df['VORP'].sum():.2f}")
-                with col2:
-                    st.metric("Total Team Cost", f"${final_roster_df['AdjValue'].sum():.0f}")
 
 def render_draft_summary():
     """Renders the draft summary table."""
@@ -375,36 +355,39 @@ def render_draft_summary():
         return
 
     st.subheader("Draft Summary")
-    drafted_df = pd.DataFrame(st.session_state.drafted_players)
     
-    for col in ['BaseValue', 'AdjValue', 'DraftPrice']:
-        if col not in drafted_df.columns:
-            drafted_df[col] = 0
-
-    summary_df = drafted_df.groupby('Team').agg(
+    # Pick-by-pick list
+    pick_df = pd.DataFrame(st.session_state.drafted_players)
+    pick_df['PickNumber'] = range(1, len(pick_df) + 1)
+    pick_df = pick_df.sort_values('PickNumber', ascending=True)
+    pick_df['Pick'] = pick_df['PickNumber'].astype(str)
+    pick_df['Player'] = pick_df['PlayerName']
+    pick_df['Team'] = pick_df['Team']
+    pick_df['Price'] = pick_df['DraftPrice'].apply(lambda x: f"${x:,.0f}")
+    pick_df['Position'] = pick_df['Position']
+    
+    st.markdown("**Pick-by-Pick Results**")
+    pick_df['Value'] = pick_df['AdjValue'] - pick_df['DraftPrice']
+    pick_df['Value'] = pick_df['Value'].apply(lambda v: f"${v:,.0f}")
+    
+    # Team summary columns
+    team_summary = pick_df.groupby('Team').agg(
         Players_Drafted=('PlayerName', 'count'),
         Budget_Spent=('DraftPrice', 'sum'),
         Total_BaseValue=('BaseValue', 'sum'),
         Total_AdjValue=('AdjValue', 'sum')
     ).reset_index()
-
-    summary_df['Budget_Remaining'] = summary_df['Team'].apply(lambda team: st.session_state.teams[team]['budget'])
-    summary_df['Value'] = summary_df['Total_AdjValue'] - summary_df['Budget_Spent']
-
-    # Formatting for display
-    for col in ['Budget_Spent', 'Total_BaseValue', 'Total_AdjValue', 'Budget_Remaining']:
-        summary_df[col] = summary_df[col].apply(lambda x: f"${x:,.0f}")
     
-    def color_value(val):
-        if val > 0:
-            return f'<span style="color: green;">${val:,.0f} (Bargain)</span>'
-        elif val < 0:
-            return f'<span style="color: red;">${val:,.0f} (Reach)</span>'
-        else:
-            return f"${val:,.0f}"
-    summary_df['Value'] = summary_df['Value'].apply(color_value)
+    # Merge team summary into pick_df
+    pick_df = pick_df.merge(team_summary, on='Team', how='left')
+    pick_df['Players_Drafted'] = pick_df['Players_Drafted'].astype(int)
+    pick_df['Budget_Spent'] = pick_df['Budget_Spent'].apply(lambda x: f"${x:,.0f}")
+    pick_df['Total_BaseValue'] = pick_df['Total_BaseValue'].apply(lambda x: f"${x:,.0f}")
+    pick_df['Total_AdjValue'] = pick_df['Total_AdjValue'].apply(lambda x: f"${x:,.0f}")
+    
+    st.dataframe(pick_df[['Pick', 'Player', 'Position', 'Team', 'Price', 'Total_BaseValue', 'Total_AdjValue']], use_container_width=True)
 
-    st.markdown(summary_df.to_html(escape=False), unsafe_allow_html=True)
+
 
 def render_sidebar_in_draft():
     """Renders the sidebar controls for an active draft."""
@@ -418,31 +401,69 @@ def render_sidebar_in_draft():
         index=0 if st.session_state.main_team is None else st.session_state.team_names.index(st.session_state.main_team)
     )
 
+    # --- Nomination Strategy Controls ---
+    st.sidebar.subheader("Nomination Strategy")
+    strategy_options = [
+        'Blended (recommended)',
+        'Budget Pressure',
+        'Positional Scarcity',
+        'Value Inflation',
+        'Custom'
+    ]
+    strategy = st.sidebar.selectbox("Strategy", options=strategy_options, key='nomination_strategy')
+
+    def _set_weights(bp, ps, vi):
+        total = bp + ps + vi
+        if total <= 0:
+            st.session_state.nomination_weights = {'budget_pressure': 0.5, 'positional_scarcity': 0.3, 'value_inflation': 0.2}
+        else:
+            st.session_state.nomination_weights = {
+                'budget_pressure': bp / total,
+                'positional_scarcity': ps / total,
+                'value_inflation': vi / total,
+            }
+
+    if strategy == 'Blended (recommended)':
+        _set_weights(0.5, 0.3, 0.2)
+        st.sidebar.caption("Balanced: drain budgets, respect scarcity, nudge inflation")
+    elif strategy == 'Budget Pressure':
+        _set_weights(1.0, 0.0, 0.0)
+        st.sidebar.caption("Focus on forcing opponents to overspend")
+    elif strategy == 'Positional Scarcity':
+        _set_weights(0.0, 1.0, 0.0)
+        st.sidebar.caption("Target scarce positions among top tiers")
+    elif strategy == 'Value Inflation':
+        _set_weights(0.0, 0.0, 1.0)
+        st.sidebar.caption("Nominate likely overpays to create money pits")
+    else:
+        bp = st.sidebar.slider("Budget Pressure", 0.0, 1.0, st.session_state.nomination_weights.get('budget_pressure', 0.5), 0.05)
+        ps = st.sidebar.slider("Positional Scarcity", 0.0, 1.0, st.session_state.nomination_weights.get('positional_scarcity', 0.3), 0.05)
+        vi = st.sidebar.slider("Value Inflation", 0.0, 1.0, st.session_state.nomination_weights.get('value_inflation', 0.2), 0.05)
+        _set_weights(bp, ps, vi)
+
     if st.sidebar.button("Reset Draft"):
         for key in list(st.session_state.keys()):
             del st.session_state[key]
         st.rerun()
 
-    if st.session_state.drafted_players:
+    if st.session_state.draft_history:
         if st.sidebar.button("Undo Last Pick"):
-            last_draft = st.session_state.drafted_players.pop()
-            player_to_restore = last_draft.copy()
-            player_name = player_to_restore.pop('PlayerName')
-            draft_price = player_to_restore.pop('DraftPrice')
-            team_name = player_to_restore.pop('Team')
+            last_draft = st.session_state.draft_history.pop()
+            player_name = last_draft['Player']
+            team_name = last_draft['Team']
+            draft_price = last_draft['Price']
 
             # Restore budget and remove player from team
             st.session_state.teams[team_name]['budget'] += draft_price
-            st.session_state.teams[team_name]['players'] = [p for p in st.session_state.teams[team_name]['players'] if p.get('PlayerName') != player_name]
-
-            # Add player back to available players
-            player_to_restore_df = pd.DataFrame([player_to_restore], index=[player_name])
-            player_to_restore_df.index.name = 'PlayerName'
-            player_to_restore_df.reset_index(inplace=True)
-            st.session_state.available_players = pd.concat([st.session_state.available_players, player_to_restore_df], ignore_index=True).sort_values(by='PPS', ascending=False)
+            st.session_state.teams[team_name]['players'] = [p for p in st.session_state.teams[team_name]['players'] if p.get('Player') != player_name]
 
             st.session_state.total_money_spent -= draft_price
             st.success(f"Reversed the pick of {player_name} by {team_name}.")
+            # Move the nominating team back to the previous team
+            if st.session_state.draft_order:
+                current_index = st.session_state.get('current_nominating_team_index', 0)
+                prev_index = (current_index - 1) % len(st.session_state.draft_order)
+                st.session_state.current_nominating_team_index = prev_index
             st.rerun()
 
 def render_value_calculation_expander():

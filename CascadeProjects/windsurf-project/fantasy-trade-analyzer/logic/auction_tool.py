@@ -179,7 +179,7 @@ def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composit
 
     return pps_df, initial_tier_counts, initial_pos_counts
 
-def recalculate_dynamic_values(available_players_df, remaining_money_pool, total_league_money, base_value_models, scarcity_models, initial_tier_counts, initial_pos_counts, tier_cutoffs=None, roster_composition=None, num_teams=None):
+def recalculate_dynamic_values(available_players_df, remaining_money_pool, total_league_money, base_value_models, scarcity_models, initial_tier_counts, initial_pos_counts, teams_data, tier_cutoffs=None, roster_composition=None, num_teams=None):
     """
     Recalculates player values dynamically for one or more scarcity models.
     """
@@ -198,32 +198,91 @@ def recalculate_dynamic_values(available_players_df, remaining_money_pool, total
         col_name = _get_model_col_name(model, 'AV_')
         scarcity_premium = pd.Series(1.0, index=available_players_df.index) # Default to 1.0 (no premium)
 
-        # Determine which model logic to apply
-        effective_model = model
-        if model == "Roster Slot Demand":
-            effective_model = "Position Scarcity" if roster_composition and num_teams else "Tier Scarcity"
-        elif model == "Opponent Budget Targeting":
-            effective_model = "Tier Scarcity" # Placeholder
+        # --- Scarcity Premium Calculation --- 
+        # Base premium is 1.0 (no change). Models adjust this multiplier.
+        scarcity_premium = pd.Series(1.0, index=available_players_df.index)
 
-        # Calculate scarcity premium based on the effective model
-        if effective_model == "Contrarian Fade":
-            current_tier_counts = available_players_df['Tier'].value_counts()
-            initial_tier_counts_s = pd.Series(initial_tier_counts)
-            ratio = (initial_tier_counts_s / current_tier_counts).replace([np.inf, -np.inf], 1).fillna(1)
-            scarcity_factors = (1 / np.sqrt(ratio)).clip(lower=0.75) # Cap discount
-            scarcity_premium = available_players_df['Tier'].map(scarcity_factors).fillna(1)
- 
-        elif effective_model == "Tier Scarcity":
+        # --- Tier-Based Scarcity --- 
+        if model == "Tier-Based Scarcity":
             initial_tier_counts_s = pd.Series(initial_tier_counts)
             current_tier_counts = available_players_df['Tier'].value_counts().reindex(initial_tier_counts_s.index, fill_value=0)
-            tier_scarcity_factor = (1 - (current_tier_counts / initial_tier_counts_s)).fillna(0)
-            available_players_df['TierScarcity'] = available_players_df['Tier'].map(tier_scarcity_factor) * (remaining_money_pool / total_league_money) * available_players_df['BaseValue']
+            # How much of the tier has been drafted (0 to 1)
+            tier_drafted_ratio = 1 - (current_tier_counts / initial_tier_counts_s)
+            # Premium increases as more of a tier is drafted. Max premium of 1.25
+            tier_premium = 1 + (tier_drafted_ratio * 0.25)
+            scarcity_premium = available_players_df['Tier'].map(tier_premium).fillna(1.0)
 
-        elif effective_model == "Position Scarcity":
+        # --- Positional Scarcity ---
+        elif model == "Positional Scarcity":
             initial_pos_counts_s = pd.Series(initial_pos_counts)
             current_pos_counts = available_players_df['Position'].value_counts().reindex(initial_pos_counts_s.index, fill_value=0)
-            pos_scarcity_factor = (1 - (current_pos_counts / initial_pos_counts_s)).fillna(0)
-            available_players_df['PosScarcity'] = available_players_df['Position'].map(pos_scarcity_factor) * (remaining_money_pool / total_league_money) * available_players_df['BaseValue'].clip(upper=1.25) # Cap premium
+            pos_drafted_ratio = 1 - (current_pos_counts / initial_pos_counts_s)
+            pos_premium = 1 + (pos_drafted_ratio * 0.30) # Positions are more critical, higher premium
+            scarcity_premium = available_players_df['Position'].map(pos_premium).fillna(1.0)
+
+        # --- Combined Scarcity (Positional + Tier) ---
+        elif model == "Combined Scarcity (Positional + Tier)":
+            initial_tier_counts_s = pd.Series(initial_tier_counts)
+            current_tier_counts = available_players_df['Tier'].value_counts().reindex(initial_tier_counts_s.index, fill_value=0)
+            tier_drafted_ratio = 1 - (current_tier_counts / initial_tier_counts_s)
+            tier_premium = 1 + (tier_drafted_ratio * 0.25)
+
+            initial_pos_counts_s = pd.Series(initial_pos_counts)
+            current_pos_counts = available_players_df['Position'].value_counts().reindex(initial_pos_counts_s.index, fill_value=0)
+            pos_drafted_ratio = 1 - (current_pos_counts / initial_pos_counts_s)
+            pos_premium = 1 + (pos_drafted_ratio * 0.30)
+
+            # Weighted average of the two premiums
+            scarcity_premium = (available_players_df['Tier'].map(tier_premium).fillna(1.0) * 0.5) + (available_players_df['Position'].map(pos_premium).fillna(1.0) * 0.5)
+
+        # --- Contrarian Fade ---
+        elif model == "Contrarian Fade":
+            # This model slightly devalues players from tiers that are still plentiful.
+            initial_tier_counts_s = pd.Series(initial_tier_counts)
+            current_tier_counts = available_players_df['Tier'].value_counts().reindex(initial_tier_counts_s.index, fill_value=0)
+            # Ratio of players remaining in a tier. Closer to 1 means more players left.
+            tier_remaining_ratio = (current_tier_counts / initial_tier_counts_s).fillna(1.0)
+            # Value is discounted if many players from that tier are left. Max discount of 15%.
+            contrarian_premium = 1 - ((tier_remaining_ratio - tier_remaining_ratio.min()) / (tier_remaining_ratio.max() - tier_remaining_ratio.min()) * 0.15)
+            scarcity_premium = available_players_df['Tier'].map(contrarian_premium).fillna(1.0)
+
+        # --- Roster Slot Demand ---
+        elif model == "Roster Slot Demand":
+            # Calculates demand based on total remaining unfilled roster spots for each position.
+            demand = {}
+            for pos in roster_composition:
+                demand[pos] = 0
+            for team_name, data in teams_data.items():
+                team_roster_comp = pd.Series([p['Position'] for p in data['players']]).value_counts().to_dict()
+                for pos, required in roster_composition.items():
+                    current_filled = team_roster_comp.get(pos, 0)
+                    demand[pos] += max(0, required - current_filled)
+            
+            total_demand = sum(demand.values())
+            if total_demand > 0:
+                demand_factor = {pos: (count / total_demand) for pos, count in demand.items()}
+                # Premium is higher for positions with higher relative demand. Max premium 1.35
+                demand_premium = {pos: 1 + (factor * 0.35) for pos, factor in demand_factor.items()}
+                scarcity_premium = available_players_df['Position'].map(demand_premium).fillna(1.0)
+
+        # --- Opponent Budget Targeting ---
+        elif model == "Opponent Budget Targeting":
+            # Target high-tier players if opponents have money, target mid-tier if they don't.
+            avg_opponent_budget = np.mean([d['budget'] for d in teams_data.values()])
+            total_initial_budget = num_teams * np.mean([d['budget'] + sum(p['DraftPrice'] for p in d['players']) for d in teams_data.values()])
+            budget_depletion_ratio = 1 - (sum(d['budget'] for d in teams_data.values()) / total_initial_budget)
+
+            # Define luxury players (Tiers 1-2) and value players (Tiers 3-4)
+            is_luxury = available_players_df['Tier'].isin([1, 2])
+            is_value = available_players_df['Tier'].isin([3, 4])
+
+            # Boost luxury players early, boost value players late
+            luxury_premium = 1 + (0.20 * (1 - budget_depletion_ratio)) # Higher when budgets are full
+            value_premium = 1 + (0.15 * budget_depletion_ratio) # Higher when budgets are low
+
+            scarcity_premium = pd.Series(1.0, index=available_players_df.index)
+            scarcity_premium[is_luxury] = luxury_premium
+            scarcity_premium[is_value] = value_premium
 
         # Apply premium and post-process
         final_adj_value = prelim_adj_value * scarcity_premium
