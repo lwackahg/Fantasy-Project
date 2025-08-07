@@ -131,3 +131,5 @@ page_source.html
 # Test files
 /CascadeProjects/windsurf-project/fantasy-trade-analyzer/tests/
 /CascadeProjects/windsurf-project/fantasy-trade-analyzer/pytest.ini
+
+/CascadeProjects/windsurf-project/fantasy-trade-analyzer/.streamlit/secrets.toml   
