@@ -106,7 +106,9 @@ def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composit
                 elif status == "1/4 Season":
                     pps_df.loc[pps_df['PlayerName'] == player, 'PPS'] *= 0.75
 
-    vorp_budget_pct = 0.8  # 80% of the budget is allocated based on VORP
+    # Use the provided parameter; do not override it with a constant
+    # vorp_budget_pct represents fraction of total budget allocated to VORP-based values
+    vorp_budget_pct = vorp_budget_pct
     roster_spots_per_team = sum(roster_composition.values())
     replacement_level_players = int(num_teams * roster_spots_per_team * 0.85) # Top 85% of drafted players
 
@@ -133,14 +135,19 @@ def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composit
     total_vorp_budget = (num_teams * budget_per_team) * vorp_budget_pct
     final_df['VORPValue'] = (final_df['TierAdjustedVORP'] / total_vorp) * total_vorp_budget if total_vorp > 0 else 0
 
-    # 3. Calculate Base Value for each selected model
+    # 2. Calculate Base Value for each selected model
     for model in base_value_models:
         col_name = _get_model_col_name(model, 'BV_')
         if model == "Pure VORP":
             final_df[col_name] = final_df['VORPValue']
         elif model == "Pure Market Value":
+            # Ensure MarketValue exists; default to 0 if missing
+            if 'MarketValue' not in final_df.columns:
+                final_df['MarketValue'] = 0
             final_df[col_name] = final_df['MarketValue']
         elif model == "Blended (VORP + Market)":
+            if 'MarketValue' not in final_df.columns:
+                final_df['MarketValue'] = 0
             final_df[col_name] = (final_df['VORPValue'] * 0.5) + (final_df['MarketValue'] * 0.5)
         elif model == "Risk-Adjusted VORP":
             # Simple risk model: reduce value by a percentage of games missed
@@ -172,12 +179,6 @@ def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composit
     initial_pos_counts = final_df['Position'].value_counts().to_dict()
 
     return final_df, initial_tier_counts, initial_pos_counts
-
-    # Store initial counts for scarcity calculations
-    initial_tier_counts = pps_df['Tier'].value_counts().to_dict()
-    initial_pos_counts = pps_df['Position'].value_counts().to_dict()
-
-    return pps_df, initial_tier_counts, initial_pos_counts
 
 def recalculate_dynamic_values(available_players_df, remaining_money_pool, total_league_money, base_value_models, scarcity_models, initial_tier_counts, initial_pos_counts, teams_data, tier_cutoffs=None, roster_composition=None, num_teams=None):
     """
@@ -269,8 +270,12 @@ def recalculate_dynamic_values(available_players_df, remaining_money_pool, total
         elif model == "Opponent Budget Targeting":
             # Target high-tier players if opponents have money, target mid-tier if they don't.
             avg_opponent_budget = np.mean([d['budget'] for d in teams_data.values()])
-            total_initial_budget = num_teams * np.mean([d['budget'] + sum(p['DraftPrice'] for p in d['players']) for d in teams_data.values()])
-            budget_depletion_ratio = 1 - (sum(d['budget'] for d in teams_data.values()) / total_initial_budget)
+            # Reconstruct total initial league budget from current budgets + prices spent
+            total_initial_budget = sum(d['budget'] + sum(p.get('Price', 0) for p in d.get('players', [])) for d in teams_data.values())
+            if total_initial_budget and total_initial_budget > 0:
+                budget_depletion_ratio = 1 - (sum(d['budget'] for d in teams_data.values()) / total_initial_budget)
+            else:
+                budget_depletion_ratio = 0.0
 
             # Define luxury players (Tiers 1-2) and value players (Tiers 3-4)
             is_luxury = available_players_df['Tier'].isin([1, 2])
@@ -283,6 +288,13 @@ def recalculate_dynamic_values(available_players_df, remaining_money_pool, total
             scarcity_premium = pd.Series(1.0, index=available_players_df.index)
             scarcity_premium[is_luxury] = luxury_premium
             scarcity_premium[is_value] = value_premium
+
+        # Save scarcity premium fraction (multiplier - 1.0) for UI tooltips
+        sp_col = _get_model_col_name(model, 'SP_')
+        try:
+            available_players_df[sp_col] = (scarcity_premium - 1.0).fillna(0.0)
+        except Exception:
+            available_players_df[sp_col] = 0.0
 
         # Apply premium and post-process
         final_adj_value = prelim_adj_value * scarcity_premium

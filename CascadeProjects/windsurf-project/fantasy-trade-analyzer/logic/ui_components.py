@@ -261,15 +261,70 @@ def render_drafting_form(player_series, drafting_callback):
     with st.form(key=f"draft_{player_series.name}"):
         team_selection = st.selectbox("Select Team", options=st.session_state.team_names, key=f"team_select_{player_series.name}")
         
-        # Ensure the default value is at least 1 to prevent crashes
-        default_price = max(1, int(player_series.get('AdjValue', 1)))
-        draft_price = st.number_input("Draft Price", min_value=1, value=default_price, key=f"price_input_{player_series.name}")
+        # Ensure the default value is numeric and at least 1 to prevent crashes
+        raw_default = player_series.get('AdjValue', 1)
+        try:
+            default_price = int(raw_default) if pd.notna(raw_default) else 1
+        except Exception:
+            default_price = 1
+        default_price = max(1, default_price)
+
+        # Set the max bid to: team_budget - $1 for each remaining roster spot AFTER this pick
+        try:
+            team_data = st.session_state.teams.get(team_selection, {})
+            team_budget = int(team_data.get('budget', 0))
+            rostered = len(team_data.get('players', []))
+        except Exception:
+            team_budget, rostered = 0, 0
+
+        total_spots = int(st.session_state.get('roster_spots_per_team', 0))
+        spots_remaining_now = max(total_spots - rostered, 0)
+        spots_after_this_pick = max(spots_remaining_now - 1, 0)
+        reserve_for_min_bids = spots_after_this_pick  # $1 per remaining spot
+        max_allowed = max(0, team_budget - reserve_for_min_bids)
+
+        # Determine min based on max_allowed: if you can't bid at least $1, allow 0
+        min_val = 1 if max_allowed >= 1 else 0
+
+        # Clamp default into allowed range [min_val, max_allowed]
+        default_price = max(min_val, min(default_price, max_allowed))
+        draft_price = st.number_input(
+            "Draft Price",
+            min_value=min_val,
+            max_value=max_allowed,
+            value=default_price,
+            key=f"price_input_{player_series.name}"
+        )
+        st.caption(
+            f"Max bid for {team_selection}: ${max_allowed} (Budget ${team_budget} − $1 × {spots_after_this_pick} remaining spots after this pick)"
+        )
         
         assigned_position = st.radio("Assign Position", options=position_options, horizontal=True, key=f"pos_radio_{player_series.name}")
 
         submitted = st.form_submit_button("Draft Player", use_container_width=True, type="primary")
         if submitted:
-            drafting_callback(player_series.name, team_selection, draft_price, assigned_position, player_series)
+            # Recompute max at submit time to guard against any stale widget state
+            try:
+                team_data_submit = st.session_state.teams.get(team_selection, {})
+                team_budget_submit = int(team_data_submit.get('budget', 0))
+                rostered_submit = len(team_data_submit.get('players', []))
+            except Exception:
+                team_budget_submit, rostered_submit = 0, 0
+
+            total_spots_submit = int(st.session_state.get('roster_spots_per_team', 0))
+            spots_remaining_now_submit = max(total_spots_submit - rostered_submit, 0)
+            spots_after_this_pick_submit = max(spots_remaining_now_submit - 1, 0)
+            reserve_for_min_bids_submit = spots_after_this_pick_submit
+            max_allowed_submit = max(0, team_budget_submit - reserve_for_min_bids_submit)
+
+            if draft_price > max_allowed_submit:
+                st.error(
+                    f"Bid exceeds max allowed ${max_allowed_submit}. You must keep $1 for each of the {spots_after_this_pick_submit} remaining spots after this pick."
+                )
+            elif draft_price > team_budget_submit:
+                st.error(f"{team_selection} cannot afford this bid. Budget: ${team_budget_submit}")
+            else:
+                drafting_callback(player_series.name, team_selection, draft_price, assigned_position, player_series)
 
 def render_player_analysis_metrics(selected_player_name, recalculated_df):
     """Renders the metrics and analysis for a selected player, handling missing keys gracefully."""
@@ -319,7 +374,7 @@ def render_player_analysis_metrics(selected_player_name, recalculated_df):
     st.write(f"**Base Model(s):** {', '.join(base_models_used)}")
     st.write(f"**Scarcity Model(s):** {', '.join(scarcity_models_used)}")
 
-    with st.expander("Detailed Model Values"):
+    with st.expander("Detailed Model Values", expanded=True):
         col1, col2 = st.columns(2)
 
         with col1:
@@ -458,6 +513,39 @@ def render_sidebar_in_draft():
             st.session_state.teams[team_name]['players'] = [p for p in st.session_state.teams[team_name]['players'] if p.get('Player') != player_name]
 
             st.session_state.total_money_spent -= draft_price
+
+            # Remove from drafted_players (last matching entry)
+            try:
+                for i in range(len(st.session_state.drafted_players) - 1, -1, -1):
+                    dp = st.session_state.drafted_players[i]
+                    if dp.get('PlayerName') == player_name and dp.get('Team') == team_name and dp.get('DraftPrice') == draft_price:
+                        del st.session_state.drafted_players[i]
+                        break
+            except Exception:
+                pass
+
+            # Restore to available_players using cached row if present
+            try:
+                row_cache = st.session_state.get('removed_player_rows', {})
+                row = row_cache.pop(player_name, None)
+                if row is not None:
+                    import pandas as pd
+                    df = st.session_state.available_players
+                    row_df = pd.DataFrame([row])
+                    # Ensure PlayerName column present in both
+                    if 'PlayerName' not in df.columns:
+                        df['PlayerName'] = pd.Series(dtype='string')
+                    if 'PlayerName' not in row_df.columns:
+                        row_df['PlayerName'] = player_name
+                    # Align columns
+                    for c in set(row_df.columns) - set(df.columns):
+                        df[c] = pd.NA
+                    for c in set(df.columns) - set(row_df.columns):
+                        row_df[c] = pd.NA
+                    st.session_state.available_players = pd.concat([df, row_df[df.columns]], ignore_index=True)
+            except Exception:
+                pass
+
             st.success(f"Reversed the pick of {player_name} by {team_name}.")
             # Move the nominating team back to the previous team
             if st.session_state.draft_order:

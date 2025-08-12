@@ -73,7 +73,8 @@ def initialize_session_state():
             normalized_weights = trend_weights
         st.session_state.trend_weights = normalized_weights
     if 'roster_composition' not in st.session_state:
-        st.info(f"Weights Normalized. Total: {sum(normalized_weights.values()):.2f}")
+        # Use session weights to avoid referencing a local variable that may not exist
+        st.info(f"Weights Normalized. Total: {sum(st.session_state.trend_weights.values()):.2f}")
         st.session_state.roster_composition = {'G': 3, 'F': 3, 'C': 2, 'Flx': 2, 'Bench': 0}
     # Nomination strategy defaults
     if 'nomination_strategy' not in st.session_state:
@@ -109,17 +110,44 @@ def clear_player_on_block():
 
 def drafting_callback(selected_player_name, team_selection, draft_price, assigned_position, player_values):
     """Handles the logic for drafting a player and then clearing the selection."""
+    # Server-side safety: enforce max bid = current budget - $1 per remaining roster spot after this pick
+    team_data = st.session_state.teams[team_selection]
+    team_budget = team_data['budget']
+    rostered = len(team_data.get('players', []))
+    total_spots = st.session_state.get('roster_spots_per_team', 0)
+    spots_remaining_now = max(total_spots - rostered, 0)
+    spots_after_this_pick = max(spots_remaining_now - 1, 0)
+    reserve_for_min_bids = spots_after_this_pick
+    max_allowed_bid = max(0, team_budget - reserve_for_min_bids)
+
+    if draft_price > max_allowed_bid:
+        st.error(
+            f"Bid exceeds max allowed ${max_allowed_bid}. You must keep $1 for each of the {spots_after_this_pick} remaining spots after this pick."
+        )
+        return
+
     if draft_price > st.session_state.teams[team_selection]['budget']:
         st.error(f"{team_selection} cannot afford {selected_player_name} at this price.")
         return
     # Deduct from budget and add to team roster
     st.session_state.teams[team_selection]['budget'] -= draft_price
+    # Ensure we expand a mapping, not a raw Series, into the roster record
+    extra_attrs = {}
+    try:
+        if hasattr(player_values, 'to_dict'):
+            extra_attrs = player_values.to_dict()
+        elif hasattr(player_values, 'keys'):
+            extra_attrs = dict(player_values)
+    except Exception:
+        extra_attrs = {}
+
     player_data = {
         'Player': selected_player_name,
-        'Position': assigned_position,
         'Price': draft_price,
-        **player_values
+        **extra_attrs
     }
+    # Ensure assigned position overrides any 'Position' coming from extra_attrs
+    player_data['Position'] = assigned_position
     st.session_state.teams[team_selection]['players'].append(player_data)
 
     # Add to draft history
@@ -149,14 +177,28 @@ def drafting_callback(selected_player_name, team_selection, draft_price, assigne
     }
     st.session_state.drafted_players.append(drafted_entry)
 
+    # Cache the removed player's row for potential Undo action
+    try:
+        if 'removed_player_rows' not in st.session_state:
+            st.session_state.removed_player_rows = {}
+        row_dict = dict(player_values) if hasattr(player_values, 'keys') else {}
+        if 'PlayerName' not in row_dict:
+            row_dict['PlayerName'] = selected_player_name
+        st.session_state.removed_player_rows[selected_player_name] = row_dict
+    except Exception:
+        pass
+
     # Remove drafted player from available players so they disappear from lists
     if (not st.session_state.available_players.empty) and ('PlayerName' in st.session_state.available_players.columns):
         st.session_state.available_players = st.session_state.available_players[
             st.session_state.available_players['PlayerName'] != selected_player_name
         ]
 
-    # Advance to the next team in the draft order
-    st.session_state.current_nominating_team_index = (st.session_state.current_nominating_team_index + 1) % len(st.session_state.draft_order)
+    # Advance to the next team in the draft order (guard against empty order)
+    if st.session_state.draft_order:
+        st.session_state.current_nominating_team_index = (
+            st.session_state.current_nominating_team_index + 1
+        ) % len(st.session_state.draft_order)
 
     # Clear the player on the block after drafting
     clear_player_on_block()
@@ -306,8 +348,27 @@ else: # Draft is in progress
         st.subheader("Top 5 Nomination Targets")
         if top5_recommendations and top5_recommendations[0].get('player') is not None:
             for i, rec in enumerate(top5_recommendations):
-                st.markdown(f"**{i+1}. {rec['player']}** – Worth: ${rec['adj_value']:.2f} | Target: ${rec['target_nom_price']:.2f}")
-                st.caption(rec['reason'])
+                worth_whole = int(round(rec.get('adj_value', 0)))
+                target_whole = int(rec.get('target_nom_price', 0))
+                st.markdown(f"**{i+1}. {rec['player']}** – Worth: ${worth_whole:,} | Target: ${target_whole:,}")
+                # Plain-English one-liner
+                det = rec.get('details', {})
+                bp = det.get('budget_pressure', {})
+                sc = det.get('positional_scarcity', {})
+                inf = det.get('value_inflation', {})
+                needy = bp.get('needy_count', 0)
+                avg_bud = bp.get('avg_budget', 0)
+                pos = sc.get('position', None) or 'this position'
+                st_tier = sc.get('tier', None)
+                tier_label = f"Tier {int(st_tier)}" if isinstance(st_tier, (int, float)) else "this tier"
+                same_tier_left = sc.get('same_tier_count', 0)
+                infl_pct = inf.get('inflation_ratio', 0)
+                st.caption(f"Why: {needy} team(s) still need {pos}; {tier_label} left: {same_tier_left}; likely overpay ~{infl_pct:.0%}; avg needy budget ~${avg_bud:,.0f}.")
+                # Secondary explanation for why this target amount
+                explain_text = rec.get('explain')
+                if explain_text:
+                    with st.expander("Why this target?", expanded=False):
+                        st.markdown(explain_text)
         else:
             st.write("No recommendations available at this time.")
         
@@ -326,6 +387,150 @@ else: # Draft is in progress
 
     st.markdown("---_**Draft Summary**_---")
     render_draft_summary()
+
+    # --- All Player Values Table (based on selected models) ---
+    st.markdown("---_**All Player Values**_---")
+    if not recalculated_df.empty:
+        display_df = recalculated_df.copy()
+        if display_df.index.name == 'PlayerName':
+            display_df = display_df.reset_index()
+
+        # Compute average scarcity premium (from SP_* columns) for currently selected scarcity models only
+        try:
+            def _col_name(model_name, prefix):
+                clean = ''.join(word.title() for word in model_name.replace('(', '').replace(')', '').replace('-', '').split())
+                return f"{prefix}{clean}"
+            selected_scarcity = [m for m in st.session_state.get('scarcity_models', []) if m != 'No Scarcity Adjustment']
+            selected_sp_cols = [_col_name(m, 'SP_') for m in selected_scarcity]
+            sp_cols_present = [c for c in selected_sp_cols if c in display_df.columns]
+            if sp_cols_present:
+                display_df['AvgScarcityPremiumPct'] = (display_df[sp_cols_present].mean(axis=1) * 100).round(0)
+        except Exception:
+            pass
+
+        # Curated, readable columns only (Adj first for emphasis)
+        wanted_cols = [
+            'PlayerName', 'Position', 'Tier', 'PPS', 'AdjValue', 'BaseValue',
+            'MarketValue', 'Confidence', 'AvgScarcityPremiumPct'
+        ]
+        cols_present = [c for c in wanted_cols if c in display_df.columns]
+        display_df = display_df[cols_present].copy()
+
+        # Friendly labels and light formatting (keep numeric for sorting)
+        rename_map = {
+            'PlayerName': 'Player',
+            'Position': 'Pos',
+            'Tier': 'Tier',
+            'PPS': 'PPS',
+            'BaseValue': 'Base $',
+            'AdjValue': 'Adj $',
+            'MarketValue': 'Market $',
+            'Confidence': 'Conf %',
+            'AvgScarcityPremiumPct': 'Scarcity %'
+        }
+
+        # Round key numeric columns if present
+        for c in ['BaseValue', 'AdjValue', 'MarketValue']:
+            if c in display_df.columns:
+                display_df[c] = pd.to_numeric(display_df[c], errors='coerce').fillna(0).round(0).astype(int)
+        if 'PPS' in display_df.columns:
+            display_df['PPS'] = pd.to_numeric(display_df['PPS'], errors='coerce').fillna(0).round(2)
+        if 'Confidence' in display_df.columns:
+            display_df['Confidence'] = pd.to_numeric(display_df['Confidence'], errors='coerce').fillna(0).round(1)
+
+        # Sort by Adj $ desc if available
+        sort_col = 'AdjValue' if 'AdjValue' in display_df.columns else (cols_present[0] if cols_present else None)
+        if sort_col:
+            display_df = display_df.sort_values(sort_col, ascending=False)
+
+        display_df = display_df.rename(columns={k: v for k, v in rename_map.items() if k in display_df.columns})
+        # Style for readability while keeping underlying dtypes numeric for CSV/sort
+        try:
+            style_formats = {}
+            if 'Adj $' in display_df.columns:
+                style_formats['Adj $'] = '${:,.0f}'
+            if 'Base $' in display_df.columns:
+                style_formats['Base $'] = '${:,.0f}'
+            if 'Market $' in display_df.columns:
+                style_formats['Market $'] = '${:,.0f}'
+            if 'Conf %' in display_df.columns:
+                style_formats['Conf %'] = '{:.1f}%'
+            if 'Scarcity %' in display_df.columns:
+                style_formats['Scarcity %'] = '{:.0f}%'
+            st.dataframe(display_df.style.format(style_formats), use_container_width=True, hide_index=True)
+        except Exception:
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+        # Download current curated values
+        try:
+            csv_bytes = display_df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="Download current player values (CSV)",
+                data=csv_bytes,
+                file_name="player_values_current.csv",
+                mime="text/csv"
+            )
+        except Exception:
+            pass
+
+        # Optionally show drafted players' last-known values from cache (curated to same columns)
+        removed_cache = st.session_state.get('removed_player_rows', {})
+        if removed_cache:
+            with st.expander("Show drafted players' last-known values", expanded=False):
+                drafted_vals = pd.DataFrame(list(removed_cache.values()))
+                if not drafted_vals.empty:
+                    if drafted_vals.index.name == 'PlayerName':
+                        drafted_vals = drafted_vals.reset_index()
+                    if 'PlayerName' not in drafted_vals.columns and 'Player' in drafted_vals.columns:
+                        drafted_vals.rename(columns={'Player': 'PlayerName'}, inplace=True)
+
+                    # Compute average scarcity premium for drafted cache too (only selected models)
+                    try:
+                        def _col_name_d(model_name, prefix):
+                            clean = ''.join(word.title() for word in model_name.replace('(', '').replace(')', '').replace('-', '').split())
+                            return f"{prefix}{clean}"
+                        selected_scarcity_d = [m for m in st.session_state.get('scarcity_models', []) if m != 'No Scarcity Adjustment']
+                        selected_sp_cols_d = [_col_name_d(m, 'SP_') for m in selected_scarcity_d]
+                        sp_cols_present_d = [c for c in selected_sp_cols_d if c in drafted_vals.columns]
+                        if sp_cols_present_d:
+                            drafted_vals['AvgScarcityPremiumPct'] = (drafted_vals[sp_cols_present_d].mean(axis=1) * 100).round(0)
+                    except Exception:
+                        pass
+
+                    cur_cols = [c for c in wanted_cols if c in drafted_vals.columns]
+                    drafted_vals = drafted_vals[cur_cols].copy()
+
+                    # Apply same rounding and renaming
+                    for c in ['BaseValue', 'AdjValue', 'MarketValue']:
+                        if c in drafted_vals.columns:
+                            drafted_vals[c] = pd.to_numeric(drafted_vals[c], errors='coerce').fillna(0).round(0).astype(int)
+                    if 'PPS' in drafted_vals.columns:
+                        drafted_vals['PPS'] = pd.to_numeric(drafted_vals['PPS'], errors='coerce').fillna(0).round(2)
+                    if 'Confidence' in drafted_vals.columns:
+                        drafted_vals['Confidence'] = pd.to_numeric(drafted_vals['Confidence'], errors='coerce').fillna(0).round(1)
+                    drafted_vals = drafted_vals.rename(columns={k: v for k, v in rename_map.items() if k in drafted_vals.columns})
+                    try:
+                        style_formats_d = {}
+                        if 'Adj $' in drafted_vals.columns:
+                            style_formats_d['Adj $'] = '${:,.0f}'
+                        if 'Base $' in drafted_vals.columns:
+                            style_formats_d['Base $'] = '${:,.0f}'
+                        if 'Market $' in drafted_vals.columns:
+                            style_formats_d['Market $'] = '${:,.0f}'
+                        if 'Conf %' in drafted_vals.columns:
+                            style_formats_d['Conf %'] = '{:.1f}%'
+                        if 'Scarcity %' in drafted_vals.columns:
+                            style_formats_d['Scarcity %'] = '{:.0f}%'
+                        st.dataframe(drafted_vals.style.format(style_formats_d), use_container_width=True, hide_index=True)
+                    except Exception:
+                        st.dataframe(drafted_vals, use_container_width=True, hide_index=True)
+                else:
+                    st.write("No cached values for drafted players.")
+        # Quick legend
+        with st.expander("Column legend", expanded=False):
+            st.markdown("- **Adj $**: Current value after scarcity models\n- **Base $**: Average of base models\n- **Market $**: Raw market estimate (if available)\n- **Conf %**: Agreement across models (higher = more consistent)\n- **Scarcity %**: Avg scarcity premium applied across selected scarcity models")
+    else:
+        st.info("Values will appear here once players are loaded.")
 
     if recalculated_df.empty and st.session_state.draft_started:
         st.balloons()
