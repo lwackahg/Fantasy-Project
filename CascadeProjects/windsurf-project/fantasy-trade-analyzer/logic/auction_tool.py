@@ -14,16 +14,25 @@ BASE_VALUE_MODELS = [
 SCARCITY_MODELS = [
     "No Scarcity Adjustment",
     "Positional Scarcity",
+    "Replacement-Aware Positional Scarcity",
     "Tier-Based Scarcity",
     "Combined Scarcity (Positional + Tier)",
     "Contrarian Fade",
     "Roster Slot Demand",
-    "Opponent Budget Targeting"
+    "Opponent Budget Targeting",
+    # New optional multipliers (selectable)
+    "Phase-Aware Multiplier",
+    "Flexibility Bonus",
+    "Opportunity Cost Discount"
 ]
 
 
 # Tier weights for adjusting VORP. Tier 1 is the best.
 TIER_WEIGHTS = {1: 1.2, 2: 1.1, 3: 1.0, 4: 0.9, 5: 0.8}
+
+# --- Early-Career Model V2 constants ---
+EC_ELITE_FPG_THRESHOLD = 85.0  # Elite early performance threshold for Tier 1 Upside
+EC_TREND_DELTA_MIN = 5.0       # Minimum FP/G increase to count as a clear positive trend
 
 def _assign_percentile_tiers(df, tier_cutoffs=None):
     """Assigns tiers based on PPS percentiles, with customizable cutoffs."""
@@ -62,7 +71,14 @@ def _get_model_col_name(model_name, prefix):
     clean_name = ''.join(word.title() for word in model_name.replace('(', '').replace(')', '').replace('-', '').split())
     return f"{prefix}{clean_name}"
 
-def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composition, base_value_models, tier_cutoffs=None, injured_players=None, vorp_budget_pct=0.97, market_value_weight=0.5):
+def _parse_positions(pos_str):
+    """Return a list of positions from a string like 'G/F' or 'C,Flx'."""
+    try:
+        return [p.strip() for p in str(pos_str).replace(',', '/').split('/') if p and p.strip()]
+    except Exception:
+        return [str(pos_str)] if pos_str else []
+
+def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composition, base_value_models, tier_cutoffs=None, injured_players=None, vorp_budget_pct=0.97, market_value_weight=0.5, ec_settings=None):
     """
     Calculates the initial Base Value for all players based on the selected valuation models.
     """
@@ -93,18 +109,147 @@ def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composit
         # If files are not found, historical data will be missing, but the app won't crash
         pass
 
-    # Apply injury adjustments before any calculations
-    if injured_players:
-        for player, status in injured_players.items():
-            if player in pps_df['PlayerName'].values:
-                if status == "Full Season":
-                    pps_df.loc[pps_df['PlayerName'] == player, 'PPS'] = 0
-                elif status == "3/4 Season":
-                    pps_df.loc[pps_df['PlayerName'] == player, 'PPS'] *= 0.25
-                elif status == "Half Season":
-                    pps_df.loc[pps_df['PlayerName'] == player, 'PPS'] *= 0.5
-                elif status == "1/4 Season":
-                    pps_df.loc[pps_df['PlayerName'] == player, 'PPS'] *= 0.75
+    # Defer injury adjustments until after Early-Career projection to avoid over-penalizing young players
+    deferred_injuries = injured_players or {}
+
+    # --- Early-Career Model V2: adjust PPS for young players (SeasonsPlayed <= 3) ---
+    try:
+        # Resolve EC thresholds/multipliers (caller can override)
+        ec_elite_thr = None
+        ec_trend_delta = None
+        ec_mults = None
+        if isinstance(ec_settings, dict):
+            ec_elite_thr = ec_settings.get('elite_fpg_threshold', None)
+            ec_trend_delta = ec_settings.get('trend_delta_min', None)
+            # Expect percentages as 15,10,5 or multipliers like 1.15; normalize
+            m1 = ec_settings.get('tier1_pct', None)
+            m2 = ec_settings.get('tier2_pct', None)
+            m3 = ec_settings.get('tier3_pct', None)
+            if m1 is not None and m2 is not None and m3 is not None:
+                # If values > 1.5, assume percents
+                if max(m1, m2, m3) > 1.5:
+                    ec_mults = {1: 1.0 + (float(m1) / 100.0), 2: 1.0 + (float(m2) / 100.0), 3: 1.0 + (float(m3) / 100.0)}
+                else:
+                    ec_mults = {1: float(m1), 2: float(m2), 3: float(m3)}
+
+        ec_elite_thr = float(ec_elite_thr) if ec_elite_thr is not None else EC_ELITE_FPG_THRESHOLD
+        ec_trend_delta = float(ec_trend_delta) if ec_trend_delta is not None else EC_TREND_DELTA_MIN
+        if ec_mults is None:
+            ec_mults = {1: 1.15, 2: 1.10, 3: 1.05}
+        # Determine seasons played using available FP/G history (S1..S4 with S4 most recent)
+        fp_cols = [c for c in [f'S{i}_FP/G' for i in range(1, 5)] if c in pps_df.columns]
+        if fp_cols:
+            seasons_played = pps_df[fp_cols].apply(lambda r: int(np.sum(pd.to_numeric(r, errors='coerce').fillna(0) > 0)), axis=1)
+        else:
+            seasons_played = pd.Series(0, index=pps_df.index)
+        pps_df['SeasonsPlayed'] = seasons_played
+
+        # Optional: load draft pedigree if present
+        draft_info = None
+        try:
+            from pathlib import Path as _Path
+            _data_path = _Path(__file__).resolve().parent.parent / "data"
+            draft_path = _data_path / "DraftPedigree.csv"
+            if draft_path.exists():
+                ddf = pd.read_csv(draft_path)
+                # Expect columns: PlayerName, DraftPickOverall, DraftRound
+                if 'Player' in ddf.columns and 'PlayerName' not in ddf.columns:
+                    ddf.rename(columns={'Player': 'PlayerName'}, inplace=True)
+                draft_info = ddf[['PlayerName', 'DraftPickOverall', 'DraftRound']].copy()
+        except Exception:
+            draft_info = None
+
+        # Helper to compute upside tier (1=15%, 2=10%, 3=5%)
+        def _upside_tier(row):
+            s4 = pd.to_numeric(row.get('S4_FP/G', np.nan), errors='coerce')
+            s3 = pd.to_numeric(row.get('S3_FP/G', np.nan), errors='coerce')
+            pick_overall = None
+            draft_round = None
+            if draft_info is not None:
+                try:
+                    rec = draft_info.loc[draft_info['PlayerName'] == row['PlayerName']]
+                    if not rec.empty:
+                        pick_overall = pd.to_numeric(rec.iloc[0].get('DraftPickOverall', np.nan), errors='coerce')
+                        draft_round = pd.to_numeric(rec.iloc[0].get('DraftRound', np.nan), errors='coerce')
+                except Exception:
+                    pass
+            # Tier 1: Top 10 pick and elite early performance
+            if (pick_overall is not None and not np.isnan(pick_overall) and pick_overall <= 10) and (pd.notna(s4) and s4 >= ec_elite_thr):
+                return 1
+            # Tier 2: First-round pick and positive FP/G trend
+            trend_ok = (pd.notna(s4) and pd.notna(s3) and (s4 - s3) >= ec_trend_delta)
+            first_round = (draft_round is not None and not np.isnan(draft_round) and int(draft_round) == 1)
+            if first_round and trend_ok:
+                return 2
+            # Otherwise Tier 3
+            return 3
+
+        # Compute projected FP/G and apply upside for SeasonsPlayed <= 3
+        is_young = pps_df['SeasonsPlayed'] <= 3
+        if is_young.any():
+            # Recent-weighted projection
+            s4 = pd.to_numeric(pps_df.get('S4_FP/G', np.nan), errors='coerce') if 'S4_FP/G' in pps_df.columns else pd.Series(np.nan, index=pps_df.index)
+            s3 = pd.to_numeric(pps_df.get('S3_FP/G', np.nan), errors='coerce') if 'S3_FP/G' in pps_df.columns else pd.Series(np.nan, index=pps_df.index)
+            proj = pd.Series(np.nan, index=pps_df.index)
+            # Entering Year 2: use S4
+            proj.loc[pps_df['SeasonsPlayed'] == 1] = s4.loc[pps_df['SeasonsPlayed'] == 1]
+            # Entering Year 3: 0.8*S4 + 0.2*S3 (fallbacks to S4 if S3 missing)
+            idx_y3 = pps_df['SeasonsPlayed'] == 2
+            proj.loc[idx_y3] = (s4.loc[idx_y3].fillna(0) * 0.8) + (s3.loc[idx_y3].fillna(0) * 0.2)
+            # SeasonsPlayed == 3: still treat as young with same weighting
+            idx_y4 = pps_df['SeasonsPlayed'] == 3
+            proj.loc[idx_y4] = (s4.loc[idx_y4].fillna(0) * 0.8) + (s3.loc[idx_y4].fillna(0) * 0.2)
+
+            # Apply upside modifier
+            upside_tiers = pps_df.apply(_upside_tier, axis=1)
+            mult = upside_tiers.map(ec_mults).fillna(ec_mults.get(3, 1.05))
+            boosted = (proj * mult).fillna(proj)
+
+            # Replace PPS for young players where projection is available
+            use_idx = is_young & proj.notna()
+            pps_df.loc[use_idx, 'PPS'] = boosted.loc[use_idx]
+    except Exception:
+        # Fail-safe: if anything goes wrong, do not block execution
+        pass
+
+    # Apply injury adjustments now (post EC), using gentler scaling for young players
+    if deferred_injuries:
+        try:
+            # Ensure SeasonsPlayed exists (compute if missing)
+            if 'SeasonsPlayed' not in pps_df.columns:
+                fp_cols2 = [c for c in [f'S{i}_FP/G' for i in range(1, 5)] if c in pps_df.columns]
+                if fp_cols2:
+                    pps_df['SeasonsPlayed'] = pps_df[fp_cols2].apply(lambda r: int(np.sum(pd.to_numeric(r, errors='coerce').fillna(0) > 0)), axis=1)
+                else:
+                    pps_df['SeasonsPlayed'] = 0
+
+            for player, status in deferred_injuries.items():
+                if player not in pps_df['PlayerName'].values:
+                    continue
+                idx = pps_df['PlayerName'] == player
+                is_young = (pps_df.loc[idx, 'SeasonsPlayed'] <= 3).bool()
+                if is_young:
+                    # Gentler for young players
+                    if status == "Full Season":
+                        pps_df.loc[idx, 'PPS'] = 0
+                    elif status == "3/4 Season":
+                        pps_df.loc[idx, 'PPS'] *= 0.40
+                    elif status == "Half Season":
+                        pps_df.loc[idx, 'PPS'] *= 0.70
+                    elif status == "1/4 Season":
+                        pps_df.loc[idx, 'PPS'] *= 0.85
+                else:
+                    # Veteran (original scaling)
+                    if status == "Full Season":
+                        pps_df.loc[idx, 'PPS'] = 0
+                    elif status == "3/4 Season":
+                        pps_df.loc[idx, 'PPS'] *= 0.25
+                    elif status == "Half Season":
+                        pps_df.loc[idx, 'PPS'] *= 0.50
+                    elif status == "1/4 Season":
+                        pps_df.loc[idx, 'PPS'] *= 0.75
+        except Exception:
+            pass
 
     # Use the provided parameter; do not override it with a constant
     # vorp_budget_pct represents fraction of total budget allocated to VORP-based values
@@ -194,6 +339,99 @@ def recalculate_dynamic_values(available_players_df, remaining_money_pool, total
     total_remaining_vorp = available_players_df['TierAdjustedVORP'].sum()
     prelim_adj_value = (available_players_df['TierAdjustedVORP'] / total_remaining_vorp) * remaining_money_pool if total_remaining_vorp > 0 else 0
 
+    # --- Global dynamic multipliers (independent of selected scarcity model) ---
+    # Phase estimation from budgets (0 early -> 1 late)
+    try:
+        total_initial_budget = sum(d['budget'] + sum(p.get('Price', 0) for p in d.get('players', [])) for d in teams_data.values())
+        budget_depletion_ratio = 1 - (sum(d['budget'] for d in teams_data.values()) / total_initial_budget) if total_initial_budget > 0 else 0.0
+        budget_depletion_ratio = float(np.clip(budget_depletion_ratio, 0.0, 1.0))
+    except Exception:
+        budget_depletion_ratio = 0.0
+
+    # Phase multiplier favors T1-2 early, T3-4 late (gentle adjustments)
+    phase_mult = pd.Series(1.0, index=available_players_df.index)
+    try:
+        is_t12 = available_players_df['Tier'].isin([1, 2])
+        is_t34 = available_players_df['Tier'].isin([3, 4])
+        phase_mult[is_t12] = 1.0 + (0.10 * (1.0 - budget_depletion_ratio))  # up to +10% very early
+        phase_mult[is_t34] = 1.0 + (0.08 * budget_depletion_ratio)          # up to +8% very late
+    except Exception:
+        pass
+
+    # Flexibility bonus: more eligible positions worth slightly more, stronger late
+    try:
+        elig_counts = available_players_df['Position'].apply(lambda s: max(1, len(_parse_positions(s))))
+        # base bonus per extra eligibility grows from 4% -> 10% as draft progresses
+        base_bonus = 0.04 + 0.06 * budget_depletion_ratio
+        flex_mult = 1.0 + ((elig_counts - 1).clip(lower=0) * base_bonus).clip(upper=0.10)
+        flex_mult = pd.Series(flex_mult.values, index=available_players_df.index)
+    except Exception:
+        flex_mult = pd.Series(1.0, index=available_players_df.index)
+
+    # Replacement-aware demand: compute open slots across teams, including Flex distribution
+    pos_demand_weight = {}
+    try:
+        req = {k: int(v) for k, v in (roster_composition or {}).items()}
+        flex_slots = req.get('Flx', 0)
+        # Count filled per team
+        demand_counts = {}
+        for pos in req.keys():
+            if pos == 'Flx':
+                continue
+            demand_counts[pos] = 0
+        for team_name, data in teams_data.items():
+            filled = pd.Series([p.get('Position', '') for p in data.get('players', [])]).value_counts().to_dict()
+            for pos in demand_counts.keys():
+                demand_counts[pos] += max(0, req.get(pos, 0) - int(filled.get(pos, 0)))
+        # Distribute flex demand proportionally across core positions present in available pool
+        base_total = sum(demand_counts.values())
+        if flex_slots > 0:
+            # Detect which positions exist in the pool
+            pool_pos = set()
+            for pos_str in available_players_df['Position'].unique():
+                for p in _parse_positions(pos_str):
+                    if p != 'Flx':
+                        pool_pos.add(p)
+            spread_keys = [p for p in demand_counts.keys() if p in pool_pos]
+            if spread_keys:
+                add_each = float(flex_slots) / float(len(spread_keys))
+                for p in spread_keys:
+                    demand_counts[p] += add_each
+        total_demand = float(sum(demand_counts.values()))
+        if total_demand > 0:
+            pos_demand_weight = {pos: demand_counts[pos] / total_demand for pos in demand_counts}
+    except Exception:
+        pos_demand_weight = {}
+
+    # Opportunity cost discount: lots of substitutes -> small discount (up to 10%)
+    try:
+        # Precompute counts by (pos, tier)
+        counts_by = {}
+        for _, row in available_players_df.iterrows():
+            tiers = int(row.get('Tier', 5))
+            for p in _parse_positions(row.get('Position', '')):
+                key = (p, tiers)
+                counts_by[key] = counts_by.get(key, 0) + 1
+        # Build per-player discount
+        oc_mult = []
+        for _, row in available_players_df.iterrows():
+            pos_list = _parse_positions(row.get('Position', ''))
+            t = int(row.get('Tier', 5))
+            # Count same tier and neighbors across eligible positions
+            subs = 0
+            for p in pos_list:
+                subs += counts_by.get((p, t), 0)
+                subs += counts_by.get((p, max(1, t-1)), 0)
+                subs += counts_by.get((p, min(5, t+1)), 0)
+            # Higher substitutes -> larger discount up to 10%
+            disc = min(0.10, 0.01 * subs)
+            oc_mult.append(1.0 - disc)
+        oc_mult = pd.Series(oc_mult, index=available_players_df.index)
+    except Exception:
+        oc_mult = pd.Series(1.0, index=available_players_df.index)
+
+    # Note: We do NOT apply phase/flex/OC globally. They are selectable models below.
+
     # 2. Calculate Adjusted Value for each selected scarcity model
     for i, model in enumerate(scarcity_models):
         col_name = _get_model_col_name(model, 'AV_')
@@ -215,11 +453,40 @@ def recalculate_dynamic_values(available_players_df, remaining_money_pool, total
 
         # --- Positional Scarcity ---
         elif model == "Positional Scarcity":
-            initial_pos_counts_s = pd.Series(initial_pos_counts)
-            current_pos_counts = available_players_df['Position'].value_counts().reindex(initial_pos_counts_s.index, fill_value=0)
-            pos_drafted_ratio = 1 - (current_pos_counts / initial_pos_counts_s)
-            pos_premium = 1 + (pos_drafted_ratio * 0.30) # Positions are more critical, higher premium
-            scarcity_premium = available_players_df['Position'].map(pos_premium).fillna(1.0)
+            # Replacement-aware: use demand weights and multi-eligibility averaging
+            try:
+                # Classic positional scarcity (fallback to counts if weights missing)
+                initial_pos_counts_s = pd.Series(initial_pos_counts)
+                current_pos_counts = available_players_df['Position'].value_counts().reindex(initial_pos_counts_s.index, fill_value=0)
+                pos_drafted_ratio = 1 - (current_pos_counts / initial_pos_counts_s)
+                pos_premium = 1 + (pos_drafted_ratio * 0.30)
+                scarcity_premium = available_players_df['Position'].map(pos_premium).fillna(1.0)
+            except Exception:
+                scarcity_premium = pd.Series(1.0, index=available_players_df.index)
+
+        # --- Replacement-Aware Positional Scarcity ---
+        elif model == "Replacement-Aware Positional Scarcity":
+            try:
+                if pos_demand_weight:
+                    # Map each row to the average of its eligible positions' weights
+                    def _avg_weight(pos_str):
+                        ps = _parse_positions(pos_str)
+                        if not ps:
+                            return 1.0
+                        vals = [pos_demand_weight.get(p, 0) for p in ps if p != 'Flx']
+                        base = np.mean(vals) if vals else 0
+                        # Convert 0..1 weight to 1..1.35 premium
+                        return 1.0 + (base * 0.35)
+                    scarcity_premium = available_players_df['Position'].apply(_avg_weight)
+                else:
+                    # Fallback to initial vs current counts if weights unavailable
+                    initial_pos_counts_s = pd.Series(initial_pos_counts)
+                    current_pos_counts = available_players_df['Position'].value_counts().reindex(initial_pos_counts_s.index, fill_value=0)
+                    pos_drafted_ratio = 1 - (current_pos_counts / initial_pos_counts_s)
+                    pos_premium = 1 + (pos_drafted_ratio * 0.30)
+                    scarcity_premium = available_players_df['Position'].map(pos_premium).fillna(1.0)
+            except Exception:
+                scarcity_premium = pd.Series(1.0, index=available_players_df.index)
 
         # --- Combined Scarcity (Positional + Tier) ---
         elif model == "Combined Scarcity (Positional + Tier)":
@@ -270,12 +537,6 @@ def recalculate_dynamic_values(available_players_df, remaining_money_pool, total
         elif model == "Opponent Budget Targeting":
             # Target high-tier players if opponents have money, target mid-tier if they don't.
             avg_opponent_budget = np.mean([d['budget'] for d in teams_data.values()])
-            # Reconstruct total initial league budget from current budgets + prices spent
-            total_initial_budget = sum(d['budget'] + sum(p.get('Price', 0) for p in d.get('players', [])) for d in teams_data.values())
-            if total_initial_budget and total_initial_budget > 0:
-                budget_depletion_ratio = 1 - (sum(d['budget'] for d in teams_data.values()) / total_initial_budget)
-            else:
-                budget_depletion_ratio = 0.0
 
             # Define luxury players (Tiers 1-2) and value players (Tiers 3-4)
             is_luxury = available_players_df['Tier'].isin([1, 2])
@@ -288,6 +549,18 @@ def recalculate_dynamic_values(available_players_df, remaining_money_pool, total
             scarcity_premium = pd.Series(1.0, index=available_players_df.index)
             scarcity_premium[is_luxury] = luxury_premium
             scarcity_premium[is_value] = value_premium
+
+        # --- Phase-Aware Multiplier ---
+        elif model == "Phase-Aware Multiplier":
+            scarcity_premium = phase_mult
+
+        # --- Flexibility Bonus ---
+        elif model == "Flexibility Bonus":
+            scarcity_premium = flex_mult
+
+        # --- Opportunity Cost Discount ---
+        elif model == "Opportunity Cost Discount":
+            scarcity_premium = oc_mult
 
         # Save scarcity premium fraction (multiplier - 1.0) for UI tooltips
         sp_col = _get_model_col_name(model, 'SP_')

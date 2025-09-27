@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 from logic.auction_tool import (calculate_initial_values, recalculate_dynamic_values, BASE_VALUE_MODELS, SCARCITY_MODELS)
 from modules.data_preparation import generate_pps_projections
 from logic.smart_auction_bot import SmartAuctionBot
@@ -103,6 +104,37 @@ def initialize_session_state():
 
 initialize_session_state()
 
+def _parse_injured_players_text(raw_text: str) -> dict:
+    """Convert the injured players textarea text into a mapping of name -> status."""
+    injuries = {}
+    if not raw_text:
+        return injuries
+    for line in raw_text.splitlines():
+        line = line.strip()
+        if not line or '(' not in line or ')' not in line:
+            continue
+        name_part, status_part = line.rsplit('(', 1)
+        player_name = name_part.strip()
+        status = status_part.replace(')', '').strip()
+        if player_name and status:
+            injuries[player_name] = status
+    return injuries
+
+def _annotate_injury_flags(df: pd.DataFrame, injury_map: dict) -> pd.DataFrame:
+    """Attach InjuryStatus/IsInjured/DisplayName columns to a player DataFrame."""
+    if df is None or df.empty:
+        return df
+    out = df.copy()
+    # Determine the base player name series
+    if 'PlayerName' in out.columns:
+        base_names = out['PlayerName'].astype(str)
+    else:
+        base_names = pd.Series(out.index.astype(str), index=out.index)
+    out['InjuryStatus'] = base_names.map(injury_map or {}).fillna('')
+    out['IsInjured'] = out['InjuryStatus'].ne('')
+    out['DisplayName'] = np.where(out['IsInjured'], base_names + ' (INJ)', base_names)
+    return out
+
 def clear_player_on_block():
     """Callback function to reset the player on the block."""
     # Set a flag to reset before widget creation to avoid Streamlit mutation error
@@ -129,6 +161,30 @@ def drafting_callback(selected_player_name, team_selection, draft_price, assigne
     if draft_price > st.session_state.teams[team_selection]['budget']:
         st.error(f"{team_selection} cannot afford {selected_player_name} at this price.")
         return
+    # Roster capacity enforcement (including Flex/Bench)
+    req = {k: int(v) for k, v in st.session_state.roster_composition.items()}
+    current_players = st.session_state.teams[team_selection].get('players', [])
+    filled = pd.Series([p.get('Position', '') for p in current_players]).value_counts().to_dict() if current_players else {}
+    def remaining(pos):
+        return max(0, int(req.get(pos, 0)) - int(filled.get(pos, 0)))
+
+    # If the assigned core slot is full, auto-fallback to Flex if available and player can play Flex
+    fallback_used = False
+    if assigned_position not in ('Flx', 'Bench') and remaining(assigned_position) <= 0:
+        if req.get('Flx', 0) > 0 and remaining('Flx') > 0:
+            assigned_position = 'Flx'
+            fallback_used = True
+        else:
+            st.error(f"No available {assigned_position} or Flex slots left for {team_selection}.")
+            return
+
+    if assigned_position == 'Flx' and remaining('Flx') <= 0:
+        st.error(f"No available Flex slots left for {team_selection}.")
+        return
+    if assigned_position == 'Bench' and (req.get('Bench', 0) <= 0 or remaining('Bench') <= 0):
+        st.error(f"No available Bench slots left for {team_selection}.")
+        return
+
     # Deduct from budget and add to team roster
     st.session_state.teams[team_selection]['budget'] -= draft_price
     # Ensure we expand a mapping, not a raw Series, into the roster record
@@ -158,6 +214,10 @@ def drafting_callback(selected_player_name, team_selection, draft_price, assigne
         'Position': assigned_position
     }
     st.session_state.draft_history.append(draft_entry)
+
+    # Notify if auto-assigned to Flex
+    if fallback_used:
+        st.info("Selected slot was full; assigned to Flex instead.")
 
     # Update total money spent
     if 'total_money_spent' not in st.session_state:
@@ -251,6 +311,8 @@ if not st.session_state.draft_started:
                             player_name = parts[0].strip()
                             status = parts[1].replace(')', '').strip()
                             injured_players[player_name] = status
+                # Save for later display usage
+                st.session_state.injury_map = injured_players
                 
                 with st.spinner("Calculating initial player values..."):
                     pps_df = pd.read_csv('data/player_projections.csv')
@@ -261,7 +323,12 @@ if not st.session_state.draft_started:
                         roster_composition=st.session_state.roster_composition,
                         base_value_models=st.session_state.base_value_models,
                         tier_cutoffs=st.session_state.tier_cutoffs,
-                        injured_players=injured_players
+                        injured_players=injured_players,
+                        ec_settings=(st.session_state.get('ec_settings', None) if st.session_state.get('ec_enabled', True) else None)
+                    )
+                    # Annotate for UI so injury is obvious
+                    st.session_state.available_players = _annotate_injury_flags(
+                        st.session_state.available_players, st.session_state.get('injury_map', {})
                     )
                 st.rerun()
         else:
@@ -295,13 +362,28 @@ else: # Draft is in progress
             roster_composition=st.session_state.roster_composition,
             num_teams=st.session_state.num_teams
         )
+        # Carry injury flags forward for UI
+        recalculated_df = _annotate_injury_flags(recalculated_df, st.session_state.get('injury_map', {}))
 
     # --- Main 3-Column Layout ---
     left_col, mid_col, right_col = st.columns([1.2, 2, 1])
 
     with left_col:
         nominating_team_name = st.session_state.draft_order[st.session_state.current_nominating_team_index] if st.session_state.draft_order else 'N/A'
-        st.subheader(f"On the Clock: {nominating_team_name}")
+        # Compute draft phase from budget depletion ratio
+        try:
+            total_initial_budget = sum(d['budget'] + sum(p.get('Price', 0) for p in d.get('players', [])) for d in st.session_state.teams.values())
+            current_budget = sum(d['budget'] for d in st.session_state.teams.values())
+            depletion = 1 - (current_budget / total_initial_budget) if total_initial_budget > 0 else 0.0
+        except Exception:
+            depletion = 0.0
+        phase = 'Early'
+        if depletion >= 0.33 and depletion < 0.66:
+            phase = 'Mid'
+        elif depletion >= 0.66:
+            phase = 'Late'
+        st.subheader(f"On the Clock: {nominating_team_name}  ")
+        st.caption(f"Phase: {phase} (budget used: {depletion:.0%})")
 
         st.subheader("Analyze or Draft")
         player_options = []
@@ -314,11 +396,20 @@ else: # Draft is in progress
             st.session_state.player_on_the_block = None
 
         # Use the widget key to manage selection; avoid recomputing index to reduce lag
+        def _player_label(name: str) -> str:
+            try:
+                if name in recalculated_df.index and 'DisplayName' in recalculated_df.columns:
+                    return str(recalculated_df.loc[name, 'DisplayName'])
+            except Exception:
+                pass
+            return name
+
         st.selectbox(
             "Select a player to analyze or draft:",
             options=player_options,
             key='player_on_the_block',
-            placeholder="Choose a player..."
+            placeholder="Choose a player...",
+            format_func=_player_label
         )
 
         if st.session_state.get('player_on_the_block') and not recalculated_df.empty:
@@ -347,10 +438,32 @@ else: # Draft is in progress
     with right_col:
         st.subheader("Top 5 Nomination Targets")
         if top5_recommendations and top5_recommendations[0].get('player') is not None:
-            for i, rec in enumerate(top5_recommendations):
+            # Filter out players with Full Season injuries; augment labels for others
+            filtered = []
+            for rec in top5_recommendations:
+                name = rec.get('player')
+                try:
+                    inj = str(recalculated_df.loc[name, 'InjuryStatus']) if (name in recalculated_df.index and 'InjuryStatus' in recalculated_df.columns) else ''
+                except Exception:
+                    inj = ''
+                if inj.strip().lower() == 'full season':
+                    continue
+                rec = dict(rec)
+                rec['injury_status'] = inj
+                filtered.append(rec)
+
+            for i, rec in enumerate(filtered):
                 worth_whole = int(round(rec.get('adj_value', 0)))
                 target_whole = int(rec.get('target_nom_price', 0))
-                st.markdown(f"**{i+1}. {rec['player']}** – Worth: ${worth_whole:,} | Target: ${target_whole:,}")
+                label = rec['player']
+                try:
+                    if rec['player'] in recalculated_df.index and 'DisplayName' in recalculated_df.columns:
+                        label = str(recalculated_df.loc[rec['player'], 'DisplayName'])
+                except Exception:
+                    pass
+                if rec.get('injury_status'):
+                    label = f"{label} (Inj: {rec['injury_status']})"
+                st.markdown(f"**{i+1}. {label}** – Worth: ${worth_whole:,} | Target: ${target_whole:,}")
                 # Plain-English one-liner
                 det = rec.get('details', {})
                 bp = det.get('budget_pressure', {})
@@ -371,13 +484,6 @@ else: # Draft is in progress
                         st.markdown(explain_text)
         else:
             st.write("No recommendations available at this time.")
-        
-        st.subheader("Draft History")
-        if st.session_state.draft_history:
-            history_df = pd.DataFrame(st.session_state.draft_history)
-            st.dataframe(history_df, use_container_width=True, hide_index=True)
-        else:
-            st.write("No players drafted yet.")
 
     st.markdown("---_**Player Analysis**_---")
     if st.session_state.get('player_on_the_block') and not recalculated_df.empty:
@@ -388,12 +494,209 @@ else: # Draft is in progress
     st.markdown("---_**Draft Summary**_---")
     render_draft_summary()
 
+    # --- Model Accuracy (Live Residuals) ---
+    top_help_cols = st.columns([1, 0.06])
+    with top_help_cols[0]:
+        st.markdown("**Model Accuracy (Live)**")
+    with top_help_cols[1]:
+        st.button("ℹ️", key="model_accuracy_help", help=(
+            "Shows how close the current model is to actual paid prices during this draft.\n\n"
+            "ME = Mean Error (Paid - Model). Positive means the room is paying more than the model.\n"
+            "MAE = Mean Absolute Error. Lower is better.\n"
+            "Calibration suggestions are preview-only multipliers (capped ±10%) to align with observed prices."
+        ))
+
+    with st.expander("Details", expanded=False):
+        # Outlier handling controls
+        st.markdown("**Outlier handling**")
+        method = st.selectbox(
+            "Exclude outliers by",
+            options=["None", "IQR (1.5x)", "IQR (3.0x)", "Absolute Error > $X"],
+            index=0,
+            key="resid_outlier_method"
+        )
+        abs_x = 50
+        if method == "Absolute Error > $X":
+            abs_x = st.number_input("X ($)", min_value=1, max_value=1000, value=100, step=5, key="resid_abs_x")
+        try:
+            drafted = pd.DataFrame(st.session_state.get('drafted_players', []))
+            if not drafted.empty:
+                # Attach cached features (Tier/Position/etc.) from when the player was drafted
+                removed_cache = st.session_state.get('removed_player_rows', {})
+                cache_df = pd.DataFrame(list(removed_cache.values())) if removed_cache else pd.DataFrame()
+                if not cache_df.empty:
+                    if 'PlayerName' not in cache_df.columns and 'Player' in cache_df.columns:
+                        cache_df.rename(columns={'Player': 'PlayerName'}, inplace=True)
+                    # Only keep relevant columns to avoid collisions
+                    cache_keep = [c for c in cache_df.columns if c in ['PlayerName', 'Tier', 'Position']]
+                    cache_df = cache_df[cache_keep].copy()
+                    drafted = drafted.merge(cache_df, on='PlayerName', how='left')
+
+                # Compute residuals vs AdjValue and BaseValue at time of draft
+                drafted['Error_Adj'] = pd.to_numeric(drafted.get('DraftPrice', 0), errors='coerce') - pd.to_numeric(drafted.get('AdjValue', 0), errors='coerce')
+                drafted['AbsError_Adj'] = drafted['Error_Adj'].abs()
+                drafted['Error_Base'] = pd.to_numeric(drafted.get('DraftPrice', 0), errors='coerce') - pd.to_numeric(drafted.get('BaseValue', 0), errors='coerce')
+                drafted['AbsError_Base'] = drafted['Error_Base'].abs()
+
+                # Outlier filtering mask based on selection
+                mask = pd.Series(True, index=drafted.index)
+                if method.startswith("IQR"):
+                    k = 1.5 if "1.5" in method else 3.0
+                    q1 = drafted['Error_Adj'].quantile(0.25)
+                    q3 = drafted['Error_Adj'].quantile(0.75)
+                    iqr = q3 - q1
+                    low, high = q1 - k * iqr, q3 + k * iqr
+                    mask = (drafted['Error_Adj'] >= low) & (drafted['Error_Adj'] <= high)
+                elif method == "Absolute Error > $X":
+                    mask = drafted['AbsError_Adj'] <= abs_x
+                drafted_f = drafted[mask].copy()
+
+                # Overall metrics
+                overall = {
+                    'Count': len(drafted_f),
+                    'Adj ME ($)': round(drafted_f['Error_Adj'].mean(), 2),
+                    'Adj MAE ($)': round(drafted_f['AbsError_Adj'].mean(), 2),
+                    'Base ME ($)': round(drafted_f['Error_Base'].mean(), 2),
+                    'Base MAE ($)': round(drafted_f['AbsError_Base'].mean(), 2),
+                }
+                st.markdown("**Overall**")
+                st.dataframe(pd.DataFrame([overall]), hide_index=True, use_container_width=True)
+
+                # By Tier
+                if 'Tier' in drafted_f.columns:
+                    by_tier = drafted_f.groupby('Tier').agg(
+                        Count=('PlayerName', 'count'),
+                        Adj_ME=('Error_Adj', 'mean'),
+                        Adj_MAE=('AbsError_Adj', 'mean'),
+                        Base_ME=('Error_Base', 'mean'),
+                        Base_MAE=('AbsError_Base', 'mean'),
+                    ).reset_index()
+                    by_tier[['Adj_ME','Adj_MAE','Base_ME','Base_MAE']] = by_tier[['Adj_ME','Adj_MAE','Base_ME','Base_MAE']].round(2)
+                    st.markdown("**By Tier**")
+                    st.dataframe(by_tier, hide_index=True, use_container_width=True)
+
+                    # Suggest non-destructive calibration multipliers by Tier (not applied)
+                    try:
+                        tier_avg_adj = drafted_f.groupby('Tier')['AdjValue'].mean().rename('AdjMean')
+                        tier_me = drafted_f.groupby('Tier')['Error_Adj'].mean().rename('AdjME')
+                        tier_sugg = pd.concat([tier_avg_adj, tier_me], axis=1).dropna()
+                        # multiplier ≈ 1 - ME/AdjMean, clamped to [0.90, 1.10]
+                        tier_sugg['SuggestedMultiplier'] = (1.0 - (tier_sugg['AdjME'] / tier_sugg['AdjMean']).replace([np.inf, -np.inf], 0)).clip(0.90, 1.10)
+                        tier_sugg['SuggestedMultiplierPct'] = ((tier_sugg['SuggestedMultiplier'] - 1.0) * 100).round(1)
+                        tier_sugg = tier_sugg.reset_index()[['Tier','AdjMean','AdjME','SuggestedMultiplier','SuggestedMultiplierPct']]
+                        st.markdown("**Calibration suggestions (by Tier)** – informational only, not applied")
+                        st.dataframe(tier_sugg, hide_index=True, use_container_width=True)
+                    except Exception:
+                        pass
+
+                # By Position
+                if 'Position' in drafted_f.columns:
+                    by_pos = drafted_f.groupby('Position').agg(
+                        Count=('PlayerName', 'count'),
+                        Adj_ME=('Error_Adj', 'mean'),
+                        Adj_MAE=('AbsError_Adj', 'mean'),
+                        Base_ME=('Error_Base', 'mean'),
+                        Base_MAE=('AbsError_Base', 'mean'),
+                    ).reset_index()
+                    by_pos[['Adj_ME','Adj_MAE','Base_ME','Base_MAE']] = by_pos[['Adj_ME','Adj_MAE','Base_ME','Base_MAE']].round(2)
+                    st.markdown("**By Position**")
+                    st.dataframe(by_pos, hide_index=True, use_container_width=True)
+
+                    # Suggest non-destructive calibration multipliers by Position (not applied)
+                    try:
+                        pos_avg_adj = drafted_f.groupby('Position')['AdjValue'].mean().rename('AdjMean')
+                        pos_me = drafted_f.groupby('Position')['Error_Adj'].mean().rename('AdjME')
+                        pos_sugg = pd.concat([pos_avg_adj, pos_me], axis=1).dropna()
+                        pos_sugg['SuggestedMultiplier'] = (1.0 - (pos_sugg['AdjME'] / pos_sugg['AdjMean']).replace([np.inf, -np.inf], 0)).clip(0.90, 1.10)
+                        pos_sugg['SuggestedMultiplierPct'] = ((pos_sugg['SuggestedMultiplier'] - 1.0) * 100).round(1)
+                        pos_sugg = pos_sugg.reset_index()[['Position','AdjMean','AdjME','SuggestedMultiplier','SuggestedMultiplierPct']]
+                        st.markdown("**Calibration suggestions (by Position)** – informational only, not applied")
+                        st.dataframe(pos_sugg, hide_index=True, use_container_width=True)
+                    except Exception:
+                        pass
+
+                # Visualizations
+                try:
+                    # Ensure pick numbers
+                    if 'PickNumber' not in drafted.columns:
+                        drafted['PickNumber'] = range(1, len(drafted) + 1)
+                    # Scatter of residuals and cumulative MAE
+                    vis_cols = st.columns(2)
+                    with vis_cols[0]:
+                        st.markdown("Residuals by pick (Adj)")
+                        st.line_chart(drafted.set_index('PickNumber')['Error_Adj'])
+                    with vis_cols[1]:
+                        st.markdown("Cumulative MAE (Adj)")
+                        cum_mae = drafted['AbsError_Adj'].expanding().mean()
+                        st.line_chart(pd.DataFrame({ 'Cumulative_MAE': cum_mae }).reset_index(drop=True))
+                except Exception:
+                    pass
+
+                # Download residuals
+                try:
+                    csv_bytes = drafted.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="Download residuals (CSV)",
+                        data=csv_bytes,
+                        file_name="auction_model_residuals.csv",
+                        mime="text/csv"
+                    )
+                    # Draft log bundle (JSON)
+                    try:
+                        bundle = {
+                            'settings': {
+                                'num_teams': st.session_state.num_teams,
+                                'budget_per_team': st.session_state.budget_per_team,
+                                'roster_composition': st.session_state.roster_composition,
+                                'base_value_models': st.session_state.base_value_models,
+                                'scarcity_models': st.session_state.scarcity_models,
+                            },
+                            'drafted_players': st.session_state.get('drafted_players', []),
+                            'residuals': drafted.to_dict(orient='records')
+                        }
+                        import json as _json
+                        st.download_button(
+                            label="Download draft log (JSON)",
+                            data=_json.dumps(bundle, indent=2),
+                            file_name="auction_draft_log.json",
+                            mime="application/json"
+                        )
+                    except Exception:
+                        pass
+                    # Optional: download calibration suggestions bundle
+                    try:
+                        calib_bundle = {}
+                        if 'tier_sugg' in locals():
+                            calib_bundle['tier'] = tier_sugg.to_dict(orient='records')
+                        if 'pos_sugg' in locals():
+                            calib_bundle['position'] = pos_sugg.to_dict(orient='records')
+                        if calib_bundle:
+                            import json as _json
+                            st.download_button(
+                                label="Download calibration suggestions (JSON)",
+                                data=_json.dumps(calib_bundle, indent=2),
+                                file_name="auction_calibration_suggestions.json",
+                                mime="application/json"
+                            )
+                    except Exception:
+                        pass
+                except Exception:
+                    pass
+            else:
+                st.info("No drafted players yet. Residuals will appear after picks are made.")
+        except Exception as e:
+            st.warning(f"Could not compute residuals: {e}")
+
     # --- All Player Values Table (based on selected models) ---
     st.markdown("---_**All Player Values**_---")
     if not recalculated_df.empty:
         display_df = recalculated_df.copy()
         if display_df.index.name == 'PlayerName':
             display_df = display_df.reset_index()
+        # Ensure injury flags present for table; show DisplayName if available
+        display_df = _annotate_injury_flags(display_df, st.session_state.get('injury_map', {}))
+        if 'DisplayName' in display_df.columns:
+            display_df['PlayerName'] = display_df['DisplayName']
 
         # Compute average scarcity premium (from SP_* columns) for currently selected scarcity models only
         try:
@@ -408,10 +711,10 @@ else: # Draft is in progress
         except Exception:
             pass
 
-        # Curated, readable columns only (Adj first for emphasis)
+        # Curated, readable columns only (Adj first for emphasis). Include Injury column for clarity.
         wanted_cols = [
             'PlayerName', 'Position', 'Tier', 'PPS', 'AdjValue', 'BaseValue',
-            'MarketValue', 'Confidence', 'AvgScarcityPremiumPct'
+            'MarketValue', 'Confidence', 'AvgScarcityPremiumPct', 'InjuryStatus'
         ]
         cols_present = [c for c in wanted_cols if c in display_df.columns]
         display_df = display_df[cols_present].copy()
@@ -426,7 +729,8 @@ else: # Draft is in progress
             'AdjValue': 'Adj $',
             'MarketValue': 'Market $',
             'Confidence': 'Conf %',
-            'AvgScarcityPremiumPct': 'Scarcity %'
+            'AvgScarcityPremiumPct': 'Scarcity %',
+            'InjuryStatus': 'Injury'
         }
 
         # Round key numeric columns if present
@@ -457,7 +761,17 @@ else: # Draft is in progress
                 style_formats['Conf %'] = '{:.1f}%'
             if 'Scarcity %' in display_df.columns:
                 style_formats['Scarcity %'] = '{:.0f}%'
-            st.dataframe(display_df.style.format(style_formats), use_container_width=True, hide_index=True)
+
+            def _injury_row_style(row):
+                try:
+                    if str(row.get('Injury', '')).strip() != '':
+                        return ['background-color: rgba(255, 0, 0, 0.10)'] * len(row)
+                except Exception:
+                    pass
+                return [''] * len(row)
+
+            styled = display_df.style.format(style_formats).apply(_injury_row_style, axis=1)
+            st.dataframe(styled, use_container_width=True, hide_index=True)
         except Exception:
             st.dataframe(display_df, use_container_width=True, hide_index=True)
 

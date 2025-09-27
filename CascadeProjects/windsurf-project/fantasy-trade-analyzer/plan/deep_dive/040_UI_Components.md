@@ -4,6 +4,11 @@ This document provides a detailed breakdown of the UI components that constitute
 
 ---
 
+### Phase Badge and Roster Enforcement (UI Updates)
+
+- **Phase Badge (Early/Mid/Late)**: Near the `On the Clock` header on the draft page, a small caption displays the current draft phase as `Early`, `Mid`, or `Late`, computed from league budget depletion. This mirrors the phase concept used in optional in-draft models.
+- **Roster Capacity Enforcement**: The draft form now filters the `Assign Position` options to only show positions with remaining capacity for the selected team. Flex is offered if available; Bench is only shown when `Bench > 0`. Server-side validation in `drafting_callback()` prevents assigning beyond capacity and auto-falls back to Flex when a core slot is full and Flex capacity remains.
+
 ### 1. `render_setup_page()`
 
 **Purpose**: To render the initial configuration page where users set up the draft parameters before it begins.
@@ -51,6 +56,19 @@ This document provides a detailed breakdown of the UI components that constitute
 - **Valuation Details**: Breaks down the player's valuation, showing the average base and adjusted values, as well as the individual values from each selected model.
 - **Key Metrics**: Displays important metrics like Tier, VORP (Value Over Replacement Player), and Market Value.
 - **Historical Performance**: Shows a table with the player's games played (GP) and fantasy points per game (FP/G) for the last four seasons.
+
+---
+
+### Injury Annotations (UI Enhancements)
+
+The auction tool surfaces injury information across the UI to improve draft-time awareness:
+
+- **Player Select and Labels**: Injured players are labeled with "(INJ)" via a `DisplayName` field during selection and in tables.
+- **Player Analysis Banner**: When a selected player has `IsInjured` set, a red banner shows the injury duration from `InjuryStatus` (e.g., "Half Season", "Full Season").
+- **All Player Values Table**: Adds an `Injury` column and lightly tints rows for injured players for quick scanning.
+- **Nomination Targets**: Full-season injured players are excluded from the "Top 5 Nomination Targets"; other injuries display inline (e.g., "Inj: Half Season").
+
+Inputs for injury status are parsed from the setup textarea and stored as a session-level `injury_map`. These annotations are computed in the page layer and do not alter the valuation engine's core logic.
 - **Team Optimizer Integration**: Includes a button to run the `team_optimizer` for the user's selected team. It calculates and displays the optimal roster that can be built with the remaining budget and roster spots.
 
 ---

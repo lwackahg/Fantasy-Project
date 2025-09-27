@@ -85,6 +85,30 @@ This function runs once before the draft starts. Its key steps are:
 5.  **Calculate Base Value**: Computes a `BaseValue` for each player. It can average multiple models (e.g., Pure VORP, Risk-Adjusted VORP) selected by the user. It ensures any player with positive VORP has a minimum value of $1.
 6.  **Store Initial Counts**: Records the initial number of players available at each position and in each tier. These counts are the baseline for scarcity calculations during the draft.
 
+#### Early-Career Model (V2)
+
+Young players (SeasonsPlayed ≤ 3) follow a separate early-career projection path before VORP/tiering:
+
+- **Projection weighting**
+  - Entering Year 2: `Projected FP/G = S4_FP/G`
+  - Entering Year 3 (and 3 seasons played): `Projected FP/G = 0.8 × S4_FP/G + 0.2 × S3_FP/G`
+- **Upside modifier** (multiplicative)
+  - Tier 1: +15% (Top-10 pick AND `S4_FP/G ≥ EliteThreshold`)
+  - Tier 2: +10% (Round 1 pick AND positive trend `S4 − S3 ≥ TrendDelta`)
+  - Tier 3: +5% (default for other young players)
+- **Injury sequencing**
+  - Injuries are applied after the early-career projection, with gentler scaling for young players:
+    - Young: Full=0.0, 3/4=×0.40, Half=×0.70, 1/4=×0.85
+    - Veteran: Full=0.0, 3/4=×0.25, Half=×0.50, 1/4=×0.75
+- **Controls** (Setup → Projections & Adjustments → Early-Career Model Settings)
+  - Enable Early-Career Model (checkbox)
+  - Elite FP/G threshold (default 85)
+  - Trend delta FP/G (default 5)
+  - Boosts: Tier1/Tier2/Tier3 (%) defaults 15/10/5
+- **Pedigree support**: Optional `data/DraftPedigree.csv` with columns `PlayerName, DraftPickOverall, DraftRound`. If absent, young players default to Tier 3.
+
+These adjustments replace `PPS` for qualifying players, and all downstream steps (tiers, VORP, BaseValue, AdjValue) reflect the boost.
+
 ### `recalculate_dynamic_values()`
 
 This function runs after every player is drafted. It is the heart of the tool's real-time adjustments.

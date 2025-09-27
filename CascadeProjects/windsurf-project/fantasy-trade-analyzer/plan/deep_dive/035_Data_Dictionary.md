@@ -56,3 +56,17 @@ This document serves as a guide to the primary data sources used in the Fantasy 
     -   `Pos`: The player's primary position.
     -   `Team`: The player's NBA team.
     -   `MarketValue`: The player's average auction price from previous seasons.
+
+---
+
+## 5. Draft Pedigree (`DraftPedigree.csv`)
+
+-   **Purpose**: Optional data source used by the Early-Career Model (V2) to assign upside tiers to young players (SeasonsPlayed ≤ 3).
+-   **Loaded Into**: read ad hoc inside `logic/auction_tool.py::calculate_initial_values()` if the file exists; otherwise, all young players default to Tier 3 upside (+5%).
+-   **Key Columns**:
+    -   `PlayerName` (string): Player display name used for joining.
+    -   `DraftPickOverall` (int): Overall pick number. Tier 1 requires Top 10.
+    -   `DraftRound` (int): Draft round. Tier 2 requires Round 1.
+-   **Notes**:
+    -   The file is optional. If missing or a row is absent for a given player, the model falls back to Tier 3 (+5%).
+    -   Column `Player` will be auto-renamed to `PlayerName` if present.

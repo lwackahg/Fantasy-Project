@@ -134,6 +134,32 @@ def render_setup_page():
             st.session_state.tier_cutoffs['Tier 3'] = st.slider("Tier 3 Cutoff", 0.50, st.session_state.tier_cutoffs['Tier 2'], st.session_state.tier_cutoffs.get('Tier 3', 0.70), 0.01)
             st.session_state.tier_cutoffs['Tier 4'] = st.slider("Tier 4 Cutoff", 0.30, st.session_state.tier_cutoffs['Tier 3'], st.session_state.tier_cutoffs.get('Tier 4', 0.45), 0.01)
 
+        # Early-Career Model Settings
+        st.markdown("---")
+        st.subheader("Early-Career Model Settings")
+        st.session_state.ec_enabled = st.checkbox("Enable Early-Career Model", value=bool(st.session_state.get('ec_enabled', True)))
+        ec1, ec2, ec3 = st.columns(3)
+        with ec1:
+            elite_thr = st.number_input("Elite FP/G threshold", min_value=50.0, max_value=140.0, value=float(st.session_state.get('ec_settings', {}).get('elite_fpg_threshold', 85.0)), step=0.5, help="Tier 1 requires Top-10 pick and FP/G >= this value")
+        with ec2:
+            trend_delta = st.number_input("Trend delta (FP/G)", min_value=0.0, max_value=30.0, value=float(st.session_state.get('ec_settings', {}).get('trend_delta_min', 5.0)), step=0.5, help="Minimum S4−S3 increase to qualify Tier 2")
+        with ec3:
+            st.write("")
+        ecm1, ecm2, ecm3 = st.columns(3)
+        with ecm1:
+            t1 = st.number_input("Tier 1 boost (%)", min_value=0.0, max_value=50.0, value=float(st.session_state.get('ec_settings', {}).get('tier1_pct', 15.0)), step=0.5)
+        with ecm2:
+            t2 = st.number_input("Tier 2 boost (%)", min_value=0.0, max_value=40.0, value=float(st.session_state.get('ec_settings', {}).get('tier2_pct', 10.0)), step=0.5)
+        with ecm3:
+            t3 = st.number_input("Tier 3 boost (%)", min_value=0.0, max_value=30.0, value=float(st.session_state.get('ec_settings', {}).get('tier3_pct', 5.0)), step=0.5)
+        st.session_state.ec_settings = {
+            'elite_fpg_threshold': elite_thr,
+            'trend_delta_min': trend_delta,
+            'tier1_pct': t1,
+            'tier2_pct': t2,
+            'tier3_pct': t3,
+        }
+
     with st.expander("Customize Trend Weights", expanded=False):
         st.info("These weights determine the importance of each of the last four seasons when calculating a player's Power Score (PPS). The weights must sum to 1.0.")
         weights = {}
@@ -254,13 +280,40 @@ def render_drafting_form(player_series, drafting_callback):
 
     # Prepare position options BEFORE the form to prevent state lag
     # Split by comma or slash to handle formats like 'G/F' or 'C,Flx'
-    position_options = [pos.strip() for pos in player_series['Position'].replace(',', '/').split('/')]
-    if 'Bench' not in position_options:
+    position_options = [pos.strip() for pos in str(player_series.get('Position', '')).replace(',', '/').split('/') if pos.strip()]
+    # Include Flex if league supports it
+    if st.session_state.roster_composition.get('Flx', 0) > 0 and 'Flx' not in position_options:
+        position_options.append('Flx')
+    # Only include Bench if league has bench slots
+    if st.session_state.roster_composition.get('Bench', 0) > 0 and 'Bench' not in position_options:
         position_options.append('Bench')
 
     with st.form(key=f"draft_{player_series.name}"):
         team_selection = st.selectbox("Select Team", options=st.session_state.team_names, key=f"team_select_{player_series.name}")
-        
+
+        # Compute available slots for the selected team
+        req = {k: int(v) for k, v in st.session_state.roster_composition.items()}
+        team_players = st.session_state.teams.get(team_selection, {}).get('players', [])
+        filled_counts = pd.Series([p.get('Position', '') for p in team_players]).value_counts().to_dict() if team_players else {}
+        def remaining(pos):
+            return max(0, int(req.get(pos, 0)) - int(filled_counts.get(pos, 0)))
+
+        # Rebuild options by filtering to positions with remaining capacity
+        eligible_core = [p for p in position_options if p not in ('Flx','Bench') and remaining(p) > 0]
+        options_final = []
+        options_final.extend(eligible_core)
+        if req.get('Flx', 0) > 0 and remaining('Flx') > 0 and 'Flx' in position_options:
+            options_final.append('Flx')
+        if req.get('Bench', 0) > 0 and remaining('Bench') > 0 and 'Bench' in position_options:
+            options_final.append('Bench')
+
+        # Fallback: if no core slots left but Flex available, ensure Flex shows; else Bench if available
+        if not options_final:
+            if req.get('Flx', 0) > 0 and remaining('Flx') > 0:
+                options_final = ['Flx']
+            elif req.get('Bench', 0) > 0 and remaining('Bench') > 0:
+                options_final = ['Bench']
+
         # Ensure the default value is numeric and at least 1 to prevent crashes
         raw_default = player_series.get('AdjValue', 1)
         try:
@@ -327,9 +380,27 @@ def render_drafting_form(player_series, drafting_callback):
                 drafting_callback(player_series.name, team_selection, draft_price, assigned_position, player_series)
 
 def render_player_analysis_metrics(selected_player_name, recalculated_df):
-    """Renders the metrics and analysis for a selected player, handling missing keys gracefully."""
-    st.subheader(f"Analysis for: {selected_player_name}")
+    """Renders the metrics and analysis for a selected player, handling missing keys gracefully.
+
+    If injury metadata is present (InjuryStatus/IsInjured/DisplayName), it is surfaced prominently.
+    """
     player_series = recalculated_df.loc[selected_player_name]
+
+    # Prefer DisplayName when available (so '(INJ)' shows up), fall back to selected_player_name
+    name_to_show = player_series.get('DisplayName', selected_player_name)
+    st.subheader(f"Analysis for: {name_to_show}")
+
+    # Show an obvious injury banner with duration if available
+    try:
+        is_injured = bool(player_series.get('IsInjured', False))
+        injury_status = str(player_series.get('InjuryStatus', '')).strip()
+        if is_injured:
+            if injury_status:
+                st.error(f"Injury: {injury_status}")
+            else:
+                st.error("Injury: Status not specified")
+    except Exception:
+        pass
 
     # --- Main two columns for player metrics ---
     main_col1, main_col2 = st.columns(2)
@@ -398,11 +469,7 @@ def render_player_analysis_metrics(selected_player_name, recalculated_df):
                     st.metric(label=f"{model_name} Adj. Value", value=f"${adj_value:.2f}",
                               help=f"Scarcity Premium: {premium:.2%}")
 
-    # --- Single column for optimal roster ---
-    st.markdown("---")
-    if st.button("Find Optimal Roster for this Player", use_container_width=True):
-        st.info("Optimal roster feature coming soon!")
-    st.markdown("---")
+    # Removed: Optimal roster CTA per user request
 
 def render_draft_summary():
     """Renders the draft summary table."""
