@@ -160,10 +160,43 @@ def render_setup_page():
             'tier3_pct': t3,
         }
 
+        # GP Reliability Adjustment (uses user's Trend Weights as lookback weights)
+        st.markdown("---")
+        st.subheader("GP Reliability Adjustment")
+        st.session_state.gp_rel_enabled = st.checkbox("Enable GP Reliability Adjustment", value=bool(st.session_state.get('gp_rel_enabled', True)))
+        gr1, gr2, gr3 = st.columns(3)
+        with gr1:
+            gp_target = st.number_input("GP target for full trust", min_value=60.0, max_value=82.0, value=float(st.session_state.get('gp_rel_settings', {}).get('gp_target', 72.0)), step=1.0)
+        with gr2:
+            strictness = st.selectbox("Strictness curve", options=["Mild", "Standard", "Strict"], index={"Mild":0,"Standard":1,"Strict":2}.get(str(st.session_state.get('gp_rel_settings', {}).get('strictness','Standard')).title(),1))
+        with gr3:
+            st.write("")
+        gf1, gf2 = st.columns(2)
+        with gf1:
+            veteran_floor = st.number_input("Veteran floor", min_value=0.60, max_value=0.95, value=float(st.session_state.get('gp_rel_settings', {}).get('veteran_floor', 0.70)), step=0.01, help="Minimum PPS scale for veterans with low GP")
+        with gf2:
+            ec_floor = st.number_input("Early-career floor", min_value=0.70, max_value=0.99, value=float(st.session_state.get('gp_rel_settings', {}).get('ec_floor', 0.85)), step=0.01, help="Minimum PPS scale for Seasons ≤ 3")
+        s1, s2 = st.columns(2)
+        with s1:
+            gp_severe_threshold = st.number_input("Severe GP threshold (ratio)", min_value=0.10, max_value=0.90, value=float(st.session_state.get('gp_rel_settings', {}).get('gp_severe_threshold', 0.50)), step=0.05, help="If weighted GP / target < this, enforce severe minimum factor")
+        with s2:
+            severe_min_factor = st.number_input("Severe min factor", min_value=0.05, max_value=0.50, value=float(st.session_state.get('gp_rel_settings', {}).get('severe_min_factor', 0.10)), step=0.01, help="Harsher floor multiplier for severe low-GP cases")
+        # Persist settings and include current trend weights for lookback
+        st.session_state.gp_rel_settings = {
+            'enabled': st.session_state.gp_rel_enabled,
+            'gp_target': gp_target,
+            'strictness': strictness.lower(),
+            'veteran_floor': veteran_floor,
+            'ec_floor': ec_floor,
+            'gp_severe_threshold': gp_severe_threshold,
+            'severe_min_factor': severe_min_factor,
+            'trend_weights': st.session_state.get('trend_weights', {'S4':0.65,'S3':0.25,'S2':0.10,'S1':0.00}),
+        }
+
     with st.expander("Customize Trend Weights", expanded=False):
         st.info("These weights determine the importance of each of the last four seasons when calculating a player's Power Score (PPS). The weights must sum to 1.0.")
         weights = {}
-        default_weights = {'S4': 0.57, 'S3': 0.29, 'S2': 0.14, 'S1': 0.00}
+        default_weights = {'S4': 0.65, 'S3': 0.25, 'S2': 0.10, 'S1': 0.00}
         for i, (season_label, default_weight) in enumerate(default_weights.items()):
             weight_label = f"Most Recent Season ({season_label}) Weight" if i == 0 else f"{season_label} Weight"
             weights[season_label] = st.slider(

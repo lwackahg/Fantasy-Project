@@ -78,7 +78,7 @@ def _parse_positions(pos_str):
     except Exception:
         return [str(pos_str)] if pos_str else []
 
-def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composition, base_value_models, tier_cutoffs=None, injured_players=None, vorp_budget_pct=0.97, market_value_weight=0.5, ec_settings=None):
+def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composition, base_value_models, tier_cutoffs=None, injured_players=None, vorp_budget_pct=0.97, market_value_weight=0.5, ec_settings=None, gp_rel_settings=None):
     """
     Calculates the initial Base Value for all players based on the selected valuation models.
     """
@@ -173,6 +173,7 @@ def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composit
                         draft_round = pd.to_numeric(rec.iloc[0].get('DraftRound', np.nan), errors='coerce')
                 except Exception:
                     pass
+
             # Tier 1: Top 10 pick and elite early performance
             if (pick_overall is not None and not np.isnan(pick_overall) and pick_overall <= 10) and (pd.notna(s4) and s4 >= ec_elite_thr):
                 return 1
@@ -210,6 +211,74 @@ def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composit
             pps_df.loc[use_idx, 'PPS'] = boosted.loc[use_idx]
     except Exception:
         # Fail-safe: if anything goes wrong, do not block execution
+        pass
+
+    # --- GP Reliability Adjustment (post EC+injury, pre tiers/VORP) ---
+    try:
+        if isinstance(gp_rel_settings, dict) and gp_rel_settings.get('enabled', False):
+            # Gather trend weights (use provided, else default S4>S3>S2>S1)
+            tw = gp_rel_settings.get('trend_weights', None) or {'S4': 0.57, 'S3': 0.29, 'S2': 0.14, 'S1': 0.00}
+            # Normalize
+            total_w = sum(float(v) for v in tw.values()) or 1.0
+            tw = {k: float(v)/total_w for k, v in tw.items()}
+
+            # Build weighted GP average (scale to 0..1 by dividing by 82)
+            s4 = pd.to_numeric(pps_df.get('S4_GP', np.nan), errors='coerce') if 'S4_GP' in pps_df.columns else pd.Series(np.nan, index=pps_df.index)
+            s3 = pd.to_numeric(pps_df.get('S3_GP', np.nan), errors='coerce') if 'S3_GP' in pps_df.columns else pd.Series(np.nan, index=pps_df.index)
+            s2 = pd.to_numeric(pps_df.get('S2_GP', np.nan), errors='coerce') if 'S2_GP' in pps_df.columns else pd.Series(np.nan, index=pps_df.index)
+            s1 = pd.to_numeric(pps_df.get('S1_GP', np.nan), errors='coerce') if 'S1_GP' in pps_df.columns else pd.Series(np.nan, index=pps_df.index)
+            gp_avg = (
+                (s4.fillna(0) * tw.get('S4', 0.0)) +
+                (s3.fillna(0) * tw.get('S3', 0.0)) +
+                (s2.fillna(0) * tw.get('S2', 0.0)) +
+                (s1.fillna(0) * tw.get('S1', 0.0))
+            ) / 82.0
+
+            # Parameters
+            gp_target = float(gp_rel_settings.get('gp_target', 72.0)) / 82.0
+            strictness = str(gp_rel_settings.get('strictness', 'standard')).lower()
+            vet_floor = float(gp_rel_settings.get('veteran_floor', 0.70))
+            ec_floor = float(gp_rel_settings.get('ec_floor', 0.85))
+            severe_min_factor = float(gp_rel_settings.get('severe_min_factor', 0.10))
+            gp_severe_threshold = float(gp_rel_settings.get('gp_severe_threshold', 0.50))
+
+            # Curve exponent by strictness
+            if strictness == 'mild':
+                exponent = 0.5  # sqrt
+            elif strictness == 'strict':
+                exponent = 0.6
+            else:
+                exponent = 0.75
+
+            # Ensure SeasonsPlayed exists
+            if 'SeasonsPlayed' not in pps_df.columns:
+                fp_cols3 = [c for c in [f'S{i}_FP/G' for i in range(1, 5)] if c in pps_df.columns]
+                if fp_cols3:
+                    pps_df['SeasonsPlayed'] = pps_df[fp_cols3].apply(lambda r: int(np.sum(pd.to_numeric(r, errors='coerce').fillna(0) > 0)), axis=1)
+                else:
+                    pps_df['SeasonsPlayed'] = 0
+
+            # Compute factor per row
+            raw = gp_avg / max(gp_target, 1e-6)
+            raw = raw.clip(lower=0.0, upper=1.1)
+            factor = raw.pow(exponent)
+            # Severe threshold: if weighted GP ratio below threshold, enforce a harsher floor
+            severe_mask = (raw < gp_severe_threshold)
+            if severe_mask.any():
+                factor.loc[severe_mask] = np.maximum(factor.loc[severe_mask], severe_min_factor)
+
+            # Apply different floors for EC vs veterans
+            is_young = (pps_df['SeasonsPlayed'] <= 3)
+            floors = pd.Series(vet_floor, index=pps_df.index)
+            floors.loc[is_young] = ec_floor
+
+            factor = pd.concat([factor, floors], axis=1).max(axis=1)
+            factor = factor.clip(upper=1.0)
+
+            # Apply to PPS
+            if 'PPS' in pps_df.columns:
+                pps_df['PPS'] = pd.to_numeric(pps_df['PPS'], errors='coerce').fillna(0) * factor
+    except Exception:
         pass
 
     # Apply injury adjustments now (post EC), using gentler scaling for young players
@@ -308,9 +377,10 @@ def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composit
         else:
             final_df[col_name] = final_df['VORPValue'] # Default to VORP
 
-        # Ensure a minimum value of $1 for any player with positive VORP
+        # Ensure a minimum value of $1 for any player expected to play (PPS>0).
+        # This avoids bottoming out non-Full-Season players to $0 while preserving $0 for PPS==0 cases.
         final_df[col_name] = final_df[col_name].round()
-        final_df.loc[final_df['VORP'] > 0, col_name] = final_df.loc[final_df['VORP'] > 0, col_name].clip(lower=1)
+        final_df.loc[final_df['PPS'] > 0, col_name] = final_df.loc[final_df['PPS'] > 0, col_name].clip(lower=1)
 
     # Set 'BaseValue' to the average of the selected models' values
     if base_value_models:
@@ -572,7 +642,10 @@ def recalculate_dynamic_values(available_players_df, remaining_money_pool, total
         # Apply premium and post-process
         final_adj_value = prelim_adj_value * scarcity_premium
         final_adj_value = final_adj_value.round()
-        final_adj_value.loc[available_players_df['VORP'] > 0] = final_adj_value.loc[available_players_df['VORP'] > 0].clip(lower=1)
+        # $1 floor for any player expected to play (PPS>0)
+        if 'PPS' in available_players_df.columns:
+            mask_playing = pd.to_numeric(available_players_df['PPS'], errors='coerce').fillna(0) > 0
+            final_adj_value.loc[mask_playing] = final_adj_value.loc[mask_playing].clip(lower=1)
         available_players_df[col_name] = final_adj_value
 
     # Set 'AdjValue' to the average of the selected models' values
@@ -593,7 +666,8 @@ def recalculate_dynamic_values(available_players_df, remaining_money_pool, total
         available_players_df['ValueStd'] = values_df.std(axis=1)
         
         available_players_df['Confidence'] = np.where(available_players_df['ValueMean'] > 0, (1 - (available_players_df['ValueStd'] / available_players_df['ValueMean'])) * 100, 100)
-        available_players_df['Confidence'] = available_players_df['Confidence'].clip(0, 100) # Ensure confidence is between 0 and 100
+        # Clamp to [10,100] to avoid unhelpful 0% confidence artifacts
+        available_players_df['Confidence'] = available_players_df['Confidence'].clip(10, 100)
     else:
         available_players_df['Confidence'] = 100.0
         if len(all_model_cols) == 1:

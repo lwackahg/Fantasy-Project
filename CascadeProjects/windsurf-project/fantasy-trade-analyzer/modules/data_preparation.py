@@ -34,10 +34,29 @@ def generate_pps_projections(games_in_season=82, trend_weights=None, injured_pla
         gp_df = pd.read_csv(GP_FILE)
         bids_df = pd.read_csv(HISTORICAL_BIDS_FILE)
 
-        # --- Calculate Market Value from Historical Bids ---
-        bid_cols = [col for col in bids_df.columns if col.startswith('S') and 'Picked Spot' not in col and col != 'S1']
+        # --- Calculate Market Value from Historical Bids (Trend-Weighted) ---
+        # Map trend_weights (S1..S4) onto bids columns (S1..S12). We ignore 'S1 (Picked Spot)'.
+        bid_cols = [col for col in bids_df.columns if col.startswith('S') and 'Picked Spot' not in col]
         bids_df[bid_cols] = bids_df[bid_cols].apply(pd.to_numeric, errors='coerce')
-        bids_df['MarketValue'] = bids_df[bid_cols].mean(axis=1).round()
+
+        # Build a weight lookup for S1..S12 using provided trend_weights where available
+        weight_lookup = {f'S{i}': float(trend_weights.get(f'S{i}', 0.0)) for i in range(1, 13)}
+
+        def _weighted_market_value(row):
+            wsum = 0.0
+            vsum = 0.0
+            for col in bid_cols:
+                w = weight_lookup.get(col, 0.0)
+                v = row.get(col, np.nan)
+                if pd.notna(v) and w > 0:
+                    vsum += v * w
+                    wsum += w
+            if wsum > 0:
+                return vsum / wsum
+            # Fallback: simple mean of non-null bids if all weights are zero/missing
+            return pd.to_numeric(row[bid_cols], errors='coerce').dropna().mean()
+
+        bids_df['MarketValue'] = bids_df.apply(_weighted_market_value, axis=1).round()
         market_value_df = bids_df[['Player', 'MarketValue']].copy().dropna()
         market_value_df['Player'] = market_value_df['Player'].str.strip()
 

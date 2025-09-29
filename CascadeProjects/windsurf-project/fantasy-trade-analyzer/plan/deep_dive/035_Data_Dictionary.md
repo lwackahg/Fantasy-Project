@@ -55,7 +55,7 @@ This document serves as a guide to the primary data sources used in the Fantasy 
     -   `PPS`: The calculated Player Power Score, a composite value blending historical performance and injury risk.
     -   `Pos`: The player's primary position.
     -   `Team`: The player's NBA team.
-    -   `MarketValue`: The player's average auction price from previous seasons.
+    -   `MarketValue`: Trend-Weighted average of historical bid prices using the current Trend Weights (S4,S3,S2,S1 mapped to bid columns `S*`). Excludes `S1 (Picked Spot)`.
 
 ---
 
@@ -70,3 +70,13 @@ This document serves as a guide to the primary data sources used in the Fantasy 
 -   **Notes**:
     -   The file is optional. If missing or a row is absent for a given player, the model falls back to Tier 3 (+5%).
     -   Column `Player` will be auto-renamed to `PlayerName` if present.
+
+---
+
+## 6. Historical Games Played Fields
+
+-   **Source**: `PlayerGPOverYears.csv`
+-   **Columns**: `S1_GP`, `S2_GP`, `S3_GP`, `S4_GP` (S4 is most recent season).
+-   **Usage**:
+    -   Display and analytics across multiple features.
+    -   The Auction Draft Tool's **GP Reliability Adjustment** uses these fields with the current Trend Weights as lookback weights to compute a weighted GP average for reliability scaling.

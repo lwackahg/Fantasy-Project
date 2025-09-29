@@ -66,7 +66,7 @@ def initialize_session_state():
     if 'draft_order' not in st.session_state:
         st.session_state.draft_order = []
     if 'trend_weights' not in st.session_state:
-        trend_weights = {'S1': 0.0, 'S2': 0.05, 'S3': 0.10, 'S4': 1.00}
+        trend_weights = {'S1': 0.00, 'S2': 0.10, 'S3': 0.25, 'S4': 0.65}
         total_weight = sum(trend_weights.values())
         if total_weight > 0:
             normalized_weights = {k: v / total_weight for k, v in trend_weights.items()}
@@ -75,7 +75,6 @@ def initialize_session_state():
         st.session_state.trend_weights = normalized_weights
     if 'roster_composition' not in st.session_state:
         # Use session weights to avoid referencing a local variable that may not exist
-        st.info(f"Weights Normalized. Total: {sum(st.session_state.trend_weights.values()):.2f}")
         st.session_state.roster_composition = {'G': 3, 'F': 3, 'C': 2, 'Flx': 2, 'Bench': 0}
     # Nomination strategy defaults
     if 'nomination_strategy' not in st.session_state:
@@ -324,7 +323,8 @@ if not st.session_state.draft_started:
                         base_value_models=st.session_state.base_value_models,
                         tier_cutoffs=st.session_state.tier_cutoffs,
                         injured_players=injured_players,
-                        ec_settings=(st.session_state.get('ec_settings', None) if st.session_state.get('ec_enabled', True) else None)
+                        ec_settings=(st.session_state.get('ec_settings', None) if st.session_state.get('ec_enabled', True) else None),
+                        gp_rel_settings=st.session_state.get('gp_rel_settings', None)
                     )
                     # Annotate for UI so injury is obvious
                     st.session_state.available_players = _annotate_injury_flags(
@@ -714,7 +714,8 @@ else: # Draft is in progress
         # Curated, readable columns only (Adj first for emphasis). Include Injury column for clarity.
         wanted_cols = [
             'PlayerName', 'Position', 'Tier', 'PPS', 'AdjValue', 'BaseValue',
-            'MarketValue', 'Confidence', 'AvgScarcityPremiumPct', 'InjuryStatus'
+            'MarketValue', 'Confidence', 'AvgScarcityPremiumPct', 'InjuryStatus',
+            'S4_FP/G', 'S4_GP'
         ]
         cols_present = [c for c in wanted_cols if c in display_df.columns]
         display_df = display_df[cols_present].copy()
@@ -730,7 +731,9 @@ else: # Draft is in progress
             'MarketValue': 'Market $',
             'Confidence': 'Conf %',
             'AvgScarcityPremiumPct': 'Scarcity %',
-            'InjuryStatus': 'Injury'
+            'InjuryStatus': 'Injury',
+            'S4_FP/G': 'S4 FP/G',
+            'S4_GP': 'S4 GP'
         }
 
         # Round key numeric columns if present
@@ -741,6 +744,11 @@ else: # Draft is in progress
             display_df['PPS'] = pd.to_numeric(display_df['PPS'], errors='coerce').fillna(0).round(2)
         if 'Confidence' in display_df.columns:
             display_df['Confidence'] = pd.to_numeric(display_df['Confidence'], errors='coerce').fillna(0).round(1)
+        # Last season stat columns
+        if 'S4_FP/G' in display_df.columns:
+            display_df['S4_FP/G'] = pd.to_numeric(display_df['S4_FP/G'], errors='coerce').round(1)
+        if 'S4_GP' in display_df.columns:
+            display_df['S4_GP'] = pd.to_numeric(display_df['S4_GP'], errors='coerce').fillna(0).astype(int)
 
         # Sort by Adj $ desc if available
         sort_col = 'AdjValue' if 'AdjValue' in display_df.columns else (cols_present[0] if cols_present else None)
@@ -822,6 +830,10 @@ else: # Draft is in progress
                         drafted_vals['PPS'] = pd.to_numeric(drafted_vals['PPS'], errors='coerce').fillna(0).round(2)
                     if 'Confidence' in drafted_vals.columns:
                         drafted_vals['Confidence'] = pd.to_numeric(drafted_vals['Confidence'], errors='coerce').fillna(0).round(1)
+                    if 'S4_FP/G' in drafted_vals.columns:
+                        drafted_vals['S4_FP/G'] = pd.to_numeric(drafted_vals['S4_FP/G'], errors='coerce').round(1)
+                    if 'S4_GP' in drafted_vals.columns:
+                        drafted_vals['S4_GP'] = pd.to_numeric(drafted_vals['S4_GP'], errors='coerce').fillna(0).astype(int)
                     drafted_vals = drafted_vals.rename(columns={k: v for k, v in rename_map.items() if k in drafted_vals.columns})
                     try:
                         style_formats_d = {}

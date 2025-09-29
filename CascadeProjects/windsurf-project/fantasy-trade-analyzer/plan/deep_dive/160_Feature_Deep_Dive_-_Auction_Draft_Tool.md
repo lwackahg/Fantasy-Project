@@ -82,7 +82,7 @@ This function runs once before the draft starts. Its key steps are:
 2.  **Apply Injury Adjustments**: Reduces the PPS of injured players based on their expected time missed.
 3.  **Calculate VORP**: Determines the replacement-level PPS and calculates the VORP for every player.
 4.  **Assign Tiers**: Groups players into tiers using percentile cutoffs.
-5.  **Calculate Base Value**: Computes a `BaseValue` for each player. It can average multiple models (e.g., Pure VORP, Risk-Adjusted VORP) selected by the user. It ensures any player with positive VORP has a minimum value of $1.
+5.  **Calculate Base Value**: Computes a `BaseValue` for each player. It can average multiple models (e.g., Pure VORP, Risk-Adjusted VORP) selected by the user. It ensures any player expected to play (`PPS > 0`) has a minimum value of $1.
 6.  **Store Initial Counts**: Records the initial number of players available at each position and in each tier. These counts are the baseline for scarcity calculations during the draft.
 
 #### Early-Career Model (V2)
@@ -109,40 +109,36 @@ Young players (SeasonsPlayed ≤ 3) follow a separate early-career projection pa
 
 These adjustments replace `PPS` for qualifying players, and all downstream steps (tiers, VORP, BaseValue, AdjValue) reflect the boost.
 
-### `recalculate_dynamic_values()`
 
-This function runs after every player is drafted. It is the heart of the tool's real-time adjustments.
 1.  **Calculate Preliminary Adjusted Value**: It first calculates a new baseline value for all remaining players based on the `remaining_money_pool` in the auction. If $1000 has been spent on players worth $800, the remaining money pool is adjusted, and the value of all remaining players increases.
 2.  **Apply Scarcity Premiums**: It then applies one or more scarcity models selected by the user:
     -   **Positional Scarcity**: Calculates a premium based on the percentage of players at a position that have been drafted compared to the initial count.
     -   **Tier-Based Scarcity**: Does the same for tiers, increasing the value of remaining Tier 1 and Tier 2 players as they become rare.
-3.  **Calculate Final `AdjValue`**: Averages the outputs of the selected scarcity models to produce the final, dynamic `AdjValue` for each player.
-4.  **Confidence Score**: Calculates a confidence score based on the standard deviation of values across all selected models. A low deviation means high confidence.
+    3.  **Calculate Final `AdjValue`**: Averages the outputs of the selected scarcity models to produce the final, dynamic `AdjValue` for each player.
+
+Note on Market Value: `MarketValue` is computed from historical bid prices using the current Trend Weights (S4,S3,S2,S1) to weight recent seasons more heavily; the `S1 (Picked Spot)` column is excluded from weighting.
+
+    4.  **Confidence Score**: Calculates a confidence score based on the standard deviation of values across all selected models. A low deviation means high confidence.
 
 ---
 
-## 5. Core Logic: The New Smart Auction Bot
-
-The new `SmartAuctionBot` is designed with a single, aggressive goal: to recommend nominations that will strategically drain the most money from opponents' budgets, thereby creating value opportunities for the user later in the draft. It moves away from simple value-based recommendations to a more tactical, opponent-focused approach.
-
-### Architecture and Data Flow
+## 6. GP Reliability Adjustment
+{{ ... }}
 
 ```mermaid
 graph TD
     subgraph "Smart Auction Bot Logic"
         A[Draft State] --> B{SmartAuctionBot};
-        subgraph "Draft State Inputs"
-            C[Available Players] --> A;
-            D[Opponent Budgets] --> A;
-            E[Opponent Roster Needs] --> A;
-        end
-        B -- Analyzes --> F[All Available Players];
+        elif model == "Blended (VORP + Market)":
+            if 'MarketValue' not in final_df.columns:
+                final_df['MarketValue'] = 0
+            final_df[col_name] = (final_df['VORPValue'] * 0.5) + (final_df['MarketValue'] * 0.5)
+      B -- Analyzes --> F[All Available Players];
         F -- For each player --> G(Calculate NominationScore);
         subgraph "NominationScore Components"
             H[Budget Pressure] --> G;
             I[Positional Scarcity] --> G;
             J[Value Inflation] --> G;
-        end
         G --> K{Find Highest Score};
         K --> L[Top Nomination Recommendation];
         L --> M[UI: Nomination Advice];
