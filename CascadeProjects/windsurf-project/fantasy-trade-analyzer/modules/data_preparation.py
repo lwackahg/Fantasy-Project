@@ -1,17 +1,21 @@
 import pandas as pd
 import numpy as np
 import streamlit as st
+from pathlib import Path
 
 # --- Constants and Configuration ---
 # --- Player Power Score (PPS) Configuration ---
 
+# Get the absolute path to the data directory
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / "data"
 
 # File paths
-FP_PER_GAME_FILE = 'data/PlayerFPperGameOverYears.csv'
-GP_FILE = 'data/PlayerGPOverYears.csv'
-HISTORICAL_BIDS_FILE = 'data/PlayerBidPricesOverYears.csv'
+FP_PER_GAME_FILE = DATA_DIR / 'PlayerFPperGameOverYears.csv'
+GP_FILE = DATA_DIR / 'PlayerGPOverYears.csv'
+HISTORICAL_BIDS_FILE = DATA_DIR / 'PlayerBidPricesOverYears.csv'
 # Position data will be sourced from seasonal stats files S1-S4
-OUTPUT_FILE = 'data/player_projections.csv'
+OUTPUT_FILE = DATA_DIR / 'player_projections.csv'
 
 def generate_pps_projections(games_in_season=82, trend_weights=None, injured_players=None):
     """
@@ -64,7 +68,7 @@ def generate_pps_projections(games_in_season=82, trend_weights=None, injured_pla
         all_pos_df = pd.DataFrame()
         for i in range(1, 5):
             try:
-                season_stats_file = f'data/S{i}Stats.csv'
+                season_stats_file = DATA_DIR / f'S{i}Stats.csv'
                 season_df = pd.read_csv(season_stats_file)
                 season_df.rename(columns={'Player': 'PlayerName'}, inplace=True, errors='ignore')
                 season_df['PlayerName'] = season_df['PlayerName'].str.strip()
