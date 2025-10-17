@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from logic.auction_tool import (calculate_initial_values, recalculate_dynamic_values, BASE_VALUE_MODELS, SCARCITY_MODELS)
+import random
+from logic.auction_tool import (calculate_initial_values, recalculate_dynamic_values, BASE_VALUE_MODELS, SCARCITY_MODELS, calculate_realistic_price)
 from modules.data_preparation import generate_pps_projections
 from logic.smart_auction_bot import SmartAuctionBot
 from logic.ui_components import (
@@ -9,6 +10,7 @@ from logic.ui_components import (
     render_draft_board, render_team_rosters, render_drafting_form, 
     render_player_analysis_metrics, render_draft_summary
 )
+from modules.team_mappings import TEAM_MAPPINGS
 
 st.set_page_config(layout="wide", page_title="Auction Draft Tool")
 
@@ -38,7 +40,7 @@ def initialize_session_state():
     if 'projections_generated' not in st.session_state:
         st.session_state.projections_generated = False
     if 'num_teams' not in st.session_state:
-        st.session_state.num_teams = 16
+        st.session_state.num_teams = len(TEAM_MAPPINGS)
     if 'budget_per_team' not in st.session_state:
         st.session_state.budget_per_team = 200
     if 'roster_spots_per_team' not in st.session_state:
@@ -46,7 +48,7 @@ def initialize_session_state():
     if 'games_in_season' not in st.session_state:
         st.session_state.games_in_season = 75
     if 'team_names' not in st.session_state:
-        st.session_state.team_names = [f"Team {i+1}" for i in range(st.session_state.num_teams)]
+        st.session_state.team_names = list(TEAM_MAPPINGS.values())[:st.session_state.num_teams]
     if 'available_players' not in st.session_state:
         st.session_state.available_players = pd.DataFrame()
     if 'initial_pos_counts' not in st.session_state:
@@ -76,6 +78,11 @@ def initialize_session_state():
     if 'roster_composition' not in st.session_state:
         # Use session weights to avoid referencing a local variable that may not exist
         st.session_state.roster_composition = {'G': 3, 'F': 3, 'C': 2, 'Flx': 2, 'Bench': 0}
+    # Realistic pricing controls
+    if 'realism_enabled' not in st.session_state:
+        st.session_state.realism_enabled = True
+    if 'realism_aggression' not in st.session_state:
+        st.session_state.realism_aggression = 1.0
     # Nomination strategy defaults
     if 'nomination_strategy' not in st.session_state:
         st.session_state.nomination_strategy = 'Blended (recommended)'
@@ -270,13 +277,51 @@ if not st.session_state.draft_started:
 
     st.markdown("---")
     st.header("Set Draft Order")
-    st.info("Drag and drop the teams to set the nomination order for the draft.")
-    st.session_state.draft_order = st.multiselect(
-        'Draft Order',
-        options=st.session_state.team_names,
-        default=st.session_state.team_names,
-        label_visibility="collapsed"
-    )
+    # Reset support to avoid preloaded selections
+    if 'draft_order_version' not in st.session_state:
+        st.session_state.draft_order_version = 0
+    reset_cols = st.columns([2,1,1])
+    with reset_cols[1]:
+        if st.button("Reset Order"):
+            st.session_state.draft_order = []
+            st.session_state.draft_order_version += 1
+            st.rerun()
+    with reset_cols[2]:
+        if st.button("Random Order"):
+            n = len(st.session_state.team_names)
+            st.session_state.draft_order = random.sample(st.session_state.team_names, n)
+            st.session_state.draft_order_version += 1
+            st.rerun()
+
+    cols = st.columns([1, 3])
+    with cols[0]:
+        st.write("Slot")
+    with cols[1]:
+        st.write("Team")
+    order = st.session_state.get('draft_order', [])
+    n = len(st.session_state.team_names)
+    if not order or len(order) != n:
+        order = [None] * n
+    chosen = set([x for x in order if x])
+    for i in range(n):
+        remaining = [t for t in st.session_state.team_names if (t not in chosen) or (order[i] == t)]
+        c1, c2 = st.columns([1, 3])
+        with c1:
+            st.write(f"{i+1}")
+        with c2:
+            opts = ["-- Select --"] + remaining
+            current = order[i] if (order[i] in remaining) else "-- Select --"
+            idx = opts.index(current) if current in opts else 0
+            sel = st.selectbox(
+                "",
+                options=opts,
+                index=idx,
+                key=f"draft_order_slot_{i}_{st.session_state.draft_order_version}",
+                label_visibility="collapsed"
+            ) if opts else "-- Select --"
+            order[i] = (sel if sel != "-- Select --" else None)
+        chosen = set([x for x in order if x])
+    st.session_state.draft_order = [x for x in order if x]
 
     st.markdown("---")
     st.header("Actions")
@@ -342,6 +387,11 @@ else: # Draft is in progress
 
     render_sidebar_in_draft()
 
+    # Realistic pricing controls (inline for now)
+    with st.expander("Realistic Pricing Settings", expanded=False):
+        st.session_state.realism_enabled = st.checkbox("Show Realistic Price (with range)", value=st.session_state.get('realism_enabled', True))
+        st.session_state.realism_aggression = st.slider("Aggression (higher = wilder bidding wars)", min_value=0.5, max_value=1.5, value=float(st.session_state.get('realism_aggression', 1.0)), step=0.05)
+
     # --- Value Recalculation and Bot Logic ---
     recalculated_df = pd.DataFrame()
     if not st.session_state.available_players.empty:
@@ -364,6 +414,27 @@ else: # Draft is in progress
         )
         # Carry injury flags forward for UI
         recalculated_df = _annotate_injury_flags(recalculated_df, st.session_state.get('injury_map', {}))
+
+        # Compute Realistic Price + ranges if enabled
+        try:
+            if st.session_state.get('realism_enabled', True):
+                rp = calculate_realistic_price(
+                    recalculated_df,
+                    num_teams=st.session_state.num_teams,
+                    budget_per_team=st.session_state.budget_per_team,
+                    teams_data=st.session_state.teams,
+                    roster_composition=st.session_state.roster_composition,
+                    aggression=float(st.session_state.get('realism_aggression', 1.0)),
+                    rng_seed=None,
+                )
+                recalculated_df['RealisticPrice'] = rp
+                # Bands are attached by function as RealisticLow/RealisticHigh if possible
+                if 'RealisticLow' not in recalculated_df.columns:
+                    recalculated_df['RealisticLow'] = np.nan
+                if 'RealisticHigh' not in recalculated_df.columns:
+                    recalculated_df['RealisticHigh'] = np.nan
+        except Exception:
+            pass
 
     # --- Main 3-Column Layout ---
     left_col, mid_col, right_col = st.columns([1.2, 2, 1])
@@ -714,6 +785,7 @@ else: # Draft is in progress
         # Curated, readable columns only (Adj first for emphasis). Include Injury column for clarity.
         wanted_cols = [
             'PlayerName', 'Position', 'Tier', 'PPS', 'AdjValue', 'BaseValue',
+            'RealisticPrice', 'RealisticLow', 'RealisticHigh',
             'MarketValue', 'Confidence', 'AvgScarcityPremiumPct', 'InjuryStatus',
             'S4_FP/G', 'S4_GP'
         ]
@@ -728,6 +800,9 @@ else: # Draft is in progress
             'PPS': 'PPS',
             'BaseValue': 'Base $',
             'AdjValue': 'Adj $',
+            'RealisticPrice': 'Realistic $',
+            'RealisticLow': 'R Low',
+            'RealisticHigh': 'R High',
             'MarketValue': 'Market $',
             'Confidence': 'Conf %',
             'AvgScarcityPremiumPct': 'Scarcity %',
@@ -737,7 +812,7 @@ else: # Draft is in progress
         }
 
         # Round key numeric columns if present
-        for c in ['BaseValue', 'AdjValue', 'MarketValue']:
+        for c in ['BaseValue', 'AdjValue', 'MarketValue', 'RealisticPrice', 'RealisticLow', 'RealisticHigh']:
             if c in display_df.columns:
                 display_df[c] = pd.to_numeric(display_df[c], errors='coerce').fillna(0).round(0).astype(int)
         if 'PPS' in display_df.columns:
@@ -765,6 +840,12 @@ else: # Draft is in progress
                 style_formats['Base $'] = '${:,.0f}'
             if 'Market $' in display_df.columns:
                 style_formats['Market $'] = '${:,.0f}'
+            if 'Realistic $' in display_df.columns:
+                style_formats['Realistic $'] = '${:,.0f}'
+            if 'R Low' in display_df.columns:
+                style_formats['R Low'] = '${:,.0f}'
+            if 'R High' in display_df.columns:
+                style_formats['R High'] = '${:,.0f}'
             if 'Conf %' in display_df.columns:
                 style_formats['Conf %'] = '{:.1f}%'
             if 'Scarcity %' in display_df.columns:
@@ -854,7 +935,7 @@ else: # Draft is in progress
                     st.write("No cached values for drafted players.")
         # Quick legend
         with st.expander("Column legend", expanded=False):
-            st.markdown("- **Adj $**: Current value after scarcity models\n- **Base $**: Average of base models\n- **Market $**: Raw market estimate (if available)\n- **Conf %**: Agreement across models (higher = more consistent)\n- **Scarcity %**: Avg scarcity premium applied across selected scarcity models")
+            st.markdown("- **Adj $**: Current value after scarcity models\n- **Base $**: Average of base models\n- **Realistic $ / R Low / R High**: Realistic target with P10–P90 range (room dynamics + bounded noise)\n- **Market $**: Raw market estimate (if available)\n- **Conf %**: Agreement across models (higher = more consistent)\n- **Scarcity %**: Avg scarcity premium applied across selected scarcity models")
     else:
         st.info("Values will appear here once players are loaded.")
 

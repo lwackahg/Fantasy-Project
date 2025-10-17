@@ -45,6 +45,14 @@ if not exist "%VENV_DIR%\Scripts\activate.bat" (
 REM Activate the virtual environment
 echo Activating virtual environment...
 call "%VENV_DIR%\Scripts\activate.bat"
+REM Ensure we use the venv's Python explicitly for all subsequent commands
+set PYTHON_EXE="%CD%\%VENV_DIR%\Scripts\python.exe"
+echo.
+
+REM Diagnostics: show tool versions
+echo Python: & %PYTHON_EXE% --version
+echo Pip: & %PYTHON_EXE% -m pip --version
+echo Streamlit: & %PYTHON_EXE% -m streamlit --version
 echo.
 
 REM --- Dependency Installation ---
@@ -57,7 +65,7 @@ if not exist "%REQUIREMENTS_FILE%" (
 )
 
 echo Installing/updating dependencies from %REQUIREMENTS_FILE%...
-pip install -r %REQUIREMENTS_FILE%
+%PYTHON_EXE% -m pip install -r %REQUIREMENTS_FILE%
 if %ERRORLEVEL% neq 0 (
     echo Error: Failed to install dependencies. See message above.
     pause
@@ -78,7 +86,18 @@ echo Starting Streamlit application...
 echo Visit the URL provided by Streamlit in your browser.
 echo Press Ctrl+C in this window to stop the server.
 echo.
-%PYTHON_EXE% -m streamlit run %MAIN_APP_FILE%
+
+REM Environment preferences for Streamlit
+set STREAMLIT_SERVER_HEADLESS=true
+set STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+set PYTHONUTF8=1
+
+%PYTHON_EXE% -m streamlit run "%MAIN_APP_FILE%" ^
+  --server.headless true ^
+  --server.address 127.0.0.1 ^
+  --server.port 8501 ^
+  --browser.gatherUsageStats false ^
+  --logger.level=info
 
 REM --- Script End ---
 if %ERRORLEVEL% neq 0 (

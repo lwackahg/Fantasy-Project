@@ -681,3 +681,167 @@ def recalculate_dynamic_values(available_players_df, remaining_money_pool, total
         available_players_df['PlayerName'] = available_players_df['PlayerName'].astype(str)
 
     return available_players_df
+
+def calculate_realistic_price(
+    df: pd.DataFrame,
+    num_teams: int,
+    budget_per_team: int,
+    teams_data: dict | None = None,
+    roster_composition: dict | None = None,
+    aggression: float = 1.0,
+    rng_seed: int | None = None,
+):
+    """
+    Estimate a realistic auction price for each player, accounting for room dynamics
+    and bounded human error.
+
+    Inputs expected in df: ['AdjValue','BaseValue','Tier','PPS'] and ideally 'Position'.
+    Returns a pd.Series aligned to df index for the point estimate. For ranges,
+    callers can compute percentiles using the same internals or we expose
+    helper columns when integrated into UI.
+    """
+    if df is None or len(df) == 0:
+        return pd.Series(dtype='float64')
+
+    # Defensive copies and required columns
+    local = df.copy()
+    for col in ['AdjValue', 'BaseValue', 'Tier', 'PPS']:
+        if col not in local.columns:
+            local[col] = 0
+    local['AdjValue'] = pd.to_numeric(local['AdjValue'], errors='coerce').fillna(0.0)
+    local['BaseValue'] = pd.to_numeric(local['BaseValue'], errors='coerce').fillna(0.0)
+    local['Tier'] = pd.to_numeric(local['Tier'], errors='coerce').fillna(5).astype(int)
+    local['PPS'] = pd.to_numeric(local['PPS'], errors='coerce').fillna(0.0)
+
+    rng = np.random.default_rng(rng_seed) if rng_seed is not None else np.random.default_rng()
+
+    # Phase estimation from budgets if teams_data provided
+    try:
+        if teams_data:
+            total_initial_budget = sum(d['budget'] + sum(p.get('Price', 0) for p in d.get('players', [])) for d in teams_data.values())
+            current_budget = sum(d['budget'] for d in teams_data.values())
+            depletion = 1 - (current_budget / total_initial_budget) if total_initial_budget > 0 else 0.0
+        else:
+            # Fallback to early phase when not provided
+            depletion = 0.0
+    except Exception:
+        depletion = 0.0
+
+    # Estimate capable bidders per player using max-allowed-bid heuristic
+    def _capable_bidders(target: float) -> int:
+        if not teams_data:
+            # Rough proxy: more teams -> more bidders
+            if target >= 75:
+                return max(2, int(num_teams * 0.4))
+            if target >= 40:
+                return max(2, int(num_teams * 0.3))
+            return max(2, int(num_teams * 0.2))
+        caps = []
+        req = {k: int(v) for k, v in (roster_composition or {}).items()}
+        for name, data in teams_data.items():
+            team_budget = float(data.get('budget', 0))
+            players = data.get('players', [])
+            total_spots = sum(int(v) for v in (roster_composition or {}).values()) if roster_composition else 0
+            rostered = len(players)
+            spots_remaining_now = max(total_spots - rostered, 0)
+            spots_after_this = max(spots_remaining_now - 1, 0)
+            max_allowed = max(0.0, team_budget - spots_after_this)
+            caps.append(max_allowed)
+        # Count those who could push above target modestly
+        return int(np.sum(np.array(caps) >= (target * 1.10)))
+
+    # Tier-sensitive bidder premium curve (scaled by aggression)
+    def _tier_premium(tier: int, bidders: int) -> float:
+        # Max premiums baseline
+        max_map = {1: 0.25, 2: 0.18, 3: 0.08, 4: 0.04, 5: 0.00}
+        max_p = max_map.get(int(tier), 0.0) * float(aggression)
+        # Normalize bidders to scale [0..1] vs reference
+        ref = 6  # approx number of active bidders that triggers max premium
+        x = min(1.0, max(0.0, bidders / ref))
+        return 1.0 + (max_p * x)
+
+    # Phase/star bump (early > late)
+    def _phase_mult(tier: int) -> float:
+        if tier == 1:
+            return 1.0 + (0.08 * (1.0 - depletion)) * float(aggression)
+        if tier == 2:
+            return 1.0 + (0.05 * (1.0 - depletion)) * float(aggression)
+        return 1.0
+
+    # Noise sigma by tier (bounded human error)
+    sigma_map = {1: 0.08, 2: 0.07, 3: 0.06, 4: 0.05, 5: 0.00}
+
+    # Build outputs
+    out = []
+    low_band = []
+    high_band = []
+    # Precompute top-2 caps for ceiling
+    top2_cap = None
+    if teams_data:
+        caps = []
+        total_spots = sum(int(v) for v in (roster_composition or {}).values()) if roster_composition else 0
+        for name, data in teams_data.items():
+            team_budget = float(data.get('budget', 0))
+            players = data.get('players', [])
+            rostered = len(players)
+            spots_remaining_now = max(total_spots - rostered, 0)
+            spots_after_this = max(spots_remaining_now - 1, 0)
+            caps.append(max(0.0, team_budget - spots_after_this))
+        caps_sorted = sorted(caps, reverse=True)
+        if len(caps_sorted) >= 2:
+            top2_cap = float(np.mean(caps_sorted[:2]))
+
+    for _, row in local.iterrows():
+        adj = float(row.get('AdjValue', 0.0))
+        base = float(row.get('BaseValue', 0.0))
+        tier = int(row.get('Tier', 5))
+        pps = float(row.get('PPS', 0.0))
+
+        # Anchor blend: pull toward market-ish base while respecting current adj
+        anchor = (0.5 * adj) + (0.5 * base)
+        # Compute bidder-driven premium
+        bidders = _capable_bidders(anchor)
+        bidder_mult = _tier_premium(tier, bidders)
+        phase_mult = _phase_mult(tier)
+
+        # Deterministic band from log-normal (median=1). E[epsilon]=1 when mu=-0.5*sigma^2
+        sigma = sigma_map.get(tier, 0.0) * float(aggression)
+        if sigma > 0:
+            mu = -0.5 * (sigma ** 2)
+            # Point epsilon draw
+            epsilon = float(np.exp(mu + sigma * rng.standard_normal()))
+            # Quantile band
+            p10 = float(np.exp(mu + sigma * np.sqrt(2) * 0.125))  # approx
+            p90 = float(np.exp(mu + sigma * np.sqrt(2) * 1.163))  # approx
+        else:
+            epsilon, p10, p90 = 1.0, 1.0, 1.0
+
+        raw = anchor * bidder_mult * phase_mult
+        low = raw * p10
+        high = raw * p90
+        price = raw * epsilon
+
+        # Floors and caps
+        if pps > 0:
+            price = max(1.0, price)
+            low = max(1.0, low)
+            high = max(1.0, high)
+        else:
+            price = 0.0
+            low = 0.0
+            high = 0.0
+        if top2_cap is not None:
+            price = min(price, top2_cap)
+
+        out.append(round(price))
+        low_band.append(max(1.0, round(low)))
+        high_band.append(max(1.0, round(high)))
+
+    # Attach optional bands for callers that copy columns
+    try:
+        df['RealisticLow'] = low_band
+        df['RealisticHigh'] = high_band
+    except Exception:
+        pass
+
+    return pd.Series(out, index=df.index)

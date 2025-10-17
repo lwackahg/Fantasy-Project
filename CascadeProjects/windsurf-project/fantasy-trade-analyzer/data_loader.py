@@ -7,23 +7,9 @@ import os
 import time
 import csv
 import logging
+from modules.team_mappings import TEAM_MAPPINGS, TEAM_ALIASES
 
-TEAM_MAPPINGS = {
-    'Sar': 'Shaq\'s Anus Ripples',
-    '15': '15 Dream Team',
-    'DBD': 'Diddled By Diddy',
-    'EE': 'Epstein Experience',
-    'Fent': 'Give me the fentanyl',
-    'TRUMP': 'Kamala\'s Gunz',
-    '420': 'Kevin O\'Leary',
-    'J&J': 'Tauras\' Torn Johnson',
-    'BabyOil': 'P Diddy\'s Slip & Slide',
-    'PRO': 'President of Retarded Opera',
-    'ROMO': 'Rudy Homo',
-    'Tribunal': 'Stevens Underaged Experien',
-    'TRH': 'The Retirement Home',
-    'MylS': 'Weinstein Wranglers'
-}
+ 
 
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """Clean the DataFrame by removing invalid entries and normalizing data."""
@@ -60,7 +46,16 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
         df['GP'] = np.ceil(df['FPts'] / df['FP/G']).fillna(0).astype(int)
 
     # Map Fantasy Manager Names
-    df['Fantasy_Manager'] = df['Status'].map(TEAM_MAPPINGS).fillna('Unknown Manager')
+    status_series = df['Status'].astype(str)
+    status_resolved = status_series.map(TEAM_ALIASES).fillna(status_series)
+    fantasy_manager = status_resolved.map(TEAM_MAPPINGS)
+    unknown_mask = fantasy_manager.isna()
+    if unknown_mask.any():
+        unknowns = set(status_resolved[unknown_mask])
+        if unknowns:
+            st.session_state.setdefault('unknown_teams', set()).update(unknowns)
+        fantasy_manager = fantasy_manager.fillna(status_resolved)
+    df['Fantasy_Manager'] = fantasy_manager
 
     return df.reset_index(drop=True)
 

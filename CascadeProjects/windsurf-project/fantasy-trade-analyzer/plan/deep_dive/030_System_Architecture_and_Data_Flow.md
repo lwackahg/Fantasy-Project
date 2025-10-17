@@ -33,6 +33,15 @@ This section details the modules responsible for loading, downloading, and prepa
 -   `_load_and_clean_csv_data()`: A cached function (`@st.cache_data`) that efficiently loads multiple CSV files, extracting time-range metadata from filenames.
 -   `load_schedule_data()`: A robust parser for the `schedule.csv` file, correctly identifying scoring periods, matchups, and winners.
 
+#### Team Mapping Resolution
+
+-   **Centralized mappings** live in `modules/team_mappings.py`.
+-   `clean_data()` maps the Fantrax team code in `df['Status']` to a human-friendly display name:
+    -   Resolves optional `TEAM_ALIASES` first (legacy or alternate abbreviations).
+    -   Maps via `TEAM_MAPPINGS` to the display name.
+    -   Unknown codes are collected in `st.session_state['unknown_teams']` and fall back to the raw code for display, keeping the app usable while signaling a seasonal update is needed.
+-   Seasonal updates only require editing `modules/team_mappings.py` (add/update `TEAM_MAPPINGS`, and optionally `TEAM_ALIASES`).
+
 **Data Loading Flowchart**:
 ```mermaid
 graph TD

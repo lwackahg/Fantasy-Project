@@ -13,7 +13,7 @@ This section covers the high-level principles and structure of the project.
 -   [**020: Core Principles & Style Guide**](./020_Core_Principles_and_Style_Guide.md)
     -   *The foundational programming principles and code style guidelines for all contributors.*
 -   [**030: System Architecture & Data Flow**](./030_System_Architecture_and_Data_Flow.md)
-    -   *A detailed breakdown of the application's architecture, data handling pipelines, and core logic modules.*
+    -   *A detailed breakdown of the application's architecture, data handling pipelines, and core logic modules.* Includes a **Team Mapping Resolution** subsection documenting centralized team mappings and seasonal update steps.
 -   [**035: Data Dictionary**](./035_Data_Dictionary.md)
     -   *A guide to the primary data sources, explaining the purpose and schema of key CSV files and DataFrames.*
 -   [**040: Development Workflow**](./040_Development_Workflow.md)
@@ -93,6 +93,7 @@ Below is a complete list of all Python files in the project, categorized by thei
 - `modules/trade_analysis/ui.py`
 - `modules/weekly_standings_analyzer/logic.py`
 - `modules/weekly_standings_analyzer/ui.py`
+- `modules/team_mappings.py`
 
 ### Tests
 - `tests/test_app.py`
