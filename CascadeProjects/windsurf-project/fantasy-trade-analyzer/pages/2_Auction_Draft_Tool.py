@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import random
+from pathlib import Path
 from logic.auction_tool import (calculate_initial_values, recalculate_dynamic_values, BASE_VALUE_MODELS, SCARCITY_MODELS, calculate_realistic_price)
 from modules.data_preparation import generate_pps_projections
 from logic.smart_auction_bot import SmartAuctionBot
@@ -359,7 +360,8 @@ if not st.session_state.draft_started:
                 st.session_state.injury_map = injured_players
                 
                 with st.spinner("Calculating initial player values..."):
-                    pps_df = pd.read_csv('data/player_projections.csv')
+                    data_dir = Path(__file__).resolve().parent.parent / "data"
+                    pps_df = pd.read_csv(data_dir / 'player_projections.csv')
                     st.session_state.available_players, st.session_state.initial_pos_counts, st.session_state.initial_tier_counts = calculate_initial_values(
                         pps_df=pps_df,
                         num_teams=st.session_state.num_teams,
