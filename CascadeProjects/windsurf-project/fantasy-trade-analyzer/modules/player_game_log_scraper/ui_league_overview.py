@@ -4,20 +4,31 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 import plotly.graph_objects as go
-import plotly.express as px
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 import json
-from modules.player_game_log_scraper.logic import calculate_variability_stats, get_cache_directory
+from pathlib import Path
+from modules.player_game_log_scraper.logic import (
+	calculate_variability_stats,
+	get_cache_directory
+)
 
+# Import public league config (no sensitive data)
+try:
+	from league_config import FANTRAX_DEFAULT_LEAGUE_ID, LEAGUE_ID_TO_NAME
+except ImportError:
+	from dotenv import load_dotenv
+	import os
+	env_path = Path(__file__).resolve().parent.parent.parent / 'fantrax.env'
+	load_dotenv(env_path)
+	FANTRAX_DEFAULT_LEAGUE_ID = os.getenv('FANTRAX_DEFAULT_LEAGUE_ID', '')
+	LEAGUE_ID_TO_NAME = {}
+	
 def show_league_overview():
 	"""Displays a league-wide overview of all cached player data."""
 	st.subheader("📊 League-Wide Consistency Analysis")
 	st.write("View variability metrics for all rostered players with cached data.")
-	
-	# Load environment variables
-	env_path = Path(__file__).resolve().parent.parent.parent / 'fantrax.env'
-	load_dotenv(env_path)
-	FANTRAX_DEFAULT_LEAGUE_ID = os.getenv('FANTRAX_DEFAULT_LEAGUE_ID', '')
 	
 	league_id = st.text_input(
 		"Fantrax League ID", 
@@ -25,6 +36,10 @@ def show_league_overview():
 		help="Enter your Fantrax league ID",
 		key="overview_league_id"
 	)
+	
+	# Show league name if available
+	if league_id and league_id in LEAGUE_ID_TO_NAME:
+		st.info(f"🏀 **{LEAGUE_ID_TO_NAME[league_id]}**")
 	
 	if not league_id:
 		st.warning("Please enter a league ID to view cached data.")

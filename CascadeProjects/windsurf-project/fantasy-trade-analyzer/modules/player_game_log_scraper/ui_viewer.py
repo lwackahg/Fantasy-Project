@@ -1,8 +1,5 @@
 """Read-only viewer for player consistency data - no scraping controls."""
 import streamlit as st
-import os
-from pathlib import Path
-from dotenv import load_dotenv
 import pandas as pd
 from datetime import datetime
 from modules.player_game_log_scraper.logic import (
@@ -25,10 +22,12 @@ from modules.player_game_log_scraper.ui_league_overview import (
 )
 import json
 
-# Load environment variables
-env_path = Path(__file__).resolve().parent.parent.parent / 'fantrax.env'
-load_dotenv(env_path)
-FANTRAX_DEFAULT_LEAGUE_ID = os.getenv('FANTRAX_DEFAULT_LEAGUE_ID', '')
+# Import public league config (no sensitive data)
+try:
+	from league_config import FANTRAX_DEFAULT_LEAGUE_ID, LEAGUE_ID_TO_NAME
+except ImportError:
+	FANTRAX_DEFAULT_LEAGUE_ID = "ifa1anexmdgtlk9s"
+	LEAGUE_ID_TO_NAME = {}
 
 def get_cache_last_updated(league_id):
 	"""Get the most recent cache file modification time."""
@@ -47,12 +46,16 @@ def show_player_consistency_viewer():
 	st.title("📊 Player Consistency Analysis")
 	st.write("View game-by-game performance variability and consistency metrics for all rostered players.")
 	
-	# League ID input
+	# League ID input with name display
 	league_id = st.text_input(
 		"Fantrax League ID", 
 		value=FANTRAX_DEFAULT_LEAGUE_ID or "",
 		help="Enter your Fantrax league ID"
 	)
+	
+	# Show league name if available
+	if league_id and league_id in LEAGUE_ID_TO_NAME:
+		st.info(f"🏀 **{LEAGUE_ID_TO_NAME[league_id]}**")
 	
 	if not league_id:
 		st.warning("Please enter a league ID to view cached data.")

@@ -16,12 +16,18 @@ from modules.player_game_log_scraper.logic import (
 from modules.player_game_log_scraper.ui_league_overview import show_league_overview
 import json
 
-# Load environment variables
+# Load environment variables (only sensitive data)
 env_path = Path(__file__).resolve().parent.parent.parent / 'fantrax.env'
 load_dotenv(env_path)
 FANTRAX_USERNAME = os.getenv('FANTRAX_USERNAME')
 FANTRAX_PASSWORD = os.getenv('FANTRAX_PASSWORD')
-FANTRAX_DEFAULT_LEAGUE_ID = os.getenv('FANTRAX_DEFAULT_LEAGUE_ID', '')
+
+# Import public league config (no sensitive data)
+try:
+	from league_config import FANTRAX_DEFAULT_LEAGUE_ID, LEAGUE_ID_TO_NAME
+except ImportError:
+	FANTRAX_DEFAULT_LEAGUE_ID = os.getenv('FANTRAX_DEFAULT_LEAGUE_ID', '')
+	LEAGUE_ID_TO_NAME = {}
 
 def clear_player_game_log_cache():
 	"""Clear all cached player game logs."""
