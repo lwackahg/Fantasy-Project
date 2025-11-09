@@ -1,0 +1,47 @@
+{
+    "player_name": "Zach Edey",
+    "player_code": "06mk1",
+    "league_id": "ifa1anexmdgtlk9s",
+    "data": [
+        {
+            "Date (EST)": "Sun Nov 9, 6:00PM",
+            "Opponent": "Oklahoma City"
+        },
+        {
+            "Date (EST)": "Tue Nov 11, 7:30PM",
+            "Opponent": "@New York"
+        },
+        {
+            "Date (EST)": "Wed Nov 12, 7:30PM",
+            "Opponent": "@Boston"
+        },
+        {
+            "Date (EST)": "Sat Nov 15, 5:00PM",
+            "Opponent": "@Cleveland"
+        },
+        {
+            "Date (EST)": "Tue Nov 18, 8:00PM",
+            "Opponent": "@San Antonio"
+        },
+        {
+            "Date (EST)": "Thu Nov 20, 8:00PM",
+            "Opponent": "Sacramento"
+        },
+        {
+            "Date (EST)": "Sat Nov 22, 8:30PM",
+            "Opponent": "@Dallas"
+        },
+        {
+            "Date (EST)": "Mon Nov 24, 8:00PM",
+            "Opponent": "Denver"
+        },
+        {
+            "Date (EST)": "Wed Nov 26, 8:00PM",
+            "Opponent": "@New Orleans"
+        },
+        {
+            "Date (EST)": "Fri Nov 28, 10:00PM",
+            "Opponent": "@LA Clippers"
+        }
+    ]
+}

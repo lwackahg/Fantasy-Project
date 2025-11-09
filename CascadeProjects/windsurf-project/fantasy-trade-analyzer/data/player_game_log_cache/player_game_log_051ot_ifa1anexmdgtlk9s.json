@@ -1,0 +1,47 @@
+{
+    "player_name": "Tyler Herro",
+    "player_code": "051ot",
+    "league_id": "ifa1anexmdgtlk9s",
+    "data": [
+        {
+            "Date (EST)": "Mon Nov 10, 7:30PM",
+            "Opponent": "Cleveland"
+        },
+        {
+            "Date (EST)": "Wed Nov 12, 7:30PM",
+            "Opponent": "Cleveland"
+        },
+        {
+            "Date (EST)": "Fri Nov 14, 7:00PM",
+            "Opponent": "@New York"
+        },
+        {
+            "Date (EST)": "Mon Nov 17, 7:30PM",
+            "Opponent": "New York"
+        },
+        {
+            "Date (EST)": "Wed Nov 19, 7:00PM",
+            "Opponent": "Golden State"
+        },
+        {
+            "Date (EST)": "Fri Nov 21, 8:00PM",
+            "Opponent": "@Chicago"
+        },
+        {
+            "Date (EST)": "Sun Nov 23, 1:00PM",
+            "Opponent": "@Philadelphia"
+        },
+        {
+            "Date (EST)": "Mon Nov 24, 7:30PM",
+            "Opponent": "Dallas"
+        },
+        {
+            "Date (EST)": "Wed Nov 26, 7:30PM",
+            "Opponent": "Milwaukee"
+        },
+        {
+            "Date (EST)": "Sat Nov 29, 8:00PM",
+            "Opponent": "Detroit"
+        }
+    ]
+}

@@ -1,0 +1,47 @@
+{
+    "player_name": "Scoot Henderson",
+    "player_code": "06cdn",
+    "league_id": "ifa1anexmdgtlk9s",
+    "data": [
+        {
+            "Date (EST)": "Mon Nov 10, 7:00PM",
+            "Opponent": "@Orlando"
+        },
+        {
+            "Date (EST)": "Wed Nov 12, 8:00PM",
+            "Opponent": "@New Orleans"
+        },
+        {
+            "Date (EST)": "Fri Nov 14, 8:00PM",
+            "Opponent": "@Houston"
+        },
+        {
+            "Date (EST)": "Sun Nov 16, 7:30PM",
+            "Opponent": "@Dallas"
+        },
+        {
+            "Date (EST)": "Tue Nov 18, 11:00PM",
+            "Opponent": "Phoenix"
+        },
+        {
+            "Date (EST)": "Wed Nov 19, 10:00PM",
+            "Opponent": "Chicago"
+        },
+        {
+            "Date (EST)": "Fri Nov 21, 10:00PM",
+            "Opponent": "@Golden State"
+        },
+        {
+            "Date (EST)": "Sun Nov 23, 7:00PM",
+            "Opponent": "@Oklahoma City"
+        },
+        {
+            "Date (EST)": "Mon Nov 24, 8:00PM",
+            "Opponent": "@Milwaukee"
+        },
+        {
+            "Date (EST)": "Wed Nov 26, 10:00PM",
+            "Opponent": "San Antonio"
+        }
+    ]
+}

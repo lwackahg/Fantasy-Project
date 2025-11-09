@@ -1,0 +1,47 @@
+{
+    "player_name": "Dejounte Murray",
+    "player_code": "042nq",
+    "league_id": "ifa1anexmdgtlk9s",
+    "data": [
+        {
+            "Date (EST)": "Mon Nov 10, 9:00PM",
+            "Opponent": "@Phoenix"
+        },
+        {
+            "Date (EST)": "Wed Nov 12, 8:00PM",
+            "Opponent": "Portland"
+        },
+        {
+            "Date (EST)": "Fri Nov 14, 8:00PM",
+            "Opponent": "LA Lakers"
+        },
+        {
+            "Date (EST)": "Sun Nov 16, 7:00PM",
+            "Opponent": "Golden State"
+        },
+        {
+            "Date (EST)": "Mon Nov 17, 8:00PM",
+            "Opponent": "Oklahoma City"
+        },
+        {
+            "Date (EST)": "Wed Nov 19, 8:00PM",
+            "Opponent": "Denver"
+        },
+        {
+            "Date (EST)": "Fri Nov 21, 8:30PM",
+            "Opponent": "@Dallas"
+        },
+        {
+            "Date (EST)": "Sat Nov 22, 7:00PM",
+            "Opponent": "Atlanta"
+        },
+        {
+            "Date (EST)": "Mon Nov 24, 8:00PM",
+            "Opponent": "Chicago"
+        },
+        {
+            "Date (EST)": "Wed Nov 26, 8:00PM",
+            "Opponent": "Memphis"
+        }
+    ]
+}

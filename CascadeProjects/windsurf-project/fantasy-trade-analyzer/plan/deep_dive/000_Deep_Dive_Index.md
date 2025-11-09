@@ -41,6 +41,8 @@ This section provides detailed, technical explanations for each of the applicati
     -   *Evaluating multi-player, multi-team trades with detailed impact analysis.*
 -   [**190: Standings Tools**](./190_Feature_Deep_Dive_-_Standings_Tools.md)
     -   *Scraping and applying weekly standings adjustments for commissioners.*
+-   [**200: Player Game Log Scraper**](./200_Feature_Deep_Dive_-_Player_Game_Log_Scraper.md)
+    -   *Scraping game-by-game player stats with variability analysis and consistency metrics.*
 
 ---
 
@@ -70,12 +72,12 @@ Below is a complete list of all Python files in the project, categorized by thei
 
 ### UI Layer (Pages)
 - `pages/1_Trade_Analysis.py`
-- `pages/2_Auction_Draft_Tool.py`
-- `pages/2_Team_Analyzer.py`
-- `pages/3_Downloader.py`
-- `pages/4_Schedule_Analysis.py`
-- `pages/5_Player_Full_Data.py`
-- `pages/6_Standings_Tools.py`
+- `pages/2_Player_Consistency.py` (Public viewer for cached consistency data)
+- `pages/3_Schedule_Analysis.py`
+- `pages/4_Player_Full_Data.py`
+- `pages/5_Team_Analyzer.py`
+- `pages/6_Admin_Tools.py` (Password-protected: Downloader, Player Game Logs Scraper, Weekly Standings, Standings Adjuster)
+- `pages/7_Auction_Draft_Tool.py`
 
 ### Modules
 - `modules/auth/ui.py`
@@ -93,6 +95,8 @@ Below is a complete list of all Python files in the project, categorized by thei
 - `modules/trade_analysis/ui.py`
 - `modules/weekly_standings_analyzer/logic.py`
 - `modules/weekly_standings_analyzer/ui.py`
+- `modules/player_game_log_scraper/logic.py`
+- `modules/player_game_log_scraper/ui.py`
 - `modules/team_mappings.py`
 
 ### Tests

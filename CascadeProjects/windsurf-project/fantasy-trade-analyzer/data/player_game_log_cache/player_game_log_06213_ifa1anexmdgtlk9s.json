@@ -1,0 +1,47 @@
+{
+    "player_name": "Keegan Murray",
+    "player_code": "06213",
+    "league_id": "ifa1anexmdgtlk9s",
+    "data": [
+        {
+            "Date (EST)": "Sun Nov 9, 9:00PM",
+            "Opponent": "Minnesota"
+        },
+        {
+            "Date (EST)": "Tue Nov 11, 11:00PM",
+            "Opponent": "Denver"
+        },
+        {
+            "Date (EST)": "Wed Nov 12, 10:00PM",
+            "Opponent": "Atlanta"
+        },
+        {
+            "Date (EST)": "Fri Nov 14, 8:00PM",
+            "Opponent": "@Minnesota"
+        },
+        {
+            "Date (EST)": "Sun Nov 16, 4:00PM",
+            "Opponent": "@San Antonio"
+        },
+        {
+            "Date (EST)": "Wed Nov 19, 8:00PM",
+            "Opponent": "@Oklahoma City"
+        },
+        {
+            "Date (EST)": "Thu Nov 20, 8:00PM",
+            "Opponent": "@Memphis"
+        },
+        {
+            "Date (EST)": "Sat Nov 22, 10:00PM",
+            "Opponent": "@Denver"
+        },
+        {
+            "Date (EST)": "Mon Nov 24, 10:00PM",
+            "Opponent": "Minnesota"
+        },
+        {
+            "Date (EST)": "Wed Nov 26, 10:00PM",
+            "Opponent": "Phoenix"
+        }
+    ]
+}

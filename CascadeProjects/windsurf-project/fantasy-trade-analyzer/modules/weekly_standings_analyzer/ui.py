@@ -112,7 +112,7 @@ def show_weekly_standings_analyzer():
                 )
         st.markdown("--- ")
 
-    force_refresh = st.checkbox("Force Refresh (ignore cache)", help="Check this box to bypass the local cache and download the latest data from Fantrax.")
+    force_refresh = st.checkbox("Force Refresh (ignore cache)", key="weekly_standings_force_refresh", help="Check this box to bypass the local cache and download the latest data from Fantrax.")
 
     if st.button("Get Weekly Standings"):
         if not league_id:
