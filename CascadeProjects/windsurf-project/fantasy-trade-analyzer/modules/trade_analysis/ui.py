@@ -94,8 +94,8 @@ def trade_setup():
     num_players = st.number_input(
         "Number of Top Players to Analyze",
         min_value=1,
-        max_value=14,
-        value=14,
+        max_value=12,
+        value=10,
         help="Select the number of top players to analyze"
     )
 
@@ -204,6 +204,7 @@ def _display_performance_visualizations(results: Dict[str, Any], time_ranges: Li
 
         fig = _create_performance_chart(metric_data, display_name)
         st.plotly_chart(fig, use_container_width=True)
+    
 
 def _display_styled_roster(title: str, roster_data: List[Dict[str, Any]], players_to_highlight: List[str], highlight_color: str):
     """Displays a styled roster dataframe, highlighting specific players."""
@@ -243,4 +244,3 @@ def _display_roster_details(results: Dict[str, Any], time_ranges: List[str]):
                     incoming_players,
                     '#90ee90'  # Light green
                 )
-

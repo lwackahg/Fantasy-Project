@@ -8,6 +8,17 @@ from typing import List, Dict, Any, Optional, Tuple
 
 from data_loader import TEAM_MAPPINGS
 from debug import debug_manager
+from modules.trade_analysis.consistency_integration import (
+	load_player_consistency,
+	load_all_player_consistency,
+	enrich_roster_with_consistency
+)
+
+# Import league config
+try:
+	from league_config import FANTRAX_DEFAULT_LEAGUE_ID
+except ImportError:
+	FANTRAX_DEFAULT_LEAGUE_ID = ""
 
 
 class TradeAnalyzer:
@@ -76,6 +87,12 @@ class TradeAnalyzer:
 
             pre_trade_metrics = {}
             post_trade_metrics = {}
+            pre_trade_consistency = {}
+            post_trade_consistency = {}
+            
+            # Get league ID from session state or use default
+            league_id = st.session_state.get('league_id', FANTRAX_DEFAULT_LEAGUE_ID)
+            
             for time_range in time_ranges:
                 if time_range in pre_trade_rosters and pre_trade_rosters.get(time_range):
                     pre_roster_df = pd.DataFrame(pre_trade_rosters[time_range])
@@ -86,6 +103,21 @@ class TradeAnalyzer:
                         'total_fpts': pre_roster_df['FPts'].sum(),
                         'avg_gp': pre_roster_df['GP'].mean()
                     }
+                    
+                    # Add consistency metrics if available
+                    if league_id:
+                        enriched_pre = enrich_roster_with_consistency(pre_roster_df.copy(), league_id)
+                        if 'CV%' in enriched_pre.columns:
+                            cv_values = enriched_pre['CV%'].dropna()
+                            if len(cv_values) > 0:
+                                pre_trade_consistency[time_range] = {
+                                    'avg_cv': cv_values.mean(),
+                                    'players_with_data': len(cv_values),
+                                    'very_consistent': len(cv_values[cv_values < 20]),
+                                    'moderate': len(cv_values[(cv_values >= 20) & (cv_values <= 30)]),
+                                    'volatile': len(cv_values[cv_values > 30])
+                                }
+                
                 if time_range in post_trade_rosters and post_trade_rosters.get(time_range):
                     post_roster_df = pd.DataFrame(post_trade_rosters[time_range])
                     post_trade_metrics[time_range] = {
@@ -95,6 +127,20 @@ class TradeAnalyzer:
                         'total_fpts': post_roster_df['FPts'].sum(),
                         'avg_gp': post_roster_df['GP'].mean()
                     }
+                    
+                    # Add consistency metrics if available
+                    if league_id:
+                        enriched_post = enrich_roster_with_consistency(post_roster_df.copy(), league_id)
+                        if 'CV%' in enriched_post.columns:
+                            cv_values = enriched_post['CV%'].dropna()
+                            if len(cv_values) > 0:
+                                post_trade_consistency[time_range] = {
+                                    'avg_cv': cv_values.mean(),
+                                    'players_with_data': len(cv_values),
+                                    'very_consistent': len(cv_values[cv_values < 20]),
+                                    'moderate': len(cv_values[(cv_values >= 20) & (cv_values <= 30)]),
+                                    'volatile': len(cv_values[cv_values > 30])
+                                }
 
             value_changes = {}
             for time_range in time_ranges:
@@ -110,9 +156,12 @@ class TradeAnalyzer:
                 'incoming_players': incoming_players,
                 'pre_trade_metrics': pre_trade_metrics,
                 'post_trade_metrics': post_trade_metrics,
+                'pre_trade_consistency': pre_trade_consistency,
+                'post_trade_consistency': post_trade_consistency,
                 'value_changes': value_changes,
                 'pre_trade_rosters': pre_trade_rosters,
-                'post_trade_rosters': post_trade_rosters
+                'post_trade_rosters': post_trade_rosters,
+                'league_id': league_id
             }
         return analysis_results
 
