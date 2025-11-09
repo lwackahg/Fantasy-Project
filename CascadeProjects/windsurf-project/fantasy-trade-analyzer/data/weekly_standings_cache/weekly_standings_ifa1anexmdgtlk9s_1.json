@@ -1,0 +1,167 @@
+{
+    "metadata": {
+        "min_games": 21
+    },
+    "data": [
+        {
+            "rank": "1",
+            "team_name": "LAMELOcan Airlines Flight 11",
+            "team_id": "z4ag3f5qmdgtlka8",
+            "FPts": 1601.0,
+            "FP/G": 64.04,
+            "GP": 25.0,
+            "WW": 9.0,
+            "PBL": 0.0
+        },
+        {
+            "rank": "2",
+            "team_name": "CaitlinClark KeepsItHairy",
+            "team_id": "qmjw5ehtmduykj4n",
+            "FPts": 1402.0,
+            "FP/G": 56.08,
+            "GP": 25.0,
+            "WW": 7.0,
+            "PBL": 199.0
+        },
+        {
+            "rank": "3",
+            "team_name": "Daaaaaa Jankees lose",
+            "team_id": "7wets94rmdgtlkaa",
+            "FPts": 1382.0,
+            "FP/G": 53.15,
+            "GP": 26.0,
+            "WW": 1.0,
+            "PBL": 219.0
+        },
+        {
+            "rank": "4",
+            "team_name": "George W Bush",
+            "team_id": "3s2b2okkmdgtlka5",
+            "FPts": 1330.0,
+            "FP/G": 63.33,
+            "GP": 21.0,
+            "WW": 13.0,
+            "PBL": 271.0
+        },
+        {
+            "rank": "5",
+            "team_name": "9/11 First Tower",
+            "team_id": "dmx5bjkpmdgtlkab",
+            "FPts": 1314.0,
+            "FP/G": 62.57,
+            "GP": 21.0,
+            "WW": 14.0,
+            "PBL": 287.0
+        },
+        {
+            "rank": "6",
+            "team_name": "The Pentagon",
+            "team_id": "wjjl8qwsmdgtlka2",
+            "FPts": 1284.0,
+            "FP/G": 61.14,
+            "GP": 21.0,
+            "WW": 2.0,
+            "PBL": 317.0
+        },
+        {
+            "rank": "7",
+            "team_name": "The Noto Son",
+            "team_id": "zjydlxwhmdgtlka4",
+            "FPts": 1261.0,
+            "FP/G": 57.32,
+            "GP": 22.0,
+            "WW": 6.0,
+            "PBL": 340.0
+        },
+        {
+            "rank": "8",
+            "team_name": "Jesus Christ",
+            "team_id": "zh45p7homdgtlka1",
+            "FPts": 1249.0,
+            "FP/G": 54.3,
+            "GP": 23.0,
+            "WW": 8.0,
+            "PBL": 352.0
+        },
+        {
+            "rank": "9",
+            "team_name": "9/11 Second Tower",
+            "team_id": "68fvh5u4mdgtlka8",
+            "FPts": 1161.0,
+            "FP/G": 55.29,
+            "GP": 21.0,
+            "WW": 10.0,
+            "PBL": 440.0
+        },
+        {
+            "rank": "10",
+            "team_name": "A Stupid Silly Cat",
+            "team_id": "0l1gmqj7mdgtlka6",
+            "FPts": 1117.0,
+            "FP/G": 50.77,
+            "GP": 22.0,
+            "WW": 15.0,
+            "PBL": 484.0
+        },
+        {
+            "rank": "11",
+            "team_name": "PartyMarty__",
+            "team_id": "oi0ae85dmdmdspm2",
+            "FPts": 1104.0,
+            "FP/G": 46.0,
+            "GP": 24.0,
+            "WW": 11.0,
+            "PBL": 497.0
+        },
+        {
+            "rank": "12",
+            "team_name": "Haliban\u2019s Heroes",
+            "team_id": "rhb3mk9hmdgtlka9",
+            "FPts": 1091.0,
+            "FP/G": 49.59,
+            "GP": 22.0,
+            "WW": 3.0,
+            "PBL": 510.0
+        },
+        {
+            "rank": "13",
+            "team_name": "I'm Your Uber Driver",
+            "team_id": "lc47vt4pmdgtlka4",
+            "FPts": 1048.0,
+            "FP/G": 49.9,
+            "GP": 21.0,
+            "WW": 5.0,
+            "PBL": 553.0
+        },
+        {
+            "rank": "14",
+            "team_name": "Kevin O\u2019Leary",
+            "team_id": "467wxistmdgtlka3",
+            "FPts": 1006.0,
+            "FP/G": 47.9,
+            "GP": 21.0,
+            "WW": 16.0,
+            "PBL": 595.0
+        },
+        {
+            "rank": "15",
+            "team_name": "President of Retarded Operations",
+            "team_id": "4trk7d98mdgtlkab",
+            "FPts": 974.0,
+            "FP/G": 46.38,
+            "GP": 21.0,
+            "WW": 12.0,
+            "PBL": 627.0
+        },
+        {
+            "rank": "16",
+            "team_name": "Kamala's Gunz",
+            "team_id": "hxzn4i3jmdgtlka7",
+            "FPts": 866.0,
+            "FP/G": 41.24,
+            "GP": 21.0,
+            "WW": 4.0,
+            "PBL": 735.0
+        }
+    ]
+}

@@ -9,7 +9,8 @@ from .logic import (
     FANTRAX_PASSWORD,
     FANTRAX_DEFAULT_LEAGUE_ID
 )
-from ..standings_adjuster.logic import get_cached_periods
+from ..standings_adjuster.logic import get_cached_periods, get_cached_periods_with_min_games
+from ..standings_adjuster.excel_export import generate_comprehensive_excel, generate_period_excel
 
 def parse_periods(periods_str):
     """Parses a string of periods (e.g., '1-3,5') into a list of integers."""
@@ -50,9 +51,47 @@ def show_weekly_standings_analyzer():
 
     # Display cached periods for the selected league
     if league_id:
-        cached_periods = get_cached_periods(league_id)
-        if cached_periods:
-            st.info(f"Cached periods for **{selected_league_name}**: {', '.join(map(str, sorted(cached_periods.keys())))}")
+        cached_periods_with_min = get_cached_periods_with_min_games(league_id)
+        if cached_periods_with_min:
+            st.markdown("---")
+            st.subheader("📦 Cached Periods")
+            
+            col1, col2 = st.columns([3, 1])
+            
+            with col1:
+                # Create a nice table showing cached periods and their min games
+                cache_df = pd.DataFrame([
+                    {'Period': period, 'Min Games': min_games}
+                    for period, min_games in sorted(cached_periods_with_min.items())
+                ])
+                st.dataframe(
+                    cache_df,
+                    hide_index=True,
+                    use_container_width=True,
+                    height=min(len(cache_df) * 35 + 38, 300)  # Dynamic height, max 300px
+                )
+                st.caption(f"Total: {len(cached_periods_with_min)} period(s) cached")
+            
+            with col2:
+                st.write("")  # Spacing
+                st.write("")  # Spacing
+                if st.button("📥 Export All to Excel", use_container_width=True):
+                    try:
+                        with st.spinner("Generating Excel..."):
+                            filepath = generate_comprehensive_excel(league_id, selected_league_name)
+                            with open(filepath, 'rb') as f:
+                                st.download_button(
+                                    label="⬇️ Download",
+                                    data=f,
+                                    file_name=filepath.name,
+                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    use_container_width=True,
+                                    key="analyzer_export_all"
+                                )
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+            
+            st.markdown("---")
 
     periods_input = st.text_input("Scoring Period(s)", value="1", help="Enter a single period, a range (e.g., 1-4), or a comma-separated list (e.g., 1,3,5).")
 

@@ -141,3 +141,31 @@ def get_cached_periods(league_id):
             cached_periods[period] = period # Simple mapping, min_games is loaded later
             
     return cached_periods
+
+
+def get_cached_periods_with_min_games(league_id):
+    """
+    Scans the cache directory and returns periods with their min_games values.
+    Returns dict: {period: min_games}
+    """
+    if not league_id or not os.path.exists(CACHE_DIR):
+        return {}
+    
+    cached_periods = {}
+    pattern = re.compile(f"weekly_standings_{re.escape(league_id)}_(\d+)\.json")
+    
+    for filename in os.listdir(CACHE_DIR):
+        match = pattern.match(filename)
+        if match:
+            period = int(match.group(1))
+            cache_file = os.path.join(CACHE_DIR, filename)
+            
+            try:
+                with open(cache_file, 'r') as f:
+                    cache_data = json.load(f)
+                    min_games = cache_data.get('metadata', {}).get('min_games', 'N/A')
+                    cached_periods[period] = min_games
+            except (json.JSONDecodeError, KeyError):
+                cached_periods[period] = 'N/A'
+            
+    return cached_periods
