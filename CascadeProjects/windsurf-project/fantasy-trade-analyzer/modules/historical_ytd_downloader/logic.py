@@ -25,7 +25,8 @@ DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
 # Historical season codes (Fantrax API codes)
 # Format: (season_label, season_code)
 HISTORICAL_SEASONS = [
-	('2024-25', 'SEASON_41j_YEAR_TO_DATE'),  # Current season
+	('2025-26', 'SEASON_41l_YEAR_TO_DATE'),  # Current season
+	('2024-25', 'SEASON_41j_YEAR_TO_DATE'),
 	('2023-24', 'SEASON_41h_YEAR_TO_DATE'),
 	('2022-23', 'SEASON_41f_YEAR_TO_DATE'),
 	('2021-22', 'SEASON_41d_YEAR_TO_DATE'),
