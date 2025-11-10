@@ -136,6 +136,8 @@ def display_trade_results(analysis_results: Dict[str, Dict[str, Any]]):
             with st.expander("Trade Impact Analysis", expanded=True):
                 _display_trade_metrics_table(results, time_ranges)
                 st.write("---")
+                _display_trade_insights(results, time_ranges)
+                st.write("---")
                 _display_performance_visualizations(results, time_ranges)
                 _display_roster_details(results, time_ranges)
 
@@ -151,25 +153,44 @@ def _display_trade_overview(results: Dict[str, Any]):
         outgoing = results.get('outgoing_players', [])
         st.markdown(", ".join([f"<span class='highlight-trade'>{p}</span>" for p in outgoing]) or "None", unsafe_allow_html=True)
     st.write("---")
+    
+    # Add player game logs viewer
+    _display_traded_players_game_logs(results)
 
 def _display_trade_metrics_table(results: Dict[str, Any], time_ranges: List[str]):
-    st.markdown("""ℹ️ **Metrics Guide**: - **FP/G**: Fantasy Points per Game - **GP**: Games Played - **Std Dev**: Standard Deviation (consistency measure)""", unsafe_allow_html=True)
+    st.markdown("""ℹ️ **Metrics Guide**: - **FP/G**: Fantasy Points per Game - **GP**: Games Played - **Std Dev**: Standard Deviation (consistency measure) - **CV%**: Coefficient of Variation (lower = more consistent)""", unsafe_allow_html=True)
     combined_data = []
     for time_range in time_ranges:
         pre_metrics = results.get('pre_trade_metrics', {}).get(time_range, {})
         post_metrics = results.get('post_trade_metrics', {}).get(time_range, {})
+        pre_consistency = results.get('pre_trade_consistency', {}).get(time_range, {})
+        post_consistency = results.get('post_trade_consistency', {}).get(time_range, {})
+        
         if pre_metrics and post_metrics:
-            combined_data.append({
+            row = {
                 'Time Range': time_range,
                 'Mean FP/G': f"{pre_metrics['mean_fpg']:.1f} → <span style='color:{'green' if post_metrics['mean_fpg'] > pre_metrics['mean_fpg'] else 'red'}'>{post_metrics['mean_fpg']:.1f}</span>",
                 'Median FP/G': f"{pre_metrics['median_fpg']:.1f} → <span style='color:{'green' if post_metrics['median_fpg'] > pre_metrics['median_fpg'] else 'red'}'>{post_metrics['median_fpg']:.1f}</span>",
                 'Std Dev': f"{pre_metrics['std_dev']:.1f} → <span style='color:{'green' if post_metrics['std_dev'] < pre_metrics['std_dev'] else 'red'}'>{post_metrics['std_dev']:.1f}</span>",
-                'Total FPs': f"{pre_metrics['total_fpts']} → <span style='color:{'green' if post_metrics['total_fpts'] > pre_metrics['total_fpts'] else 'red'}'>{post_metrics['total_fpts']}</span>",
+                'Total FPs': f"{pre_metrics['total_fpts']:.0f} → <span style='color:{'green' if post_metrics['total_fpts'] > pre_metrics['total_fpts'] else 'red'}'>{post_metrics['total_fpts']:.0f}</span>",
                 'Avg GP': f"{pre_metrics['avg_gp']:.1f} → <span style='color:{'green' if post_metrics['avg_gp'] >= pre_metrics['avg_gp'] else 'red'}'>{post_metrics['avg_gp']:.1f}</span>"
-            })
+            }
+            
+            # Add consistency metrics if available
+            if pre_consistency and post_consistency:
+                pre_cv = pre_consistency.get('avg_cv', 0)
+                post_cv = post_consistency.get('avg_cv', 0)
+                # Lower CV is better (more consistent)
+                row['Avg CV%'] = f"{pre_cv:.1f}% → <span style='color:{'green' if post_cv < pre_cv else 'red'}'>{post_cv:.1f}%</span>"
+            
+            combined_data.append(row)
+    
     combined_df = pd.DataFrame(combined_data)
     st.markdown("### Trade Metrics (Before → After)")
     st.markdown(combined_df.to_html(escape=False, index=False), unsafe_allow_html=True)
+    
+    # Add consistency summary if available
+    _display_consistency_summary(results, time_ranges)
 
 def _create_performance_chart(metric_data: pd.DataFrame, display_name: str):
     """Creates a line chart to visualize performance metrics."""
@@ -219,6 +240,476 @@ def _display_styled_roster(title: str, roster_data: List[Dict[str, Any]], player
         st.dataframe(styled_roster, hide_index=True)
     else:
         st.write("No data available.")
+
+def _display_traded_players_game_logs(results: Dict[str, Any]):
+    """Display game logs for all players involved in the trade."""
+    from modules.trade_analysis.consistency_integration import load_player_consistency, get_consistency_cache_directory
+    import json
+    
+    league_id = results.get('league_id', '')
+    if not league_id:
+        return
+    
+    all_players = results.get('outgoing_players', []) + results.get('incoming_players', [])
+    if not all_players:
+        return
+    
+    with st.expander("📋 View Traded Players' Game Logs", expanded=False):
+        player_tabs = st.tabs(all_players)
+        
+        cache_dir = get_consistency_cache_directory()
+        
+        for player_tab, player_name in zip(player_tabs, all_players):
+            with player_tab:
+                # Find and load player's game log
+                cache_files = list(cache_dir.glob(f"player_game_log_*_{league_id}.json"))
+                game_log_df = None
+                
+                for cache_file in cache_files:
+                    try:
+                        with open(cache_file, 'r') as f:
+                            cache_data = json.load(f)
+                        if cache_data.get('player_name', '') == player_name:
+                            game_log = cache_data.get('data', cache_data.get('game_log', []))
+                            if game_log:
+                                game_log_df = pd.DataFrame(game_log)
+                            break
+                    except Exception:
+                        continue
+                
+                if game_log_df is not None and not game_log_df.empty:
+                    # Display consistency metrics
+                    consistency = load_player_consistency(player_name, league_id)
+                    if consistency:
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Games", consistency['games_played'])
+                            st.metric("Mean FPts", f"{consistency['mean_fpts']:.1f}")
+                        with col2:
+                            st.metric("CV%", f"{consistency['cv_percent']:.1f}%", help="Lower = more consistent")
+                            st.metric("Consistency", consistency['consistency_tier'])
+                        with col3:
+                            st.metric("Boom Games", consistency['boom_games'], help=f"{consistency['boom_rate']:.1f}% of games")
+                            st.metric("Bust Games", consistency['bust_games'], help=f"{consistency['bust_rate']:.1f}% of games")
+                        with col4:
+                            st.metric("Min FPts", f"{consistency['min_fpts']:.0f}")
+                            st.metric("Max FPts", f"{consistency['max_fpts']:.0f}")
+                    
+                    st.markdown("---")
+                    
+                    # Display game log table
+                    priority_cols = ['Date', 'Team', 'Opp', 'Score', 'FPts', 'MIN', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO']
+                    other_cols = [col for col in game_log_df.columns if col not in priority_cols]
+                    display_cols = [col for col in priority_cols if col in game_log_df.columns] + other_cols
+                    
+                    st.dataframe(
+                        game_log_df[display_cols],
+                        use_container_width=True,
+                        height=400
+                    )
+                    
+                    # Download button
+                    csv = game_log_df.to_csv(index=False)
+                    # Create unique key by combining player name with index to avoid duplicates
+                    unique_key = f"trade_download_{player_name.replace(' ', '_')}_{all_players.index(player_name)}"
+                    st.download_button(
+                        label=f"📥 Download {player_name} Game Log",
+                        data=csv,
+                        file_name=f"{player_name.replace(' ', '_')}_game_log.csv",
+                        mime="text/csv",
+                        key=unique_key
+                    )
+                else:
+                    st.info(f"No game log data available for {player_name}. Run Bulk Scrape in Admin Tools to populate cache.")
+
+def _display_trade_insights(results: Dict[str, Any], time_ranges: List[str]):
+    """Display comprehensive trade insights and recommendations."""
+    import numpy as np
+    from scipy import stats as scipy_stats
+    
+    st.markdown("### 🎯 Trade Insights & Analysis")
+    
+    # Get YTD data for primary analysis
+    ytd_pre = results.get('pre_trade_metrics', {}).get('YTD', {})
+    ytd_post = results.get('post_trade_metrics', {}).get('YTD', {})
+    ytd_pre_consistency = results.get('pre_trade_consistency', {}).get('YTD', {})
+    ytd_post_consistency = results.get('post_trade_consistency', {}).get('YTD', {})
+    
+    if not ytd_pre or not ytd_post:
+        st.info("Insufficient data for trade insights")
+        return
+    
+    # Calculate changes
+    fpg_change = ytd_post['mean_fpg'] - ytd_pre['mean_fpg']
+    total_change = ytd_post['total_fpts'] - ytd_pre['total_fpts']
+    std_change = ytd_post['std_dev'] - ytd_pre['std_dev']
+    median_change = ytd_post['median_fpg'] - ytd_pre['median_fpg']
+    
+    # Consistency changes
+    cv_change = 0
+    if ytd_pre_consistency and ytd_post_consistency:
+        cv_change = ytd_post_consistency.get('avg_cv', 0) - ytd_pre_consistency.get('avg_cv', 0)
+    
+    # Advanced metrics
+    percent_change = (fpg_change / ytd_pre['mean_fpg'] * 100) if ytd_pre['mean_fpg'] > 0 else 0
+    sharpe_ratio_pre = (ytd_pre['mean_fpg'] / ytd_pre['std_dev']) if ytd_pre['std_dev'] > 0 else 0
+    sharpe_ratio_post = (ytd_post['mean_fpg'] / ytd_post['std_dev']) if ytd_post['std_dev'] > 0 else 0
+    sharpe_change = sharpe_ratio_post - sharpe_ratio_pre
+    
+    # Overall trade assessment with collapsible sections
+    with st.expander("📊 Overall Assessment & Key Metrics", expanded=True):
+        col1, col2, col3 = st.columns([2, 1, 1])
+        
+        with col1:
+            # Determine trade verdict
+            production_verdict = "✅ Gain" if fpg_change > 0 else "❌ Loss" if fpg_change < 0 else "➖ Neutral"
+            consistency_verdict = "✅ More Consistent" if cv_change < 0 else "❌ Less Consistent" if cv_change > 0 else "➖ No Change"
+            
+            assessment_text = f"""
+            **Production Impact:** {production_verdict} ({fpg_change:+.1f} FP/G, {percent_change:+.1f}%)
+            
+            **Consistency Impact:** {consistency_verdict} ({cv_change:+.1f}% CV)
+            
+            **Total Points Impact:** {total_change:+.0f} FPts over the season
+            
+            **Risk-Adjusted Return (Sharpe):** {sharpe_change:+.2f}
+            """
+            
+            st.markdown(assessment_text)
+            
+            # Trade recommendation
+            if fpg_change > 2 and cv_change < 5:
+                st.success("🟢 **Strong Trade** - Significant production gain with acceptable consistency impact")
+            elif fpg_change > 0 and cv_change < 0:
+                st.success("🟢 **Excellent Trade** - Production gain AND improved consistency")
+            elif fpg_change > 0 and cv_change < 10:
+                st.info("🟡 **Decent Trade** - Production gain but slight consistency loss")
+            elif fpg_change < -2:
+                st.error("🔴 **Poor Trade** - Significant production loss")
+            elif cv_change > 10:
+                st.warning("🟠 **Risky Trade** - Major consistency loss, high volatility")
+            else:
+                st.info("🟡 **Marginal Trade** - Minimal impact either way")
+        
+        with col2:
+            st.markdown("**Production**")
+            st.metric("FP/G Change", f"{fpg_change:+.1f}")
+            st.metric("Median Change", f"{median_change:+.1f}")
+            st.metric("% Change", f"{percent_change:+.1f}%")
+        
+        with col3:
+            st.markdown("**Risk**")
+            st.metric("Std Dev Δ", f"{std_change:+.1f}", delta_color="inverse")
+            if cv_change != 0:
+                st.metric("CV% Δ", f"{cv_change:+.1f}%", delta_color="inverse")
+            st.metric("Sharpe Δ", f"{sharpe_change:+.2f}")
+    
+    # Time range trend analysis - collapsible
+    with st.expander("📉 Trend Analysis Across Time Ranges", expanded=False):
+        trend_data = []
+        for time_range in time_ranges:
+            pre = results.get('pre_trade_metrics', {}).get(time_range, {})
+            post = results.get('post_trade_metrics', {}).get(time_range, {})
+            if pre and post:
+                trend_data.append({
+                    'Time Range': time_range,
+                    'FP/G Change': post['mean_fpg'] - pre['mean_fpg'],
+                    'Total FPts Change': post['total_fpts'] - pre['total_fpts'],
+                    'Std Dev Change': post['std_dev'] - pre['std_dev']
+                })
+        
+        if trend_data:
+            trend_df = pd.DataFrame(trend_data)
+            
+            # Create multi-metric trend visualization
+            import plotly.graph_objects as go
+            from plotly.subplots import make_subplots
+            
+            fig_trend = make_subplots(
+                rows=2, cols=1,
+                subplot_titles=("Production Change", "Risk Change (Std Dev)"),
+                vertical_spacing=0.15
+            )
+            
+            # Production trend
+            fig_trend.add_trace(
+                go.Scatter(
+                    x=trend_df['Time Range'],
+                    y=trend_df['FP/G Change'],
+                    mode='lines+markers',
+                    name='FP/G Change',
+                    line=dict(color='#1f77b4', width=3),
+                    marker=dict(size=10),
+                    fill='tozeroy',
+                    fillcolor='rgba(31, 119, 180, 0.2)'
+                ),
+                row=1, col=1
+            )
+            
+            # Risk trend
+            fig_trend.add_trace(
+                go.Scatter(
+                    x=trend_df['Time Range'],
+                    y=trend_df['Std Dev Change'],
+                    mode='lines+markers',
+                    name='Std Dev Change',
+                    line=dict(color='#ff7f0e', width=3),
+                    marker=dict(size=10),
+                    fill='tozeroy',
+                    fillcolor='rgba(255, 127, 14, 0.2)'
+                ),
+                row=2, col=1
+            )
+            
+            fig_trend.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5, row=1, col=1)
+            fig_trend.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5, row=2, col=1)
+            
+            fig_trend.update_xaxes(title_text="Time Range", row=2, col=1)
+            fig_trend.update_yaxes(title_text="FP/G Change", row=1, col=1)
+            fig_trend.update_yaxes(title_text="Std Dev Change", row=2, col=1)
+            
+            fig_trend.update_layout(height=500, showlegend=False)
+            
+            st.plotly_chart(fig_trend, use_container_width=True)
+            
+            # Trend interpretation
+            recent_trend = trend_df.iloc[-1]['FP/G Change']
+            long_term_trend = trend_df.iloc[0]['FP/G Change']
+            
+            # Calculate trend consistency (variance of changes)
+            trend_variance = np.var(trend_df['FP/G Change'])
+            trend_consistency = "High" if trend_variance < 1 else "Moderate" if trend_variance < 4 else "Low"
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if recent_trend > 0 and long_term_trend > 0:
+                    st.success("✅ **Consistent Positive Impact** - Trade improves production across all time ranges")
+                elif recent_trend > 0 and long_term_trend < 0:
+                    st.warning("⚠️ **Recent Surge** - Players performing better recently, but long-term data suggests caution")
+                elif recent_trend < 0 and long_term_trend > 0:
+                    st.warning("⚠️ **Recent Slump** - Players in recent downturn, but long-term data is positive")
+                elif recent_trend < 0 and long_term_trend < 0:
+                    st.error("❌ **Consistent Negative Impact** - Trade hurts production across all time ranges")
+            
+            with col2:
+                st.metric("Trend Consistency", trend_consistency, help="How consistent is the impact across time ranges")
+                st.metric("Recent (7d) Impact", f"{recent_trend:+.1f} FP/G")
+                st.metric("Long-term (YTD) Impact", f"{long_term_trend:+.1f} FP/G")
+    
+    # Statistical significance testing
+    with st.expander("🔬 Statistical Analysis & Significance", expanded=False):
+        _display_statistical_analysis(results, time_ranges, ytd_pre, ytd_post)
+    
+    # Player-by-player comparison - collapsible
+    with st.expander("👥 Player-by-Player Comparison", expanded=False):
+        outgoing = results.get('outgoing_players', [])
+        incoming = results.get('incoming_players', [])
+        
+        if outgoing and incoming:
+            _display_player_comparison(outgoing, incoming, results)
+        else:
+            st.info("No player comparison data available")
+
+def _display_statistical_analysis(results, time_ranges, ytd_pre, ytd_post):
+    """Display statistical significance testing and advanced metrics."""
+    import numpy as np
+    from scipy import stats as scipy_stats
+    
+    st.markdown("#### Statistical Significance & Advanced Metrics")
+    
+    # Effect size calculation (Cohen's d)
+    fpg_change = ytd_post['mean_fpg'] - ytd_pre['mean_fpg']
+    pooled_std = np.sqrt((ytd_pre['std_dev']**2 + ytd_post['std_dev']**2) / 2)
+    cohens_d = fpg_change / pooled_std if pooled_std > 0 else 0
+    
+    # Interpret effect size
+    if abs(cohens_d) < 0.2:
+        effect_interpretation = "Negligible"
+    elif abs(cohens_d) < 0.5:
+        effect_interpretation = "Small"
+    elif abs(cohens_d) < 0.8:
+        effect_interpretation = "Medium"
+    else:
+        effect_interpretation = "Large"
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("Effect Size (Cohen's d)", f"{cohens_d:.2f}", help="Standardized measure of trade impact")
+        st.caption(f"**{effect_interpretation}** effect")
+    
+    with col2:
+        confidence_level = 95
+        margin_of_error = 1.96 * (ytd_post['std_dev'] / np.sqrt(ytd_post.get('avg_gp', 10)))
+        st.metric("95% Confidence Interval", f"±{margin_of_error:.1f} FP/G", help="Expected range of outcomes")
+    
+    with col3:
+        # Calculate probability of improvement (simplified)
+        z_score = fpg_change / (ytd_pre['std_dev'] / np.sqrt(ytd_pre.get('avg_gp', 10))) if ytd_pre['std_dev'] > 0 else 0
+        prob_improvement = scipy_stats.norm.cdf(z_score) * 100
+        st.metric("Prob. of Improvement", f"{prob_improvement:.1f}%", help="Statistical likelihood of positive impact")
+    
+    st.markdown("---")
+    
+    # Distribution comparison
+    st.markdown("#### Performance Distribution Comparison")
+    
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+    
+    fig_dist = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=("Before Trade", "After Trade"),
+        specs=[[{"type": "box"}, {"type": "box"}]]
+    )
+    
+    # Simulate distributions based on mean and std dev
+    pre_dist = np.random.normal(ytd_pre['mean_fpg'], ytd_pre['std_dev'], 1000)
+    post_dist = np.random.normal(ytd_post['mean_fpg'], ytd_post['std_dev'], 1000)
+    
+    fig_dist.add_trace(
+        go.Box(y=pre_dist, name="Before", marker_color='lightblue', boxmean='sd'),
+        row=1, col=1
+    )
+    
+    fig_dist.add_trace(
+        go.Box(y=post_dist, name="After", marker_color='lightgreen', boxmean='sd'),
+        row=1, col=2
+    )
+    
+    fig_dist.update_layout(height=400, showlegend=False)
+    fig_dist.update_yaxes(title_text="Fantasy Points per Game")
+    
+    st.plotly_chart(fig_dist, use_container_width=True)
+    
+    st.caption("**Box plots** show the distribution of expected performance. The box represents the middle 50% of outcomes, with the line showing the median.")
+
+def _display_player_comparison(outgoing_players, incoming_players, results):
+    """Display detailed player-by-player comparison."""
+    from modules.trade_analysis.consistency_integration import load_player_consistency
+    
+    league_id = results.get('league_id', '')
+    if not league_id:
+        return
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**📤 Trading Away**")
+        outgoing_data = []
+        for player in outgoing_players:
+            consistency = load_player_consistency(player, league_id)
+            if consistency:
+                outgoing_data.append({
+                    'Player': player,
+                    'Mean FPts': f"{consistency['mean_fpts']:.1f}",
+                    'CV%': f"{consistency['cv_percent']:.1f}%",
+                    'Tier': consistency['consistency_tier']
+                })
+        
+        if outgoing_data:
+            st.dataframe(pd.DataFrame(outgoing_data), hide_index=True, use_container_width=True)
+            avg_fpg_out = sum([float(d['Mean FPts']) for d in outgoing_data]) / len(outgoing_data)
+            st.caption(f"Average: {avg_fpg_out:.1f} FP/G")
+        else:
+            st.info("No consistency data available")
+    
+    with col2:
+        st.markdown("**📥 Receiving**")
+        incoming_data = []
+        for player in incoming_players:
+            consistency = load_player_consistency(player, league_id)
+            if consistency:
+                incoming_data.append({
+                    'Player': player,
+                    'Mean FPts': f"{consistency['mean_fpts']:.1f}",
+                    'CV%': f"{consistency['cv_percent']:.1f}%",
+                    'Tier': consistency['consistency_tier']
+                })
+        
+        if incoming_data:
+            st.dataframe(pd.DataFrame(incoming_data), hide_index=True, use_container_width=True)
+            avg_fpg_in = sum([float(d['Mean FPts']) for d in incoming_data]) / len(incoming_data)
+            st.caption(f"Average: {avg_fpg_in:.1f} FP/G")
+        else:
+            st.info("No consistency data available")
+    
+    # Net comparison
+    if outgoing_data and incoming_data:
+        avg_fpg_out = sum([float(d['Mean FPts']) for d in outgoing_data]) / len(outgoing_data)
+        avg_fpg_in = sum([float(d['Mean FPts']) for d in incoming_data]) / len(incoming_data)
+        net_change = avg_fpg_in - avg_fpg_out
+        
+        st.markdown("---")
+        if net_change > 0:
+            st.success(f"✅ **Net Gain:** Receiving players average {net_change:.1f} more FP/G")
+        elif net_change < 0:
+            st.error(f"❌ **Net Loss:** Receiving players average {abs(net_change):.1f} fewer FP/G")
+        else:
+            st.info("➖ **Even Trade:** Players have similar average production")
+
+def _display_consistency_summary(results: Dict[str, Any], time_ranges: List[str]):
+    """Display consistency change summary if data is available."""
+    pre_consistency = results.get('pre_trade_consistency', {})
+    post_consistency = results.get('post_trade_consistency', {})
+    
+    if not pre_consistency or not post_consistency:
+        return
+    
+    # Use YTD as primary reference
+    ytd_pre = pre_consistency.get('YTD', {})
+    ytd_post = post_consistency.get('YTD', {})
+    
+    if not ytd_pre or not ytd_post:
+        return
+    
+    st.markdown("---")
+    st.markdown("### 📊 Consistency Impact (YTD)")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        pre_cv = ytd_pre.get('avg_cv', 0)
+        post_cv = ytd_post.get('avg_cv', 0)
+        delta = post_cv - pre_cv
+        st.metric(
+            "Avg CV%",
+            f"{post_cv:.1f}%",
+            delta=f"{delta:+.1f}%",
+            delta_color="inverse",  # Lower is better
+            help="Average Coefficient of Variation - lower = more consistent"
+        )
+    
+    with col2:
+        pre_consistent = ytd_pre.get('very_consistent', 0)
+        post_consistent = ytd_post.get('very_consistent', 0)
+        st.metric(
+            "🟢 Very Consistent",
+            post_consistent,
+            delta=post_consistent - pre_consistent,
+            help="Players with CV% < 20%"
+        )
+    
+    with col3:
+        pre_moderate = ytd_pre.get('moderate', 0)
+        post_moderate = ytd_post.get('moderate', 0)
+        st.metric(
+            "🟡 Moderate",
+            post_moderate,
+            delta=post_moderate - pre_moderate,
+            help="Players with CV% 20-30%"
+        )
+    
+    with col4:
+        pre_volatile = ytd_pre.get('volatile', 0)
+        post_volatile = ytd_post.get('volatile', 0)
+        st.metric(
+            "🔴 Volatile",
+            post_volatile,
+            delta=post_volatile - pre_volatile,
+            delta_color="inverse",  # Fewer is better
+            help="Players with CV% > 30%"
+        )
 
 def _display_roster_details(results: Dict[str, Any], time_ranges: List[str]):
     """Displays detailed before and after roster data for each time range."""

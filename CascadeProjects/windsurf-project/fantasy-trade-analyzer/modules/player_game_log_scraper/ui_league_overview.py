@@ -316,8 +316,13 @@ def _display_visualizations(overview_df):
 	st.markdown("---")
 	st.subheader("📊 League-Wide Visualizations")
 	
-	viz_tab1, viz_tab2, viz_tab3 = st.tabs([
-		"CV% Distribution", "Consistency vs Production", "Boom/Bust Analysis"
+	viz_tab1, viz_tab2, viz_tab3, viz_tab4, viz_tab5, viz_tab6 = st.tabs([
+		"CV% Distribution", 
+		"Consistency vs Production", 
+		"Boom/Bust Analysis",
+		"Performance Ranges",
+		"Tier Breakdown",
+		"Advanced Metrics"
 	])
 	
 	with viz_tab1:
@@ -328,6 +333,15 @@ def _display_visualizations(overview_df):
 	
 	with viz_tab3:
 		_display_boom_bust_scatter(overview_df)
+	
+	with viz_tab4:
+		_display_performance_ranges(overview_df)
+	
+	with viz_tab5:
+		_display_tier_breakdown(overview_df)
+	
+	with viz_tab6:
+		_display_advanced_metrics(overview_df)
 
 def _display_cv_distribution(overview_df):
 	"""Display CV% distribution histogram."""
@@ -399,3 +413,235 @@ def _display_boom_bust_scatter(overview_df):
 	
 	st.plotly_chart(fig_boom_bust, use_container_width=True)
 	st.caption("**Bubble size** = Average FPts/Game | **Color** = CV% (red = volatile, green = consistent)")
+
+def _display_performance_ranges(overview_df):
+	"""Display performance range analysis."""
+	st.markdown("### Performance Range Analysis")
+	st.caption("Shows the scoring range (Max - Min) for each player to identify ceiling/floor gaps")
+	
+	# Create range chart
+	fig_range = go.Figure()
+	
+	# Sort by Mean FPts for better visualization
+	df_sorted = overview_df.sort_values('Mean FPts', ascending=True)
+	
+	fig_range.add_trace(go.Bar(
+		y=df_sorted['Player'],
+		x=df_sorted['Range'],
+		orientation='h',
+		marker=dict(
+			color=df_sorted['CV %'],
+			colorscale='RdYlGn_r',
+			showscale=True,
+			colorbar=dict(title="CV%")
+		),
+		hovertemplate='<b>%{y}</b><br>Range: %{x:.1f}<br>Min: %{customdata[0]:.0f}<br>Max: %{customdata[1]:.0f}<extra></extra>',
+		customdata=df_sorted[['Min', 'Max']].values
+	))
+	
+	fig_range.update_layout(
+		title="Player Performance Ranges (Sorted by Mean FPts)",
+		xaxis_title="Range (Max - Min FPts)",
+		yaxis_title="Player",
+		height=max(400, len(df_sorted) * 15),
+		showlegend=False
+	)
+	
+	st.plotly_chart(fig_range, use_container_width=True)
+	
+	# Range statistics
+	col1, col2, col3, col4 = st.columns(4)
+	with col1:
+		st.metric("Avg Range", f"{overview_df['Range'].mean():.1f}")
+	with col2:
+		st.metric("Largest Range", f"{overview_df['Range'].max():.1f}")
+		st.caption(overview_df.loc[overview_df['Range'].idxmax(), 'Player'])
+	with col3:
+		st.metric("Smallest Range", f"{overview_df['Range'].min():.1f}")
+		st.caption(overview_df.loc[overview_df['Range'].idxmin(), 'Player'])
+	with col4:
+		high_range_count = len(overview_df[overview_df['Range'] > overview_df['Range'].quantile(0.75)])
+		st.metric("High Range Players", high_range_count, help="Players in top 25% of range")
+
+def _display_tier_breakdown(overview_df):
+	"""Display tier-based breakdown of players."""
+	st.markdown("### Player Tier Breakdown")
+	
+	# Define tiers based on Mean FPts
+	def get_tier(fpts):
+		if fpts >= 80:
+			return "Elite (80+ FPts)"
+		elif fpts >= 60:
+			return "Star (60-80 FPts)"
+		elif fpts >= 40:
+			return "Solid (40-60 FPts)"
+		elif fpts >= 25:
+			return "Streamer (25-40 FPts)"
+		else:
+			return "Bench (<25 FPts)"
+	
+	overview_df['Tier'] = overview_df['Mean FPts'].apply(get_tier)
+	
+	# Tier distribution
+	tier_counts = overview_df['Tier'].value_counts()
+	tier_order = ["Elite (80+ FPts)", "Star (60-80 FPts)", "Solid (40-60 FPts)", "Streamer (25-40 FPts)", "Bench (<25 FPts)"]
+	tier_counts = tier_counts.reindex([t for t in tier_order if t in tier_counts.index])
+	
+	col1, col2 = st.columns([1, 1])
+	
+	with col1:
+		# Pie chart
+		fig_pie = px.pie(
+			values=tier_counts.values,
+			names=tier_counts.index,
+			title="Player Distribution by Tier",
+			color_discrete_sequence=px.colors.sequential.RdBu_r
+		)
+		st.plotly_chart(fig_pie, use_container_width=True)
+	
+	with col2:
+		# Consistency by tier
+		tier_cv = overview_df.groupby('Tier')['CV %'].agg(['mean', 'min', 'max']).reindex([t for t in tier_order if t in overview_df['Tier'].unique()])
+		
+		fig_tier_cv = go.Figure()
+		fig_tier_cv.add_trace(go.Bar(
+			x=tier_cv.index,
+			y=tier_cv['mean'],
+			name='Avg CV%',
+			marker_color='lightblue',
+			error_y=dict(
+				type='data',
+				symmetric=False,
+				array=tier_cv['max'] - tier_cv['mean'],
+				arrayminus=tier_cv['mean'] - tier_cv['min']
+			)
+		))
+		
+		fig_tier_cv.update_layout(
+			title="Average CV% by Tier (with range)",
+			xaxis_title="Tier",
+			yaxis_title="CV%",
+			showlegend=False
+		)
+		st.plotly_chart(fig_tier_cv, use_container_width=True)
+	
+	# Detailed tier table
+	st.markdown("#### Tier Details")
+	tier_summary = overview_df.groupby('Tier').agg({
+		'Player': 'count',
+		'Mean FPts': ['mean', 'min', 'max'],
+		'CV %': 'mean',
+		'Boom %': 'mean',
+		'Bust %': 'mean'
+	}).round(1)
+	tier_summary.columns = ['Count', 'Avg FPts', 'Min FPts', 'Max FPts', 'Avg CV%', 'Avg Boom%', 'Avg Bust%']
+	tier_summary = tier_summary.reindex([t for t in tier_order if t in tier_summary.index])
+	
+	st.dataframe(tier_summary, use_container_width=True)
+
+def _display_advanced_metrics(overview_df):
+	"""Display advanced statistical analysis."""
+	st.markdown("### Advanced Statistical Analysis")
+	
+	# Correlation heatmap
+	st.markdown("#### Metric Correlations")
+	corr_cols = ['Mean FPts', 'Median FPts', 'Std Dev', 'CV %', 'Range', 'Boom %', 'Bust %', 'GP']
+	corr_matrix = overview_df[corr_cols].corr()
+	
+	fig_corr = px.imshow(
+		corr_matrix,
+		text_auto='.2f',
+		aspect='auto',
+		color_continuous_scale='RdBu_r',
+		title="Correlation Matrix of Performance Metrics",
+		labels=dict(color="Correlation")
+	)
+	st.plotly_chart(fig_corr, use_container_width=True)
+	
+	st.caption("**Interpretation:** Values close to 1 or -1 indicate strong correlation. Look for unexpected relationships!")
+	
+	# Top performers by different metrics
+	st.markdown("---")
+	st.markdown("#### Top 10 Players by Different Metrics")
+	
+	metric_col1, metric_col2, metric_col3 = st.columns(3)
+	
+	with metric_col1:
+		st.markdown("**🏆 Highest Production**")
+		top_fpts = overview_df.nlargest(10, 'Mean FPts')[['Player', 'Mean FPts', 'CV %']]
+		st.dataframe(top_fpts, hide_index=True, use_container_width=True)
+	
+	with metric_col2:
+		st.markdown("**🟢 Most Consistent**")
+		top_consistent = overview_df.nsmallest(10, 'CV %')[['Player', 'CV %', 'Mean FPts']]
+		st.dataframe(top_consistent, hide_index=True, use_container_width=True)
+	
+	with metric_col3:
+		st.markdown("**💥 Highest Boom Rate**")
+		top_boom = overview_df.nlargest(10, 'Boom %')[['Player', 'Boom %', 'Mean FPts']]
+		st.dataframe(top_boom, hide_index=True, use_container_width=True)
+	
+	# Statistical outliers
+	st.markdown("---")
+	st.markdown("#### Statistical Outliers")
+	
+	# Calculate z-scores for CV%
+	mean_cv = overview_df['CV %'].mean()
+	std_cv = overview_df['CV %'].std()
+	overview_df['CV_zscore'] = (overview_df['CV %'] - mean_cv) / std_cv
+	
+	outlier_col1, outlier_col2 = st.columns(2)
+	
+	with outlier_col1:
+		st.markdown("**🔴 Extremely Volatile Players** (CV% > 2 std dev)")
+		volatile_outliers = overview_df[overview_df['CV_zscore'] > 2][['Player', 'CV %', 'Mean FPts', 'Boom %', 'Bust %']].sort_values('CV %', ascending=False)
+		if not volatile_outliers.empty:
+			st.dataframe(volatile_outliers, hide_index=True, use_container_width=True)
+		else:
+			st.info("No extreme outliers found")
+	
+	with outlier_col2:
+		st.markdown("**🟢 Extremely Consistent Players** (CV% < -2 std dev)")
+		consistent_outliers = overview_df[overview_df['CV_zscore'] < -2][['Player', 'CV %', 'Mean FPts', 'Min', 'Max']].sort_values('CV %')
+		if not consistent_outliers.empty:
+			st.dataframe(consistent_outliers, hide_index=True, use_container_width=True)
+		else:
+			st.info("No extreme outliers found")
+	
+	# Risk-Reward Analysis
+	st.markdown("---")
+	st.markdown("#### Risk-Reward Analysis")
+	st.caption("Players in the top-right quadrant offer high production with acceptable consistency")
+	
+	# Create quadrant chart
+	median_fpts = overview_df['Mean FPts'].median()
+	median_cv = overview_df['CV %'].median()
+	
+	fig_quad = px.scatter(
+		overview_df,
+		x='Mean FPts',
+		y='CV %',
+		size='GP',
+		color='Boom %',
+		hover_data=['Player', 'Bust %'],
+		title=f"Risk-Reward Quadrants (Median FPts: {median_fpts:.1f}, Median CV%: {median_cv:.1f})",
+		labels={'Mean FPts': 'Production (Mean FPts)', 'CV %': 'Risk (CV%)'},
+		color_continuous_scale='Viridis'
+	)
+	
+	# Add quadrant lines
+	fig_quad.add_hline(y=median_cv, line_dash="dash", line_color="gray", opacity=0.5)
+	fig_quad.add_vline(x=median_fpts, line_dash="dash", line_color="gray", opacity=0.5)
+	
+	# Add quadrant labels
+	fig_quad.add_annotation(x=overview_df['Mean FPts'].max() * 0.9, y=overview_df['CV %'].min() * 1.1,
+							text="High Prod, Low Risk", showarrow=False, font=dict(size=10, color="green"))
+	fig_quad.add_annotation(x=overview_df['Mean FPts'].max() * 0.9, y=overview_df['CV %'].max() * 0.9,
+							text="High Prod, High Risk", showarrow=False, font=dict(size=10, color="orange"))
+	fig_quad.add_annotation(x=overview_df['Mean FPts'].min() * 1.1, y=overview_df['CV %'].min() * 1.1,
+							text="Low Prod, Low Risk", showarrow=False, font=dict(size=10, color="blue"))
+	fig_quad.add_annotation(x=overview_df['Mean FPts'].min() * 1.1, y=overview_df['CV %'].max() * 0.9,
+							text="Low Prod, High Risk", showarrow=False, font=dict(size=10, color="red"))
+	
+	fig_quad.update_layout(height=600)
+	st.plotly_chart(fig_quad, use_container_width=True)

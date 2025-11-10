@@ -20,6 +20,12 @@ from modules.player_game_log_scraper.ui_league_overview import (
 	_display_consistency_table,
 	_display_visualizations
 )
+from modules.player_game_log_scraper.ui_team_rosters import (
+	show_team_rosters_viewer
+)
+from modules.player_game_log_scraper.ui_fantasy_teams import (
+	show_fantasy_teams_viewer
+)
 import json
 
 # Import public league config (no sensitive data)
@@ -88,10 +94,21 @@ def show_player_consistency_viewer():
 	st.success(f"Found {len(cache_files)} players with cached data")
 	
 	# Create main tabs
-	main_tab1, main_tab2 = st.tabs(["🔍 Individual Player Analysis", "📊 League Overview"])
+	main_tab1, main_tab2, main_tab3, main_tab4 = st.tabs([
+		"🔍 Individual Player Analysis", 
+		"📊 League Overview", 
+		"🏆 Fantasy Teams",
+		"🏟️ NBA Team Rosters"
+	])
 	
 	with main_tab2:
 		show_league_overview_viewer(league_id, cache_files)
+
+	with main_tab3:
+		show_fantasy_teams_viewer(league_id, cache_files)
+	
+	with main_tab4:
+		show_team_rosters_viewer(league_id, cache_files)
 	
 	with main_tab1:
 		show_individual_player_viewer(league_id, cache_files)

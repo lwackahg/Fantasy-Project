@@ -2,6 +2,7 @@ import os
 import time
 import json
 import pandas as pd
+import re
 from pathlib import Path
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -23,6 +24,28 @@ CACHE_DIR = Path(__file__).resolve().parent.parent.parent / 'data' / 'player_gam
 def get_cache_directory():
 	"""Returns the cache directory path."""
 	return CACHE_DIR
+
+def clean_html_from_text(text):
+	"""Remove HTML tags from text strings."""
+	if not isinstance(text, str):
+		return text
+	# Remove HTML tags using regex
+	clean_text = re.sub(r'<[^>]+>', '', text)
+	return clean_text.strip()
+
+def clean_cached_game_log(game_log):
+	"""Clean HTML tags from cached game log data."""
+	if not game_log:
+		return game_log
+	
+	cleaned_log = []
+	for game in game_log:
+		cleaned_game = {}
+		for key, value in game.items():
+			cleaned_game[key] = clean_html_from_text(value)
+		cleaned_log.append(cleaned_game)
+	
+	return cleaned_log
 
 def get_chrome_driver():
 	"""Initializes and returns a headless Chrome WebDriver with suppressed logging."""
@@ -143,10 +166,14 @@ def get_player_game_log(player_code, league_id, username, password, force_refres
 			# Check if there's a link (for Score column)
 			link = cell.find('a')
 			if link:
-				value = link.text.strip()
+				# Get text content only, stripping any HTML tags
+				value = link.get_text(strip=True)
 			else:
 				span = cell.find('span')
-				value = span.text.strip() if span else cell.text.strip()
+				if span:
+					value = span.get_text(strip=True)
+				else:
+					value = cell.get_text(strip=True)
 			
 			game_data[header] = value
 		
@@ -180,17 +207,21 @@ def get_player_game_log(player_code, league_id, username, password, force_refres
 
 	return df, False, player_name
 
-def calculate_variability_stats(df):
-	"""
-	Calculates variability and consistency metrics for the player's game log.
-	"""
-	if df.empty or 'FPts' not in df.columns:
-		return {}
+def calculate_variability_stats(game_log_df):
+	"""Calculate variability statistics from a game log DataFrame."""
+	if game_log_df.empty or 'FPts' not in game_log_df.columns:
+		return None
 	
-	fpts = df['FPts'].dropna()
+	# Clean HTML from all string columns
+	for col in game_log_df.columns:
+		if game_log_df[col].dtype == 'object':
+			game_log_df[col] = game_log_df[col].apply(clean_html_from_text)
+	
+	# Convert FPts to numeric, handling any non-numeric values
+	fpts = pd.to_numeric(game_log_df['FPts'], errors='coerce').dropna()
 	
 	if len(fpts) == 0:
-		return {}
+		return None
 	
 	stats = {
 		'games_played': len(fpts),
@@ -325,10 +356,13 @@ def bulk_scrape_all_players(league_id, username, password, player_dict=None, pro
 						header = headers[i]
 						link = cell.find('a')
 						if link:
-							value = link.text.strip()
+							value = link.get_text(strip=True)
 						else:
 							span = cell.find('span')
-							value = span.text.strip() if span else cell.text.strip()
+							if span:
+								value = span.get_text(strip=True)
+							else:
+								value = cell.get_text(strip=True)
 						game_data[header] = value
 					
 					if game_data:
