@@ -59,3 +59,24 @@ The download process is executed in the `logic.py` module and follows these step
 8.  **Provide Feedback**: Throughout the process, a `progress_callback` function is used to update the Streamlit UI's progress bar and status message.
 
 9.  **Cleanup**: After all downloads are complete (or if an error occurs), the Selenium browser instance is closed to free up system resources.
+
+---
+
+### 5. Historical YTD Enhancements (Nov 2025)
+
+Historically the downloader relied on date ranges, which caused the "Historical YTD" workflow to keep pulling the current season only. The module now mirrors the officially supported Fantrax `seasonOrProjection` API contract:
+
+```
+https://www.fantrax.com/fxpa/downloadPlayerStats?
+    leagueId={league_id}&pageNumber=1&statusOrTeamFilter=ALL
+    &seasonOrProjection=SEASON_41h_YEAR_TO_DATE
+    &timeframeTypeCode=YEAR_TO_DATE
+    &view=STATS&positionOrGroup=BASKETBALL_PLAYER
+    ...
+```
+
+- `seasonOrProjection` selects the exact season (e.g., `SEASON_41j_YEAR_TO_DATE` for 2024-25).
+- `timeframeTypeCode` stays fixed at `YEAR_TO_DATE` to request season-to-date stats.
+- The downloader now generates file names in the format `Fantrax-Players-<League>-YTD-<Season>.csv`, enabling multi-season archives under `data/historical_ytd/`.
+
+These changes unlocked true historical pulls (2018-19 through present) and power the new YoY comparison tooling described in `145_Feature_Deep_Dive_-_Historical_YTD_and_YoY.md`.

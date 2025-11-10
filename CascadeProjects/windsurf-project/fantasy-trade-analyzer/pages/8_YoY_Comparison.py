@@ -10,6 +10,12 @@ import re
 from pathlib import Path
 from modules.historical_ytd_downloader.logic import load_and_compare_seasons, DOWNLOAD_DIR
 
+try:
+	from league_config import FANTRAX_LEAGUE_IDS as CONFIG_LEAGUE_IDS, FANTRAX_LEAGUE_NAMES as CONFIG_LEAGUE_NAMES
+except ImportError:
+	CONFIG_LEAGUE_IDS = []
+	CONFIG_LEAGUE_NAMES = []
+
 st.set_page_config(page_title="YoY Comparison", page_icon="📊", layout="wide")
 
 st.title("📊 Year-over-Year Player Comparison")
@@ -19,14 +25,34 @@ Compare player performance across multiple seasons to identify trends, breakouts
 """)
 
 # League selection
-league_ids = os.getenv('FANTRAX_LEAGUE_IDS', '').split(',')
-league_names = os.getenv('FANTRAX_LEAGUE_NAMES', '').split(',')
+def _parse_env_list(key: str) -> list[str]:
+	return [item.strip() for item in os.getenv(key, '').split(',') if item.strip()]
 
-if not league_ids or not league_ids[0]:
-	st.error("No league IDs configured in fantrax.env")
+env_league_ids = _parse_env_list('FANTRAX_LEAGUE_IDS')
+env_league_names = _parse_env_list('FANTRAX_LEAGUE_NAMES')
+
+if env_league_ids:
+	league_ids = env_league_ids
+	league_names = env_league_names if env_league_names else [lid for lid in env_league_ids]
+elif CONFIG_LEAGUE_IDS:
+	league_ids = list(CONFIG_LEAGUE_IDS)
+	league_names = list(CONFIG_LEAGUE_NAMES)
+else:
+	league_ids = []
+	league_names = []
+
+if not league_ids:
+	st.error("No league IDs configured. Update league_config.py or set FANTRAX_LEAGUE_IDS.")
 	st.stop()
 
-league_options = {name.strip(): id.strip() for name, id in zip(league_names, league_ids) if name.strip() and id.strip()}
+# Ensure every ID has a display name (fallback to ID itself)
+league_options = {}
+for idx, league_id in enumerate(league_ids):
+	name = league_names[idx] if idx < len(league_names) else league_id
+	name = name.strip()
+	league_options[name] = league_id.strip()
+
+league_options = {name: lid for name, lid in league_options.items() if name and lid}
 
 if not league_options:
 	st.error("No valid league configurations found")

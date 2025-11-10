@@ -31,6 +31,8 @@ This section provides detailed, technical explanations for each of the applicati
     -   *Assessing team strengths and weaknesses with statistical analysis and radar charts.*
 -   [**140: Fantrax Downloader**](./140_Feature_Deep_Dive_-_Downloader.md)
     -   *Automating data fetching from Fantrax using Selenium and Requests.*
+-   [**145: Historical YTD & YoY Comparison**](./145_Feature_Deep_Dive_-_Historical_YTD_and_YoY.md)
+    -   *Maintaining season archives and comparing player performance year-over-year.*
 -   [**150: Schedule Analysis**](./150_Feature_Deep_Dive_-_Schedule_Analysis.md)
     -   *Simulating schedule swaps to analyze the impact of luck on league standings.*
 -   [**160: Auction Draft Tool**](./160_Feature_Deep_Dive_-_Auction_Draft_Tool.md)
@@ -39,6 +41,8 @@ This section provides detailed, technical explanations for each of the applicati
     -   *Exploring and filtering raw player statistics with integrated draft results.*
 -   [**180: Trade Analysis**](./180_Feature_Deep_Dive_-_Trade_Analysis.md)
     -   *Evaluating multi-player, multi-team trades with detailed impact analysis.*
+-   [**185: Trade Suggestions**](./185_Feature_Deep_Dive_-_Trade_Suggestions.md)
+    -   *Identifying realistic trade opportunities using exponential value and consistency heuristics.*
 -   [**190: Standings Tools**](./190_Feature_Deep_Dive_-_Standings_Tools.md)
     -   *Scraping and applying weekly standings adjustments for commissioners.*
 -   [**200: Player Game Log Scraper**](./200_Feature_Deep_Dive_-_Player_Game_Log_Scraper.md)
