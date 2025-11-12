@@ -7,9 +7,11 @@ import plotly.express as px
 import pandas as pd
 from modules.player_game_log_scraper.logic import (
 	get_player_game_log,
+	get_player_game_log_full,
 	calculate_variability_stats,
 	get_available_players_from_csv,
 	bulk_scrape_all_players,
+	bulk_scrape_all_players_full,
 	clear_all_cache,
 	get_cache_directory
 )
@@ -41,7 +43,7 @@ def get_cache_last_updated(league_id):
 	"""Get the most recent cache file modification time."""
 	from datetime import datetime
 	cache_dir = get_cache_directory()
-	cache_files = list(cache_dir.glob(f"player_game_log_*_{league_id}.json"))
+	cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
 	
 	if not cache_files:
 		return None
@@ -124,7 +126,7 @@ def show_player_game_log_scraper():
 		st.markdown("---")
 	
 		# Options
-		col1, col2, col3 = st.columns(3)
+		col1, col2 = st.columns(2)
 		with col1:
 			force_refresh = st.checkbox(
 				"Force Refresh (ignore cache)",
@@ -132,15 +134,29 @@ def show_player_game_log_scraper():
 				help="Check this box to bypass the local cache and download the latest data from Fantrax."
 			)
 		with col2:
+			season = st.selectbox(
+				"Season",
+				options=["2025-26", "2024-25", "2023-24", "2022-23", "2021-22", "2020-21", "2019-20", "2018-19"],
+				index=0,
+				key="season_select",
+				help="Select which season to scrape (always uses Games (Fntsy) tab)"
+			)
+		
+		# Second row of options
+		col4, col5, col6 = st.columns(3)
+		with col4:
 			if st.button("🗑️ Clear All Cache", help="Delete all cached player game logs"):
 				message, success = clear_player_game_log_cache()
 				if success:
 					st.success(message)
 				else:
 					st.error(message)
-		with col3:
+		with col5:
 			if st.button("📦 Bulk Scrape All", help="Scrape game logs for ALL players (one login, saves to cache)"):
 				st.session_state['show_bulk_scrape'] = True
+		with col6:
+			if st.button("🆕 Bulk Scrape Full", help="Enhanced bulk scraper using Games (Fntsy) tab with multi-season support"):
+				st.session_state['show_bulk_scrape_full'] = True
 
 		# Scrape button
 		if st.button("Get Player Game Log", type="primary"):
@@ -156,12 +172,13 @@ def show_player_game_log_scraper():
 
 			try:
 				with st.spinner(f"Fetching game log for player {player_code}..."):
-					df, from_cache, player_name = get_player_game_log(
-						player_code, league_id, FANTRAX_USERNAME, FANTRAX_PASSWORD, force_refresh
+					df, from_cache, player_name = get_player_game_log_full(
+						player_code, league_id, FANTRAX_USERNAME, FANTRAX_PASSWORD, season, force_refresh
 					)
+					scraper_type = f"🆕 Full Games Tab ({season})"
 				
 					cache_status = "✅ Loaded from cache" if from_cache else "🌐 Freshly scraped"
-					st.success(f"{cache_status} - Found {len(df)} games for **{player_name}**")
+					st.success(f"{cache_status} - Found {len(df)} games for **{player_name}** using {scraper_type}")
 
 					# Display variability stats
 					st.markdown("---")
@@ -531,3 +548,90 @@ def show_player_game_log_scraper():
 					if st.button("❌ Cancel"):
 						st.session_state['show_bulk_scrape'] = False
 						st.rerun()
+		
+		# Enhanced Bulk Scraper Section
+		if st.session_state.get('show_bulk_scrape_full', False):
+			st.markdown("---")
+			st.subheader("🆕 Enhanced Bulk Scrape - Multi-Season")
+			st.write("Scrape complete game logs using Games (Fntsy) tab with multi-season support. Perfect for historical analysis!")
+			
+			player_dict = get_available_players_from_csv()
+			if not player_dict:
+				st.error("No players found to scrape.")
+				st.session_state['show_bulk_scrape_full'] = False
+			else:
+				# Season selection
+				st.markdown("#### Season Selection")
+				col1, col2 = st.columns(2)
+				
+				with col1:
+					available_seasons = ["2025-26", "2024-25", "2023-24", "2022-23", "2021-22", "2020-21", "2019-20", "2018-19"]
+					selected_seasons = st.multiselect(
+						"Select seasons to scrape",
+						options=available_seasons,
+						default=["2025-26"],
+						help="Choose which seasons to scrape for each player"
+					)
+				
+				with col2:
+					if selected_seasons:
+						total_operations = len(player_dict) * len(selected_seasons)
+						estimated_minutes = total_operations * 3 / 60  # ~3 seconds per operation
+						st.info(f"**{len(player_dict)} players** × **{len(selected_seasons)} seasons** = **{total_operations} operations**")
+						st.info(f"Estimated time: **{estimated_minutes:.1f} minutes**")
+				
+				if not selected_seasons:
+					st.warning("Please select at least one season to scrape.")
+				else:
+					col1, col2 = st.columns(2)
+					
+					with col1:
+						if st.button("🚀 Start Enhanced Bulk Scrape", type="primary"):
+							if not FANTRAX_USERNAME or not FANTRAX_PASSWORD:
+								st.error("Fantrax credentials not found. Please set them in your `fantrax.env` file.")
+							else:
+								try:
+									progress_bar = st.progress(0)
+									status_text = st.empty()
+									
+									def progress_callback(current, total, player_name, season):
+										progress = current / total
+										progress_bar.progress(progress)
+										status_text.text(f"Processing {player_name} ({season}) - {current}/{total}")
+									
+									with st.spinner("Starting enhanced bulk scrape..."):
+										result = bulk_scrape_all_players_full(
+											league_id, FANTRAX_USERNAME, FANTRAX_PASSWORD, 
+											seasons=selected_seasons, player_dict=player_dict, 
+											progress_callback=progress_callback
+										)
+									
+									if "error" in result:
+										st.error(f"Error: {result['error']}")
+									else:
+										st.success(f"✅ Enhanced bulk scrape completed!")
+										
+										col1, col2, col3 = st.columns(3)
+										with col1:
+											st.metric("✅ Successful", result['success_count'])
+										with col2:
+											st.metric("❌ Failed", result['fail_count'])
+										with col3:
+											st.metric("📊 Total", result['total'])
+										
+										if result['failed_items']:
+											with st.expander(f"❌ Failed Operations ({len(result['failed_items'])})"):
+												for player_name, season, error in result['failed_items']:
+													st.write(f"- **{player_name}** ({season}): {error}")
+									
+									st.session_state['show_bulk_scrape_full'] = False
+									st.rerun()
+								
+								except Exception as e:
+									st.error(f"An error occurred during bulk scraping: {e}")
+									st.exception(e)
+					
+					with col2:
+						if st.button("❌ Cancel Enhanced"):
+							st.session_state['show_bulk_scrape_full'] = False
+							st.rerun()

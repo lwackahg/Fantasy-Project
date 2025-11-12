@@ -178,7 +178,14 @@ def show_team_rosters_viewer(league_id, cache_files):
 	player = st.selectbox("View Player Details", options=list(filtered['Player']))
 	cache_dir = get_cache_directory()
 	code = df.loc[df['Player'] == player, 'code'].values[0]
-	cache_file = cache_dir / f"player_game_log_{code}_{league_id}.json"
+	# Look for new format files for this player
+	cache_files = list(cache_dir.glob(f"player_game_log_full_{code}_{league_id}_*.json"))
+	if not cache_files:
+		st.error("Player data not found in cache.")
+		return
+	
+	# Use the most recent season file
+	cache_file = max(cache_files, key=lambda f: f.stat().st_mtime)
 	if not cache_file.exists():
 		st.error("Player data not found in cache.")
 		return

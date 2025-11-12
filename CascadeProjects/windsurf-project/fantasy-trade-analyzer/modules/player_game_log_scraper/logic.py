@@ -3,6 +3,7 @@ import time
 import json
 import pandas as pd
 import re
+import subprocess
 from pathlib import Path
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -11,6 +12,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from dotenv import load_dotenv, find_dotenv
+import atexit
 
 # --- CONFIGURATION ---
 load_dotenv(find_dotenv('fantrax.env'))
@@ -48,9 +50,8 @@ def clean_cached_game_log(game_log):
 	return cleaned_log
 
 def get_chrome_driver():
-	"""Initializes and returns a headless Chrome WebDriver with suppressed logging."""
 	options = webdriver.ChromeOptions()
-	options.add_argument('--headless')
+	#options.add_argument('--headless')
 	options.add_argument('--no-sandbox')
 	options.add_argument('--disable-dev-shm-usage')
 	options.add_argument('--log-level=3')
@@ -68,7 +69,7 @@ def login_to_fantrax(driver, username, password):
 	username_box.send_keys(username)
 	password_box.send_keys(password)
 	password_box.send_keys(Keys.RETURN)
-	time.sleep(5)
+	time.sleep(4)
 	if 'login' in driver.current_url:
 		raise Exception('Login failed. Check credentials.')
 
@@ -89,123 +90,204 @@ def clear_player_game_log_cache():
 	except Exception as e:
 		return f"An error occurred while clearing the cache: {e}", False
 
+def kill_chromedriver_processes(also_chrome=False):
+	try:
+		if os.name == 'nt':
+			subprocess.run(['taskkill','/F','/IM','chromedriver.exe','/T'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+			if also_chrome:
+				subprocess.run(['taskkill','/F','/IM','chrome.exe','/T'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		else:
+			subprocess.run(['pkill','-f','chromedriver'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+			if also_chrome:
+				subprocess.run(['pkill','-f','chrome'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+	except Exception:
+		pass
+
+
+def cleanup_on_exit():
+	try:
+		kill_chromedriver_processes(also_chrome=False)
+	except Exception:
+		pass
+
+atexit.register(cleanup_on_exit)
+
 def get_player_game_log(player_code, league_id, username, password, force_refresh=False):
 	"""
-	Scrapes or loads from cache the player game log data from Fantrax.
+	Scrapes player game log using Games (Fntsy) tab for current season.
+	Now standardized to always use full Games tab approach.
 	Returns a tuple (DataFrame, from_cache_boolean, player_name).
 	"""
+	# Always use current season and full format
+	return get_player_game_log_full(player_code, league_id, username, password, "2025-26", force_refresh)
+
+def get_player_game_log_full(player_code, league_id, username, password, season="2025-26", force_refresh=False):
+	"""
+	Enhanced version that navigates to Games (Fntsy) tab and allows season selection.
+	Returns a tuple (DataFrame, from_cache_boolean, player_name).
+	
+	Args:
+		player_code: Player ID code
+		league_id: Fantrax league ID
+		username: Fantrax username
+		password: Fantrax password
+		season: Season to scrape (e.g., "2024-25", defaults to "2025-26")
+		force_refresh: Force refresh from web instead of cache
+	"""
 	CACHE_DIR.mkdir(parents=True, exist_ok=True)
-	cache_file = CACHE_DIR / f"player_game_log_{player_code}_{league_id}.json"
+	cache_file = CACHE_DIR / f"player_game_log_full_{player_code}_{league_id}_{season.replace('-', '_')}.json"
 
-	if not force_refresh and cache_file.exists():
-		with open(cache_file, 'r') as f:
-			cache_data = json.load(f)
-			df = pd.DataFrame.from_records(cache_data['data'])
-			player_name = cache_data.get('player_name', 'Unknown Player')
-			return df, True, player_name
+	# Cache logic:
+	# - Past seasons: Use cache unless force_refresh=True  
+	# - Current season (2025-26): Always refresh unless force_refresh=False
+	if cache_file.exists():
+		if season != "2025-26":
+			# Past season: use cache unless forcing refresh
+			if not force_refresh:
+				with open(cache_file, 'r') as f:
+					cache_data = json.load(f)
+					df = pd.DataFrame.from_records(cache_data['data'])
+					player_name = cache_data.get('player_name', 'Unknown Player')
+					return df, True, player_name
+		else:
+			# Current season: only use cache if explicitly not forcing refresh
+			if force_refresh == False:
+				with open(cache_file, 'r') as f:
+					cache_data = json.load(f)
+					df = pd.DataFrame.from_records(cache_data['data'])
+					player_name = cache_data.get('player_name', 'Unknown Player')
+					return df, True, player_name
 
+	kill_chromedriver_processes(also_chrome=False)
 	driver = get_chrome_driver()
 	login_to_fantrax(driver, username, password)
 
-	player_url = f"https://www.fantrax.com/player/{player_code}/{league_id}"
-	driver.get(player_url)
-	time.sleep(5)  # Wait for the page to load
+	try:
+		player_url = f"https://www.fantrax.com/player/{player_code}/{league_id}"
+		driver.get(player_url)
+		time.sleep(1.5)  # Short wait for initial load
 
-	page_source = driver.page_source
-	soup = BeautifulSoup(page_source, 'html.parser')
+		page_source = driver.page_source
+		soup = BeautifulSoup(page_source, 'html.parser')
 
-	# Extract player name - try multiple selectors
-	player_name = 'Unknown Player'
-	# Try common player name selectors
-	for selector in [('h1', {'class': 'player-name'}), ('h1', {}), ('div', {'class': 'player-header__name'})]:
-		player_name_elem = soup.find(selector[0], selector[1])
-		if player_name_elem:
-			player_name = player_name_elem.text.strip()
-			break
-
-	# Find all i-table elements and get the second one (game log table)
-	all_tables = soup.find_all('div', class_='i-table minimal-scrollbar i-table--standard i-table--outside-sticky')
-	if len(all_tables) < 2:
-		driver.quit()
-		raise Exception(f"Could not find the game log table. Found {len(all_tables)} table(s), expected at least 2.")
-	
-	game_log_table = all_tables[1]  # Second table (0-indexed)
-
-	# Find the game log table body within the second table
-	table_body = game_log_table.find('div', {'itablebody': ''})
-	if not table_body:
-		driver.quit()
-		raise Exception("Could not find the game log table body in the second table.")
-
-	# Extract header information from the second table
-	table_header = game_log_table.find('div', {'itableheader': ''})
-	if not table_header:
-		driver.quit()
-		raise Exception("Could not find the table header in the second table.")
-	
-	headers = []
-	header_cells = table_header.find_all('div', class_='i-table__cell')
-	for cell in header_cells:
-		header_text = cell.text.strip()
-		headers.append(header_text)
-
-	# Extract game rows
-	game_rows = table_body.find_all('div', {'itablerow': ''})
-	
-	all_games = []
-	for row in game_rows:
-		cells = row.find_all('div', class_='i-table__cell')
-		game_data = {}
-		
-		for i, cell in enumerate(cells):
-			if i >= len(headers):
+		# Extract player name
+		player_name = 'Unknown Player'
+		for selector in [('h1', {'class': 'player-name'}), ('h1', {}), ('div', {'class': 'player-header__name'})]:
+			player_name_elem = soup.find(selector[0], selector[1])
+			if player_name_elem:
+				player_name = player_name_elem.text.strip()
 				break
-			
-			header = headers[i]
-			
-			# Check if there's a link (for Score column)
-			link = cell.find('a')
-			if link:
-				# Get text content only, stripping any HTML tags
-				value = link.get_text(strip=True)
-			else:
-				span = cell.find('span')
-				if span:
-					value = span.get_text(strip=True)
-				else:
-					value = cell.get_text(strip=True)
-			
-			game_data[header] = value
+
+		# Navigate to Games (Fntsy) tab
+		try:
+			# Find the Games (Fntsy) tab button
+			games_tab = driver.find_element(By.XPATH, "//button[contains(text(), 'Games (Fntsy)')]")
+			games_tab.click()
+			time.sleep(1.5)  # Short wait for tab load
+		except Exception as e:
+			driver.quit()
+			raise Exception(f"Could not find or click Games (Fntsy) tab: {e}")
+
+		# Handle season selection if not default
+		if season != "2025-26":
+			try:
+				# Click the season dropdown
+				season_dropdown = driver.find_element(By.CSS_SELECTOR, "mat-select")
+				season_dropdown.click()
+				time.sleep(0.6)  # Short wait for dropdown open
+				
+				# Find and click the desired season option
+				season_text = f"{season} Reg Season"
+				season_option = driver.find_element(By.XPATH, f"//mat-option//span[contains(text(), '{season_text}')]")
+				season_option.click()
+				time.sleep(1)  # Short wait for data load
+			except Exception as e:
+				print(f"Warning: Could not select season {season}, using default: {e}")
+
+		# Get updated page source after navigation
+		page_source = driver.page_source
+		soup = BeautifulSoup(page_source, 'html.parser')
+
+		# Find the game log table (single table in Games tab)
+		game_log_table = soup.find('div', class_='i-table minimal-scrollbar i-table--standard i-table--outside-sticky')
+		if not game_log_table:
+			driver.quit()
+			raise Exception("Could not find the game log table in Games (Fntsy) tab.")
+
+		# Find the table body and header
+		table_body = game_log_table.find('div', {'itablebody': ''})
+		table_header = game_log_table.find('div', {'itableheader': ''})
 		
-		if game_data:
-			all_games.append(game_data)
+		if not table_body or not table_header:
+			driver.quit()
+			raise Exception("Could not find the table body or header in Games (Fntsy) tab.")
 
-	driver.quit()
+		# Extract header information
+		headers = []
+		header_cells = table_header.find_all('div', class_='i-table__cell')
+		for cell in header_cells:
+			header_text = cell.text.strip()
+			headers.append(header_text)
 
-	if not all_games:
-		raise Exception("No game data found for this player.")
+		# Extract game rows
+		game_rows = table_body.find_all('div', {'itablerow': ''})
+		
+		all_games = []
+		for row in game_rows:
+			cells = row.find_all('div', class_='i-table__cell')
+			game_data = {}
+			
+			for i, cell in enumerate(cells):
+				if i >= len(headers):
+					break
+				
+				header = headers[i]
+				
+				# Check if there's a link (for Score column)
+				link = cell.find('a')
+				if link:
+					value = link.get_text(strip=True)
+				else:
+					span = cell.find('span')
+					if span:
+						value = span.get_text(strip=True)
+					else:
+						value = cell.get_text(strip=True)
+				
+				game_data[header] = value
+			
+			if game_data:
+				all_games.append(game_data)
 
-	df = pd.DataFrame(all_games)
-	
-	# Convert numeric columns
-	numeric_columns = ['FPts', 'FGM', 'FGA', 'FG%', '3PTM', '3PTA', '3PT%', 
-					   'FTM', 'FTA', 'FT%', 'REB', 'AST', 'ST', 'BLK', 'TO', 'PF', 'PTS']
-	
-	for col in numeric_columns:
-		if col in df.columns:
-			df[col] = pd.to_numeric(df[col], errors='coerce')
-	
-	# Save to cache
-	cache_data = {
-		'player_name': player_name,
-		'player_code': player_code,
-		'league_id': league_id,
-		'data': df.to_dict('records')
-	}
-	with open(cache_file, 'w') as f:
-		json.dump(cache_data, f, indent=4)
+		if not all_games:
+			driver.quit()
+			raise Exception("No game data found for this player in Games (Fntsy) tab.")
 
-	return df, False, player_name
+		df = pd.DataFrame(all_games)
+		
+		# Convert numeric columns
+		numeric_columns = ['FPts', 'FGM', 'FGA', 'FG%', '3PTM', '3PTA', '3PT%', 
+						   'FTM', 'FTA', 'FT%', 'REB', 'AST', 'ST', 'BLK', 'TO', 'PF', 'PTS']
+		
+		for col in numeric_columns:
+			if col in df.columns:
+				df[col] = pd.to_numeric(df[col], errors='coerce')
+		
+		# Save to cache
+		cache_data = {
+			'player_name': player_name,
+			'player_code': player_code,
+			'league_id': league_id,
+			'season': season,
+			'data': df.to_dict('records')
+		}
+		with open(cache_file, 'w') as f:
+			json.dump(cache_data, f, indent=4)
+
+		return df, False, player_name
+
+	finally:
+		driver.quit()
 
 def calculate_variability_stats(game_log_df):
 	"""Calculate variability statistics from a game log DataFrame."""
@@ -336,6 +418,248 @@ def get_available_players_from_csv():
 		print(f"Error reading {csv_file.name}: {e}")
 		return {}
 
+def bulk_scrape_all_players_full(league_id, username, password, seasons=None, player_dict=None, progress_callback=None, force_refresh=False):
+	"""
+	Enhanced bulk scraper that uses Games (Fntsy) tab and can scrape multiple seasons per player.
+	
+	Args:
+		league_id: Fantrax league ID
+		username: Fantrax username
+		password: Fantrax password
+		seasons: List of seasons to scrape (e.g., ['2025-26', '2024-25']). If None, defaults to current season only.
+		player_dict: Dictionary of player names to codes. If None, loads from CSV.
+		progress_callback: Optional callback function(current, total, player_name, season)
+		force_refresh: If True, refresh all seasons. If False, smart caching (past seasons cached, current season refreshed)
+	
+	Returns:
+		Dictionary with success/failure counts and details
+	"""
+	if seasons is None:
+		seasons = ["2025-26"]  # Default to current season
+	
+	if player_dict is None:
+		player_dict = get_available_players_from_csv()
+	
+	if not player_dict:
+		return {"error": "No players found to scrape"}
+	
+	kill_chromedriver_processes(also_chrome=False)
+	driver = get_chrome_driver()
+	
+	try:
+		login_to_fantrax(driver, username, password)
+		
+		success_count = 0
+		fail_count = 0
+		failed_items = []
+		total_operations = len(player_dict) * len(seasons)
+		current_operation = 0
+		
+		for player_name, player_code in player_dict.items():
+			# Check which seasons need scraping for this player
+			seasons_to_scrape = []
+			for season in seasons:
+				cache_file = CACHE_DIR / f"player_game_log_full_{player_code}_{league_id}_{season.replace('-', '_')}.json"
+				
+				# Smart caching logic (unless force_refresh=True)
+				if force_refresh:
+					# Force refresh: scrape all seasons
+					seasons_to_scrape.append(season)
+				elif season == "2025-26":
+					# Current season: always scrape (it's updating)
+					seasons_to_scrape.append(season)
+				elif not cache_file.exists():
+					# Past season not cached: scrape it
+					seasons_to_scrape.append(season)
+				else:
+					# Past season already cached: skip
+					success_count += 1
+			
+			# Skip player if all seasons are cached
+			if not seasons_to_scrape:
+				current_operation += len(seasons)
+				continue
+			
+			# Navigate to player page once per player
+			try:
+				player_url = f"https://www.fantrax.com/player/{player_code}/{league_id}"
+				driver.get(player_url)
+				time.sleep(2)
+				
+				# Navigate to Games (Fntsy) tab once
+				try:
+					games_tab = driver.find_element(By.XPATH, "//button[contains(text(), 'Games (Fntsy)')]")
+					games_tab.click()
+					time.sleep(1.5)  # Wait for Games tab to fully load
+					
+					# Games tab typically defaults to current season
+					current_season_on_page = "2025-26"
+						
+				except Exception:
+					# If Games tab fails, skip all seasons for this player
+					for season in seasons_to_scrape:
+						current_operation += 1
+						failed_items.append((player_name, season, "Games tab not found"))
+						fail_count += 1
+					continue
+				
+				for season_index, season in enumerate(seasons_to_scrape):
+					current_operation += 1
+					
+					if progress_callback:
+						progress_callback(current_operation, total_operations, player_name, season)
+					
+					try:
+						
+						# Handle season selection - always select the season we want
+						if season != current_season_on_page:
+							try:
+								season_dropdown = driver.find_element(By.CSS_SELECTOR, "mat-select")
+								season_dropdown.click()
+								time.sleep(1)
+								
+								season_text = f"{season} Reg Season"
+								season_option = driver.find_element(By.XPATH, f"//mat-option//span[contains(text(), '{season_text}')]")
+								season_option.click()
+								
+								# Wait for season data to load
+								time.sleep(2)
+								
+								current_season_on_page = season  # Update what's currently displayed
+							except Exception as e:
+								# If season selection fails, skip this season
+								failed_items.append((player_name, season, "Season selection failed"))
+								fail_count += 1
+								continue
+						
+						# Get page source and parse
+						time.sleep(1)  # Brief wait for data to load
+						page_source = driver.page_source
+						soup = BeautifulSoup(page_source, 'html.parser')
+						
+						# Find the game log table
+						game_log_table = soup.find('div', class_='i-table minimal-scrollbar i-table--standard i-table--outside-sticky')
+						if not game_log_table:
+							failed_items.append((player_name, season, "Table not found"))
+							fail_count += 1
+							continue
+						
+						table_body = game_log_table.find('div', {'itablebody': ''})
+						table_header = game_log_table.find('div', {'itableheader': ''})
+						
+						if not table_body or not table_header:
+							failed_items.append((player_name, season, "Table structure missing"))
+							fail_count += 1
+							continue
+						
+						# Extract headers
+						headers = []
+						header_cells = table_header.find_all('div', class_='i-table__cell')
+						for cell in header_cells:
+							headers.append(cell.text.strip())
+						
+						# Extract game rows
+						game_rows = table_body.find_all('div', {'itablerow': ''})
+						all_games = []
+						
+						
+						for row in game_rows:
+							cells = row.find_all('div', class_='i-table__cell')
+							game_data = {}
+							
+							for i, cell in enumerate(cells):
+								if i >= len(headers):
+									break
+								header = headers[i]
+								link = cell.find('a')
+								if link:
+									value = link.get_text(strip=True)
+								else:
+									span = cell.find('span')
+									if span:
+										value = span.get_text(strip=True)
+									else:
+										value = cell.get_text(strip=True)
+								game_data[header] = value
+							
+							if game_data:
+								all_games.append(game_data)
+						
+						
+						# Handle different scenarios for empty/missing data
+						if not all_games:
+							# Check if this might be a season the player didn't play
+							# Look for indicators like "No games found" or empty table with headers
+							if headers:
+								# Table structure exists but no games - player didn't play this season
+								# Create empty cache file to avoid re-scraping
+								cache_file = CACHE_DIR / f"player_game_log_full_{player_code}_{league_id}_{season.replace('-', '_')}.json"
+								cache_data = {
+									'player_name': player_name,
+									'player_code': player_code,
+									'league_id': league_id,
+									'season': season,
+									'data': [],  # Empty games list
+									'status': 'no_games_played'
+								}
+								CACHE_DIR.mkdir(parents=True, exist_ok=True)
+								with open(cache_file, 'w') as f:
+									json.dump(cache_data, f, indent=4)
+								
+								success_count += 1  # Count as success (valid empty season)
+								continue
+							else:
+								# No table structure - likely season doesn't exist or scraping failed
+								failed_items.append((player_name, season, "Season not available or scraping failed"))
+								fail_count += 1
+								continue
+						
+						# Convert to DataFrame and save (normal case with games)
+						df = pd.DataFrame(all_games)
+						numeric_columns = ['FPts', 'FGM', 'FGA', 'FG%', '3PTM', '3PTA', '3PT%', 
+										   'FTM', 'FTA', 'FT%', 'REB', 'AST', 'ST', 'BLK', 'TO', 'PF', 'PTS']
+						for col in numeric_columns:
+							if col in df.columns:
+								df[col] = pd.to_numeric(df[col], errors='coerce')
+						
+						# Save to cache
+						CACHE_DIR.mkdir(parents=True, exist_ok=True)
+						cache_file = CACHE_DIR / f"player_game_log_full_{player_code}_{league_id}_{season.replace('-', '_')}.json"
+						cache_data = {
+							'player_name': player_name,
+							'player_code': player_code,
+							'league_id': league_id,
+							'season': season,
+							'data': df.to_dict('records'),
+							'status': 'success'
+						}
+						with open(cache_file, 'w') as f:
+							json.dump(cache_data, f, indent=4)
+						
+						success_count += 1
+						
+					except Exception as e:
+						failed_items.append((player_name, season, str(e)))
+						fail_count += 1
+			
+			except Exception as e:
+				# If player-level navigation fails, skip all seasons for this player
+				for season in seasons_to_scrape:
+					if current_operation < total_operations:
+						current_operation += 1
+					failed_items.append((player_name, season, f"Player navigation failed: {str(e)}"))
+					fail_count += 1
+		
+		return {
+			"success_count": success_count,
+			"fail_count": fail_count,
+			"total": total_operations,
+			"failed_items": failed_items
+		}
+	finally:
+		if driver:
+			driver.quit()
+
 def bulk_scrape_all_players(league_id, username, password, player_dict=None, progress_callback=None):
 	"""
 	Scrapes game logs for all players in the provided dictionary.
@@ -347,7 +671,7 @@ def bulk_scrape_all_players(league_id, username, password, player_dict=None, pro
 	if not player_dict:
 		return {"error": "No players found to scrape"}
 	
-	# Initialize driver once for all players
+	kill_chromedriver_processes(also_chrome=False)
 	driver = get_chrome_driver()
 	try:
 		login_to_fantrax(driver, username, password)
@@ -362,22 +686,32 @@ def bulk_scrape_all_players(league_id, username, password, player_dict=None, pro
 				progress_callback(idx, total, player_name)
 			
 			try:
-				# Use the existing scraping logic but with shared driver
+				# Navigate to player page
 				player_url = f"https://www.fantrax.com/player/{player_code}/{league_id}"
 				driver.get(player_url)
-				time.sleep(2)  # Shorter wait for bulk operations
+				time.sleep(1.0)  # Shorter wait for bulk operations
 				
+				# Navigate to Games (Fntsy) tab
+				try:
+					games_tab = driver.find_element(By.XPATH, "//button[contains(text(), 'Games (Fntsy)')]")
+					games_tab.click()
+					time.sleep(1.0)
+				except Exception:
+					failed_players.append((player_name, "Games tab not found"))
+					fail_count += 1
+					continue
+				
+				# Get updated page source after navigation
 				page_source = driver.page_source
 				soup = BeautifulSoup(page_source, 'html.parser')
 				
-				# Find the game log table
-				all_tables = soup.find_all('div', class_='i-table minimal-scrollbar i-table--standard i-table--outside-sticky')
-				if len(all_tables) < 2:
+				# Find the game log table (single table in Games tab)
+				game_log_table = soup.find('div', class_='i-table minimal-scrollbar i-table--standard i-table--outside-sticky')
+				if not game_log_table:
 					failed_players.append((player_name, "Table not found"))
 					fail_count += 1
 					continue
 				
-				game_log_table = all_tables[1]
 				table_body = game_log_table.find('div', {'itablebody': ''})
 				table_header = game_log_table.find('div', {'itableheader': ''})
 				
@@ -431,13 +765,14 @@ def bulk_scrape_all_players(league_id, username, password, player_dict=None, pro
 					if col in df.columns:
 						df[col] = pd.to_numeric(df[col], errors='coerce')
 				
-				# Save to cache
+				# Save to cache (use new format for consistency)
 				CACHE_DIR.mkdir(parents=True, exist_ok=True)
-				cache_file = CACHE_DIR / f"player_game_log_{player_code}_{league_id}.json"
+				cache_file = CACHE_DIR / f"player_game_log_full_{player_code}_{league_id}_2025_26.json"
 				cache_data = {
 					'player_name': player_name,
 					'player_code': player_code,
 					'league_id': league_id,
+					'season': '2025-26',
 					'data': df.to_dict('records')
 				}
 				with open(cache_file, 'w') as f:

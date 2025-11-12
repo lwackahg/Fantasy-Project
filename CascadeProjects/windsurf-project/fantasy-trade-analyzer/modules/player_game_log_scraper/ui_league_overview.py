@@ -48,8 +48,8 @@ def show_league_overview():
 	# Get cache directory
 	cache_dir = get_cache_directory()
 	
-	# Find all cache files for this league
-	cache_files = list(cache_dir.glob(f"player_game_log_*_{league_id}.json"))
+	# Find all cache files for this league (new format only)
+	cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
 	
 	if not cache_files:
 		st.info("No cached player data found. Run a bulk scrape first to populate the cache.")

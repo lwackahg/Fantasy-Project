@@ -38,7 +38,7 @@ except ImportError:
 def get_cache_last_updated(league_id):
 	"""Get the most recent cache file modification time."""
 	cache_dir = get_cache_directory()
-	cache_files = list(cache_dir.glob(f"player_game_log_*_{league_id}.json"))
+	cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
 	
 	if not cache_files:
 		return None
@@ -46,6 +46,102 @@ def get_cache_last_updated(league_id):
 	# Get the most recent modification time
 	latest_time = max(f.stat().st_mtime for f in cache_files)
 	return datetime.fromtimestamp(latest_time)
+
+def get_available_seasons_for_player(player_code, league_id):
+	"""Get all available seasons for a specific player."""
+	cache_dir = get_cache_directory()
+	
+	# Look for new format cache files only
+	new_format = cache_dir.glob(f"player_game_log_full_{player_code}_{league_id}_*.json")
+	
+	seasons = []
+	
+	# Check new format (extract season from filename)
+	for file in new_format:
+		# Extract season from filename: player_game_log_full_{code}_{league}_{season}.json
+		# Example: player_game_log_full_03al0_ifa1anexmdgtlk9s_2025_26.json
+		parts = file.stem.split('_')
+		if len(parts) >= 6:
+			# Find where the league_id ends and season starts
+			# The season should be the last part after the league_id
+			season_part = parts[-1]  # Get the last part (e.g., "2025" and "26")
+			if len(parts) >= 7:
+				# If we have year and season parts separately
+				season = f"{parts[-2]}-{parts[-1]}"  # e.g., "2025-26"
+			else:
+				# Single season part, convert underscores to dashes
+				season = season_part.replace('_', '-')
+			seasons.append(season)
+	
+	return sorted(list(set(seasons)), reverse=True)  # Most recent first, no duplicates
+
+def load_player_season_data(player_code, league_id, season):
+	"""Load game log data for a specific player and season."""
+	cache_dir = get_cache_directory()
+	
+	# Only use new format
+	season_filename = season.replace('-', '_')
+	cache_file = cache_dir / f"player_game_log_full_{player_code}_{league_id}_{season_filename}.json"
+	
+	if cache_file.exists():
+		try:
+			with open(cache_file, 'r') as f:
+				cache_data = json.load(f)
+			
+			# Check if this is an empty season (player didn't play)
+			status = cache_data.get('status', 'success')
+			data = cache_data.get('data', [])
+			player_name = cache_data.get('player_name', 'Unknown')
+			
+			# Return data even if empty (could be injury season, etc.)
+			return data, player_name, True
+		except:
+			pass
+	
+	return [], 'Unknown', False
+
+def calculate_cross_season_stats(player_code, league_id, seasons):
+	"""Calculate summary stats across multiple seasons."""
+	all_stats = {}
+	total_games = 0
+	total_fpts = 0
+	
+	for season in seasons:
+		game_log, player_name, _ = load_player_season_data(player_code, league_id, season)
+		if game_log:
+			# Season with games
+			df = pd.DataFrame(game_log)
+			stats = calculate_variability_stats(df)
+			if stats:
+				all_stats[season] = stats
+				total_games += stats['games_played']
+				total_fpts += stats['mean_fpts'] * stats['games_played']
+		else:
+			# Empty season (injury, didn't play, etc.) - still include in analysis
+			all_stats[season] = {
+				'games_played': 0,
+				'mean_fpts': 0,
+				'median_fpts': 0,
+				'std_dev': 0,
+				'coefficient_of_variation': 0,
+				'min_fpts': 0,
+				'max_fpts': 0,
+				'boom_rate': 0,
+				'bust_rate': 0,
+				'status': 'no_games_played'
+			}
+	
+	if total_games > 0:
+		overall_avg = total_fpts / total_games
+		return {
+			'seasons': all_stats,
+			'total_games': total_games,
+			'overall_avg_fpts': overall_avg,
+			'seasons_played': len(all_stats),
+			'player_name': player_name if 'player_name' in locals() else 'Unknown'
+		}
+	
+	return None
 
 def show_player_consistency_viewer():
 	"""Public viewer for player consistency data (read-only)."""
@@ -69,7 +165,7 @@ def show_player_consistency_viewer():
 	
 	# Check for cached data and show last updated
 	cache_dir = get_cache_directory()
-	cache_files = list(cache_dir.glob(f"player_game_log_*_{league_id}.json"))
+	cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
 	
 	if not cache_files:
 		st.info("📭 No data available yet. Contact your commissioner to run a data update.")
@@ -134,12 +230,15 @@ def show_league_overview_viewer(league_id, cache_files):
 	_display_visualizations(overview_df)
 
 def show_individual_player_viewer(league_id, cache_files):
-	"""Display individual player analysis (read-only)."""
+	"""Display individual player analysis with multi-season support."""
 	st.subheader("🔍 Individual Player Analysis")
 	
-	# Load player list from cache
+	# Load player list from all cache files (new format only)
+	cache_dir = get_cache_directory()
+	all_cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
+	
 	player_dict = {}
-	for cache_file in cache_files:
+	for cache_file in all_cache_files:
 		try:
 			with open(cache_file, 'r') as f:
 				cache_data = json.load(f)
@@ -172,88 +271,247 @@ def show_individual_player_viewer(league_id, cache_files):
 		st.write("")
 		st.info(f"**Code:** {player_code}")
 	
-	# Load player data from cache
-	cache_dir = get_cache_directory()
-	cache_file = cache_dir / f"player_game_log_{player_code}_{league_id}.json"
+	# Get available seasons for this player
+	available_seasons = get_available_seasons_for_player(player_code, league_id)
 	
-	if not cache_file.exists():
-		st.error("Player data not found in cache.")
+	if not available_seasons:
+		st.error("No season data found for this player.")
 		return
 	
-	try:
-		with open(cache_file, 'r') as f:
-			cache_data = json.load(f)
-		
-		player_name = cache_data.get('player_name', selected_player)
-		game_log = cache_data.get('data', cache_data.get('game_log', []))
-		
-		if not game_log:
-			st.warning("No game log data available for this player.")
-			return
-		
-		df = pd.DataFrame(game_log)
-		
-		st.success(f"✅ Loaded {len(df)} games for **{player_name}**")
-		
-		# Display analysis
-		st.markdown("---")
-		st.subheader(f"📊 Performance Analysis - {player_name}")
-		
-		stats = calculate_variability_stats(df)
-		
-		if stats:
-			# Variability metrics
-			display_variability_metrics(stats, player_name)
-			
-			st.markdown("---")
-			
-			# Boom/Bust analysis
-			display_boom_bust_analysis(stats)
-			
-			# Visualizations
-			st.markdown("---")
-			st.subheader("📈 Visual Analysis")
-			
-			viz_tab1, viz_tab2, viz_tab3, viz_tab4 = st.tabs([
-				"FPts Trend", "Distribution", "Boom/Bust Zones", "Category Breakdown"
-			])
-			
-			with viz_tab1:
-				display_fpts_trend_chart(df, stats, player_name)
-			
-			with viz_tab2:
-				display_distribution_chart(df, stats, player_name)
-			
-			with viz_tab3:
-				display_boom_bust_zones_chart(df, stats, player_name)
-			
-			with viz_tab4:
-				display_category_breakdown(df, player_name)
-			
-			st.markdown("---")
-		
-		# Display full game log
-		st.subheader("📋 Complete Game Log")
-		
-		priority_cols = ['Date', 'Team', 'Opp', 'Score', 'FPts', 'MIN', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO']
-		other_cols = [col for col in df.columns if col not in priority_cols]
-		display_cols = [col for col in priority_cols if col in df.columns] + other_cols
-		
-		st.dataframe(
-			df[display_cols],
-			use_container_width=True,
-			height=400
-		)
-		
-		# Download button
-		csv = df.to_csv(index=False)
-		st.download_button(
-			label="📥 Download Game Log as CSV",
-			data=csv,
-			file_name=f"{player_name.replace(' ', '_')}_game_log.csv",
-			mime="text/csv"
+	# Season selection and analysis type
+	col1, col2 = st.columns(2)
+	
+	with col1:
+		analysis_type = st.radio(
+			"Analysis Type",
+			options=["Single Season", "Multi-Season Overview"],
+			help="Choose between analyzing one season or comparing across seasons"
 		)
 	
-	except Exception as e:
-		st.error(f"Error loading player data: {e}")
-		st.exception(e)
+	with col2:
+		if analysis_type == "Single Season":
+			selected_season = st.selectbox(
+				"Select Season",
+				options=available_seasons,
+				help="Choose which season to analyze in detail"
+			)
+		else:
+			st.info(f"**{len(available_seasons)} seasons** available: {', '.join(available_seasons)}")
+	
+	st.markdown("---")
+	
+	if analysis_type == "Single Season":
+		# Single season analysis (existing functionality)
+		show_single_season_analysis(player_code, league_id, selected_season, selected_player)
+	else:
+		# Multi-season overview
+		show_multi_season_overview(player_code, league_id, available_seasons, selected_player)
+
+def show_single_season_analysis(player_code, league_id, season, selected_player):
+	"""Display detailed analysis for a single season."""
+	game_log, player_name, is_full_format = load_player_season_data(player_code, league_id, season)
+	
+	if not game_log:
+		st.warning(f"No game log data available for {season}.")
+		return
+	
+	df = pd.DataFrame(game_log)
+	format_indicator = "🆕 Full Games Tab" if is_full_format else "📊 Overview Tab"
+	
+	st.success(f"✅ Loaded {len(df)} games for **{player_name}** ({season}) - {format_indicator}")
+	
+	# Display analysis
+	st.subheader(f"📊 Performance Analysis - {player_name} ({season})")
+	
+	stats = calculate_variability_stats(df)
+	
+	if stats:
+		# Variability metrics
+		display_variability_metrics(stats, f"{player_name} ({season})")
+		
+		st.markdown("---")
+		
+		# Boom/Bust analysis
+		display_boom_bust_analysis(stats)
+		
+		# Visualizations
+		st.markdown("---")
+		st.subheader("📈 Visual Analysis")
+		
+		viz_tab1, viz_tab2, viz_tab3, viz_tab4 = st.tabs([
+			"FPts Trend", "Distribution", "Boom/Bust Zones", "Category Breakdown"
+		])
+		
+		with viz_tab1:
+			display_fpts_trend_chart(df, stats, f"{player_name} ({season})")
+		
+		with viz_tab2:
+			display_distribution_chart(df, stats, f"{player_name} ({season})")
+		
+		with viz_tab3:
+			display_boom_bust_zones_chart(df, stats, f"{player_name} ({season})")
+		
+		with viz_tab4:
+			display_category_breakdown(df, f"{player_name} ({season})")
+		
+		st.markdown("---")
+	
+	# Display full game log
+	st.subheader("📋 Complete Game Log")
+	
+	priority_cols = ['Date', 'Team', 'Opp', 'Score', 'FPts', 'MIN', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO']
+	other_cols = [col for col in df.columns if col not in priority_cols]
+	display_cols = [col for col in priority_cols if col in df.columns] + other_cols
+	
+	st.dataframe(
+		df[display_cols],
+		use_container_width=True,
+		height=400
+	)
+	
+	# Download button
+	csv = df.to_csv(index=False)
+	st.download_button(
+		label=f"📥 Download {season} Game Log as CSV",
+		data=csv,
+		file_name=f"{player_name.replace(' ', '_')}_{season.replace('-', '_')}_game_log.csv",
+		mime="text/csv"
+	)
+
+def show_multi_season_overview(player_code, league_id, seasons, selected_player):
+	"""Display multi-season overview and comparison."""
+	cross_season_stats = calculate_cross_season_stats(player_code, league_id, seasons)
+	
+	if not cross_season_stats:
+		st.warning("No valid season data found for multi-season analysis.")
+		return
+	
+	player_name = cross_season_stats['player_name']
+	
+	st.subheader(f"🏀 Multi-Season Overview - {player_name}")
+	
+	# Overall summary metrics
+	col1, col2, col3, col4 = st.columns(4)
+	
+	with col1:
+		st.metric("Seasons Played", cross_season_stats['seasons_played'])
+	with col2:
+		st.metric("Total Games", cross_season_stats['total_games'])
+	with col3:
+		st.metric("Overall Avg FP/G", f"{cross_season_stats['overall_avg_fpts']:.1f}")
+	with col4:
+		st.metric("Avg GP/Season", f"{cross_season_stats['total_games'] / cross_season_stats['seasons_played']:.0f}")
+	
+	st.markdown("---")
+	
+	# Season-by-season breakdown
+	st.subheader("📊 Season-by-Season Breakdown")
+	
+	season_data = []
+	for season, stats in cross_season_stats['seasons'].items():
+		season_data.append({
+			'Season': season,
+			'Games Played': stats['games_played'],
+			'Avg FP/G': round(stats['mean_fpts'], 1),
+			'Median FP/G': round(stats['median_fpts'], 1),
+			'Std Dev': round(stats['std_dev'], 1),
+			'CV%': round(stats['coefficient_of_variation'], 1),
+			'Min FPts': round(stats['min_fpts'], 1),
+			'Max FPts': round(stats['max_fpts'], 1),
+			'Boom Rate%': round(stats['boom_rate'], 1),
+			'Bust Rate%': round(stats['bust_rate'], 1)
+		})
+	
+	season_df = pd.DataFrame(season_data)
+	
+	st.dataframe(
+		season_df,
+		use_container_width=True,
+		height=300
+	)
+	
+	# Download multi-season summary
+	csv = season_df.to_csv(index=False)
+	st.download_button(
+		label="📥 Download Multi-Season Summary as CSV",
+		data=csv,
+		file_name=f"{player_name.replace(' ', '_')}_multi_season_summary.csv",
+		mime="text/csv"
+	)
+	
+	st.markdown("---")
+	
+	# Season comparison charts
+	st.subheader("📈 Season Comparison Charts")
+	
+	chart_tab1, chart_tab2, chart_tab3 = st.tabs([
+		"FP/G Trends", "Consistency Trends", "Volume Trends"
+	])
+	
+	with chart_tab1:
+		# FP/G comparison across seasons
+		import plotly.graph_objects as go
+		
+		fig = go.Figure()
+		fig.add_trace(go.Scatter(
+			x=season_df['Season'],
+			y=season_df['Avg FP/G'],
+			mode='lines+markers',
+			name='Avg FP/G',
+			line=dict(color='blue', width=3),
+			marker=dict(size=8)
+		))
+		fig.add_trace(go.Scatter(
+			x=season_df['Season'],
+			y=season_df['Median FP/G'],
+			mode='lines+markers',
+			name='Median FP/G',
+			line=dict(color='orange', width=2, dash='dash'),
+			marker=dict(size=6)
+		))
+		
+		fig.update_layout(
+			title=f"{player_name} - Fantasy Points Per Game Trends",
+			xaxis_title="Season",
+			yaxis_title="Fantasy Points Per Game",
+			hovermode='x unified'
+		)
+		st.plotly_chart(fig, use_container_width=True)
+	
+	with chart_tab2:
+		# Consistency metrics
+		fig = go.Figure()
+		fig.add_trace(go.Scatter(
+			x=season_df['Season'],
+			y=season_df['CV%'],
+			mode='lines+markers',
+			name='Coefficient of Variation %',
+			line=dict(color='red', width=3),
+			marker=dict(size=8)
+		))
+		
+		fig.update_layout(
+			title=f"{player_name} - Consistency Trends (Lower CV% = More Consistent)",
+			xaxis_title="Season",
+			yaxis_title="Coefficient of Variation %",
+			hovermode='x unified'
+		)
+		st.plotly_chart(fig, use_container_width=True)
+	
+	with chart_tab3:
+		# Games played trends
+		fig = go.Figure()
+		fig.add_trace(go.Bar(
+			x=season_df['Season'],
+			y=season_df['Games Played'],
+			name='Games Played',
+			marker_color='green'
+		))
+		
+		fig.update_layout(
+			title=f"{player_name} - Games Played by Season",
+			xaxis_title="Season",
+			yaxis_title="Games Played",
+			showlegend=False
+		)
+		st.plotly_chart(fig, use_container_width=True)
