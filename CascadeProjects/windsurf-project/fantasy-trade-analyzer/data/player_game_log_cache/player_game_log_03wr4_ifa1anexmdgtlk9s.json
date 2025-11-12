@@ -4,44 +4,28 @@
     "league_id": "ifa1anexmdgtlk9s",
     "data": [
         {
-            "Date (EST)": "Tue Nov 11, 9:00PM",
-            "Opponent": "@Utah"
-        },
-        {
-            "Date (EST)": "Thu Nov 13, 9:00PM",
-            "Opponent": "@Phoenix"
-        },
-        {
-            "Date (EST)": "Sat Nov 15, 7:00PM",
-            "Opponent": "Toronto"
-        },
-        {
-            "Date (EST)": "Mon Nov 17, 7:00PM",
-            "Opponent": "@Detroit"
-        },
-        {
-            "Date (EST)": "Wed Nov 19, 7:00PM",
-            "Opponent": "Charlotte"
-        },
-        {
-            "Date (EST)": "Fri Nov 21, 7:00PM",
-            "Opponent": "@Cleveland"
-        },
-        {
-            "Date (EST)": "Mon Nov 24, 7:00PM",
-            "Opponent": "Detroit"
-        },
-        {
-            "Date (EST)": "Wed Nov 26, 7:30PM",
-            "Opponent": "@Toronto"
-        },
-        {
-            "Date (EST)": "Fri Nov 28, 7:30PM",
-            "Opponent": "Washington"
-        },
-        {
-            "Date (EST)": "Sat Nov 29, 7:30PM",
-            "Opponent": "Chicago"
+            "Date": "Nov 11",
+            "Team": "IND",
+            "Opp": "@UTA",
+            "Score": "L 128-152",
+            "FPts": 17,
+            "MIN": "11:26",
+            "FGM": 6,
+            "FGA": 12,
+            "FG%": 0.5,
+            "3PTM": 0,
+            "3PTA": 2,
+            "3PT%": 0.0,
+            "FTM": 0,
+            "FTA": 0,
+            "FT%": NaN,
+            "REB": 1,
+            "AST": 1,
+            "ST": 0,
+            "BLK": 0,
+            "TO": 0,
+            "PF": 1,
+            "PTS": 12
         }
     ]
 }

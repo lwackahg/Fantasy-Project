@@ -4,10 +4,6 @@
     "league_id": "ifa1anexmdgtlk9s",
     "data": [
         {
-            "Date (EST)": "Mon Nov 10, 8:30PM",
-            "Opponent": "Milwaukee"
-        },
-        {
             "Date (EST)": "Wed Nov 12, 8:30PM",
             "Opponent": "Phoenix"
         },
@@ -42,6 +38,10 @@
         {
             "Date (EST)": "Fri Nov 28, 10:00PM",
             "Opponent": "@LA Lakers"
+        },
+        {
+            "Date (EST)": "Sat Nov 29, 10:00PM",
+            "Opponent": "@LA Clippers"
         }
     ]
 }

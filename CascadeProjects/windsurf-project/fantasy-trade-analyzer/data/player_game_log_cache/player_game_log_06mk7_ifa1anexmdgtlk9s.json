@@ -4,6 +4,30 @@
     "league_id": "ifa1anexmdgtlk9s",
     "data": [
         {
+            "Date": "Nov 10",
+            "Team": "MIA",
+            "Opp": "CLE",
+            "Score": "W 140-138",
+            "FPts": 78,
+            "MIN": "33:38",
+            "FGM": 7,
+            "FGA": 14,
+            "FG%": 0.5,
+            "3PTM": 0,
+            "3PTA": 1,
+            "3PT%": 0.0,
+            "FTM": 0,
+            "FTA": 0,
+            "FT%": NaN,
+            "REB": 20,
+            "AST": 1,
+            "ST": 1,
+            "BLK": 1,
+            "TO": 0,
+            "PF": 2,
+            "PTS": 14
+        },
+        {
             "Date": "Nov 8",
             "Team": "MIA",
             "Opp": "POR",
@@ -218,30 +242,6 @@
             "TO": 2,
             "PF": 3,
             "PTS": 19
-        },
-        {
-            "Date": "Oct 22",
-            "Team": "MIA",
-            "Opp": "@ORL",
-            "Score": "L 121-125",
-            "FPts": 30,
-            "MIN": "13:48",
-            "FGM": 3,
-            "FGA": 5,
-            "FG%": 0.6,
-            "3PTM": 1,
-            "3PTA": 2,
-            "3PT%": 0.5,
-            "FTM": 0,
-            "FTA": 0,
-            "FT%": NaN,
-            "REB": 4,
-            "AST": 0,
-            "ST": 1,
-            "BLK": 1,
-            "TO": 1,
-            "PF": 2,
-            "PTS": 7
         }
     ]
 }

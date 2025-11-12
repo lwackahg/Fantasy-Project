@@ -6,6 +6,7 @@ from pathlib import Path
 import json
 from modules.player_game_log_scraper.logic import (
 	calculate_variability_stats,
+	calculate_multi_range_stats,
 	get_cache_directory,
 	clean_html_from_text
 )
@@ -82,7 +83,7 @@ def _cache_index_by_player_name(cache_files):
 	return index
 
 def _build_fantasy_team_view(league_id, cache_files):
-	"""Build fantasy team rosters with consistency metrics."""
+	"""Build fantasy team rosters with consistency metrics across multiple time ranges."""
 	rosters = _load_fantasy_team_rosters()
 	cache_index = _cache_index_by_player_name(cache_files)
 	teams = {}
@@ -93,18 +94,35 @@ def _build_fantasy_team_view(league_id, cache_files):
 			entry = cache_index.get(name)
 			if not entry or entry['games'].empty or 'FPts' not in entry['games']:
 				continue
-			stats = calculate_variability_stats(entry['games'])
-			if not stats:
+			
+			# Calculate multi-range stats
+			multi_stats = calculate_multi_range_stats(entry['games'])
+			if not multi_stats or 'YTD' not in multi_stats:
 				continue
-			rows.append({
+			
+			# Use YTD as primary, but include recent trends
+			ytd = multi_stats['YTD']
+			row = {
 				'Player': name,
-				'GP': stats['games_played'],
-				'Mean FPts': round(stats['mean_fpts'], 1),
-				'CV %': round(stats['coefficient_of_variation'], 1),
-				'Boom %': round(stats['boom_rate'], 1),
-				'Bust %': round(stats['bust_rate'], 1),
+				'GP': ytd['games_played'],
+				'Mean FPts': round(ytd['mean_fpts'], 1),
+				'CV %': round(ytd['coefficient_of_variation'], 1),
 				'code': entry['code']
-			})
+			}
+			
+			# Add recent trend data if available
+			if 'Last 7' in multi_stats:
+				row['L7 FPts'] = round(multi_stats['Last 7']['mean_fpts'], 1)
+				row['L7 CV%'] = round(multi_stats['Last 7']['coefficient_of_variation'], 1)
+			if 'Last 15' in multi_stats:
+				row['L15 FPts'] = round(multi_stats['Last 15']['mean_fpts'], 1)
+				row['L15 CV%'] = round(multi_stats['Last 15']['coefficient_of_variation'], 1)
+			if 'Last 30' in multi_stats:
+				row['L30 FPts'] = round(multi_stats['Last 30']['mean_fpts'], 1)
+				row['L30 CV%'] = round(multi_stats['Last 30']['coefficient_of_variation'], 1)
+			
+			rows.append(row)
+			
 		if rows:
 			teams[team] = pd.DataFrame(rows).sort_values(['Mean FPts'], ascending=False).reset_index(drop=True)
 	

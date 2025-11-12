@@ -206,12 +206,18 @@ def load_and_compare_seasons(league_name: str, seasons_to_compare: list = None):
 			if 'Team' in df.columns:
 				df = df[df['Team'] != '(N/A)'].copy()
 			
-			# Keep only Player, ID, and FP/G columns
+			# Keep Player, ID, FP/G and GP (if available)
 			if 'Player' in df.columns and 'FP/G' in df.columns and 'ID' in df.columns:
 				# Create unique identifier using ID + Player name
 				df['Player_ID'] = df['ID'].astype(str) + '|' + df['Player'].astype(str)
-				season_data[season] = df[['Player', 'Player_ID', 'FP/G']].copy()
-				season_data[season].rename(columns={'FP/G': f'FP/G_{season}'}, inplace=True)
+				cols = ['Player', 'Player_ID', 'FP/G']
+				if 'GP' in df.columns:
+					cols.append('GP')
+				season_df = df[cols].copy()
+				season_df.rename(columns={'FP/G': f'FP/G_{season}'}, inplace=True)
+				if 'GP' in season_df.columns:
+					season_df.rename(columns={'GP': f'GP_{season}'}, inplace=True)
+				season_data[season] = season_df
 			else:
 				print(f"Warning: Required columns not found in {season}")
 		except Exception as e:

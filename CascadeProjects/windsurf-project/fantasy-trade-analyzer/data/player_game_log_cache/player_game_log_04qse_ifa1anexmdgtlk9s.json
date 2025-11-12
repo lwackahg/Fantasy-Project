@@ -4,6 +4,30 @@
     "league_id": "ifa1anexmdgtlk9s",
     "data": [
         {
+            "Date": "Nov 10",
+            "Team": "MIL",
+            "Opp": "@DAL",
+            "Score": "W 116-114",
+            "FPts": 18,
+            "MIN": "26:56",
+            "FGM": 1,
+            "FGA": 4,
+            "FG%": 0.25,
+            "3PTM": 1,
+            "3PTA": 3,
+            "3PT%": 0.333,
+            "FTM": 0,
+            "FTA": 0,
+            "FT%": NaN,
+            "REB": 2,
+            "AST": 1,
+            "ST": 1,
+            "BLK": 1,
+            "TO": 1,
+            "PF": 1,
+            "PTS": 3
+        },
+        {
             "Date": "Nov 9",
             "Team": "MIL",
             "Opp": "HOU",
@@ -218,30 +242,6 @@
             "TO": 1,
             "PF": 5,
             "PTS": 20
-        },
-        {
-            "Date": "Oct 22",
-            "Team": "MIL",
-            "Opp": "WAS",
-            "Score": "W 133-120",
-            "FPts": 55,
-            "MIN": "24:21",
-            "FGM": 6,
-            "FGA": 12,
-            "FG%": 0.5,
-            "3PTM": 5,
-            "3PTA": 11,
-            "3PT%": 0.455,
-            "FTM": 0,
-            "FTA": 0,
-            "FT%": NaN,
-            "REB": 4,
-            "AST": 2,
-            "ST": 2,
-            "BLK": 0,
-            "TO": 1,
-            "PF": 1,
-            "PTS": 17
         }
     ]
 }

@@ -4,6 +4,30 @@
     "league_id": "ifa1anexmdgtlk9s",
     "data": [
         {
+            "Date": "Nov 11",
+            "Team": "GS",
+            "Opp": "@OKC",
+            "Score": "L 102-126",
+            "FPts": 49,
+            "MIN": "20:34",
+            "FGM": 3,
+            "FGA": 6,
+            "FG%": 0.5,
+            "3PTM": 2,
+            "3PTA": 2,
+            "3PT%": 1.0,
+            "FTM": 2,
+            "FTA": 2,
+            "FT%": 1.0,
+            "REB": 4,
+            "AST": 1,
+            "ST": 3,
+            "BLK": 0,
+            "TO": 0,
+            "PF": 5,
+            "PTS": 10
+        },
+        {
             "Date": "Nov 9",
             "Team": "GS",
             "Opp": "IND",
@@ -218,30 +242,6 @@
             "TO": 2,
             "PF": 1,
             "PTS": 8
-        },
-        {
-            "Date": "Oct 23",
-            "Team": "GS",
-            "Opp": "DEN",
-            "Score": "W 137-131",
-            "FPts": 31,
-            "MIN": "34:24",
-            "FGM": 4,
-            "FGA": 9,
-            "FG%": 0.444,
-            "3PTM": 2,
-            "3PTA": 6,
-            "3PT%": 0.333,
-            "FTM": 1,
-            "FTA": 2,
-            "FT%": 0.5,
-            "REB": 3,
-            "AST": 1,
-            "ST": 1,
-            "BLK": 0,
-            "TO": 1,
-            "PF": 3,
-            "PTS": 11
         }
     ]
 }

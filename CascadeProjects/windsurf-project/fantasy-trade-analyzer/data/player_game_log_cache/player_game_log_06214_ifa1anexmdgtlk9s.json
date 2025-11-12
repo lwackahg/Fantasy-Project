@@ -4,10 +4,6 @@
     "league_id": "ifa1anexmdgtlk9s",
     "data": [
         {
-            "Date (EST)": "Mon Nov 10, 7:00PM",
-            "Opponent": "Washington"
-        },
-        {
             "Date (EST)": "Wed Nov 12, 7:00PM",
             "Opponent": "Chicago"
         },
@@ -20,7 +16,7 @@
             "Opponent": "Indiana"
         },
         {
-            "Date (EST)": "Tue Nov 18, 8:00PM",
+            "Date (EST)": "Tue Nov 18, 7:30PM",
             "Opponent": "@Atlanta"
         },
         {
@@ -42,6 +38,10 @@
         {
             "Date (EST)": "Sat Nov 29, 8:00PM",
             "Opponent": "@Miami"
+        },
+        {
+            "Date (EST)": "Mon Dec 1, 7:00PM",
+            "Opponent": "Atlanta"
         }
     ]
 }

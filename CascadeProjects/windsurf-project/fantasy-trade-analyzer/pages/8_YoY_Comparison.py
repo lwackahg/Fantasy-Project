@@ -121,13 +121,24 @@ with col1:
 	)
 
 with col2:
+	min_gp = st.number_input(
+		"Min GP (most recent season)",
+		min_value=0,
+		value=70,
+		step=1,
+		help="Filter to players who played at least this many games in the most recent season"
+	)
+
+with col3:
 	show_only_improvers = st.checkbox(
 		"Show only improvers",
 		value=False,
 		help="Show only players who improved YoY"
 	)
 
-with col3:
+# Second row for YoY % filter
+col4 = st.columns(1)[0]
+with col4:
 	min_yoy_change = st.number_input(
 		"Min YoY % Change",
 		min_value=-100.0,
@@ -140,9 +151,14 @@ with col3:
 filtered_df = comparison_df.copy()
 
 # Filter by min FP/G
-most_recent_col = f'FP/G_{selected_seasons[0]}'
-if most_recent_col in filtered_df.columns:
-	filtered_df = filtered_df[filtered_df[most_recent_col] >= min_fpg]
+most_recent_fp_col = f'FP/G_{selected_seasons[0]}'
+if most_recent_fp_col in filtered_df.columns:
+	filtered_df = filtered_df[filtered_df[most_recent_fp_col] >= min_fpg]
+
+# Filter by min GP (most recent season) if available
+most_recent_gp_col = f'GP_{selected_seasons[0]}'
+if most_recent_gp_col in filtered_df.columns:
+	filtered_df = filtered_df[filtered_df[most_recent_gp_col] >= min_gp]
 
 # Filter by YoY change if applicable
 if len(selected_seasons) >= 2:
@@ -197,13 +213,19 @@ column_config = {
 	"Player": st.column_config.TextColumn("Player", width="medium"),
 }
 
-# Add config for FP/G columns
+# Add config for FP/G and GP columns
 for season in selected_seasons:
-	col_name = f'FP/G_{season}'
-	if col_name in display_df.columns:
-		column_config[col_name] = st.column_config.NumberColumn(
+	fp_col = f'FP/G_{season}'
+	gp_col = f'GP_{season}'
+	if fp_col in display_df.columns:
+		column_config[fp_col] = st.column_config.NumberColumn(
 			f"FP/G {season}",
 			format="%.2f"
+		)
+	if gp_col in display_df.columns:
+		column_config[gp_col] = st.column_config.NumberColumn(
+			f"GP {season}",
+			format="%d"
 		)
 
 # Add config for change columns

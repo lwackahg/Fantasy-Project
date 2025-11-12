@@ -4,6 +4,30 @@
     "league_id": "ifa1anexmdgtlk9s",
     "data": [
         {
+            "Date": "Nov 11",
+            "Team": "BOS",
+            "Opp": "@PHI",
+            "Score": "L 100-102",
+            "FPts": 19,
+            "MIN": "31:23",
+            "FGM": 2,
+            "FGA": 9,
+            "FG%": 0.222,
+            "3PTM": 1,
+            "3PTA": 5,
+            "3PT%": 0.2,
+            "FTM": 0,
+            "FTA": 0,
+            "FT%": NaN,
+            "REB": 3,
+            "AST": 3,
+            "ST": 1,
+            "BLK": 0,
+            "TO": 1,
+            "PF": 2,
+            "PTS": 5
+        },
+        {
             "Date": "Nov 9",
             "Team": "BOS",
             "Opp": "@ORL",
@@ -218,30 +242,6 @@
             "TO": 1,
             "PF": 1,
             "PTS": 21
-        },
-        {
-            "Date": "Oct 24",
-            "Team": "BOS",
-            "Opp": "@NY",
-            "Score": "L 95-105",
-            "FPts": 35,
-            "MIN": "35:52",
-            "FGM": 2,
-            "FGA": 10,
-            "FG%": 0.2,
-            "3PTM": 1,
-            "3PTA": 7,
-            "3PT%": 0.143,
-            "FTM": 3,
-            "FTA": 3,
-            "FT%": 1.0,
-            "REB": 5,
-            "AST": 6,
-            "ST": 1,
-            "BLK": 0,
-            "TO": 1,
-            "PF": 3,
-            "PTS": 8
         }
     ]
 }

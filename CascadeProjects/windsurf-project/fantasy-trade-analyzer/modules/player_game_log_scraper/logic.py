@@ -247,6 +247,56 @@ def calculate_variability_stats(game_log_df):
 	
 	return stats
 
+
+def calculate_multi_range_stats(game_log_df):
+	"""Calculate stats for multiple time ranges: Last 7, Last 15, Last 30, YTD."""
+	if game_log_df.empty or 'FPts' not in game_log_df.columns:
+		return None
+	
+	# Clean HTML from all string columns
+	for col in game_log_df.columns:
+		if game_log_df[col].dtype == 'object':
+			game_log_df[col] = game_log_df[col].apply(clean_html_from_text)
+	
+	# Convert FPts to numeric
+	game_log_df['FPts'] = pd.to_numeric(game_log_df['FPts'], errors='coerce')
+	game_log_df = game_log_df.dropna(subset=['FPts'])
+	
+	if game_log_df.empty:
+		return None
+	
+	# Calculate stats for each time range
+	time_ranges = {
+		'Last 7': 7,
+		'Last 15': 15,
+		'Last 30': 30,
+		'YTD': len(game_log_df)
+	}
+	
+	results = {}
+	for range_name, num_games in time_ranges.items():
+		# Take the most recent N games
+		range_df = game_log_df.head(min(num_games, len(game_log_df)))
+		fpts = range_df['FPts']
+		
+		if len(fpts) == 0:
+			continue
+		
+		mean_fpts = fpts.mean()
+		std_fpts = fpts.std()
+		
+		results[range_name] = {
+			'games_played': len(fpts),
+			'mean_fpts': mean_fpts,
+			'median_fpts': fpts.median(),
+			'std_dev': std_fpts,
+			'coefficient_of_variation': (std_fpts / mean_fpts * 100) if mean_fpts > 0 else 0,
+			'min_fpts': fpts.min(),
+			'max_fpts': fpts.max()
+		}
+	
+	return results
+
 def get_available_players_from_csv():
 	"""
 	Reads player IDs and names from the most recent Fantrax-Players CSV file.

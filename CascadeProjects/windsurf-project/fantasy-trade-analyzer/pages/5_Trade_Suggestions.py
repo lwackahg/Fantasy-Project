@@ -394,7 +394,12 @@ with st.expander("ℹ️ How Value is Calculated", expanded=False):
 	
 	#### Value Formula
 	```
-	Base Value = (FPts ^ 1.5) * 0.5
+	Base Value = (FPts ^ 1.8) * 0.35
+	
+	Elite Tier Bonuses (Scarcity Premium):
+	- Top 5 (90+ FPts): +30% bonus (Jokic, Giannis tier)
+	- Top 10 (80-90 FPts): +15% bonus
+	- Top 20 (70-80 FPts): +8% bonus
 	
 	Consistency Adjustment:
 	- Very Consistent (CV < 20%): +15% value
@@ -408,9 +413,9 @@ with st.expander("ℹ️ How Value is Calculated", expanded=False):
 	```
 	
 	#### Example Values
-	- 45 FPts player ≈ 150 value
-	- 70 FPts player ≈ 310 value (2x the FPts, but 2x the value!)
-	- 95 FPts player ≈ 465 value (2.1x the FPts, but 1.5x more value than 70!)
+	- 45 FPts player ≈ 200 value
+	- 70 FPts player ≈ 550 value (1.5x FPts, 2.75x value!)
+	- 95 FPts player ≈ 1200 value (2.1x FPts, 6x value!)
 	
 	This ensures trades favor **quality over quantity** and properly value elite talent.
 	""")

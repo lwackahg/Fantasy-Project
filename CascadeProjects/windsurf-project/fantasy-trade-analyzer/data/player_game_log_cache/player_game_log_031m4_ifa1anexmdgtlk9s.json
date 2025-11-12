@@ -4,6 +4,30 @@
     "league_id": "ifa1anexmdgtlk9s",
     "data": [
         {
+            "Date": "Nov 11",
+            "Team": "SAC",
+            "Opp": "DEN",
+            "Score": "L 108-122",
+            "FPts": -3,
+            "MIN": "20:50",
+            "FGM": 0,
+            "FGA": 3,
+            "FG%": 0.0,
+            "3PTM": 0,
+            "3PTA": 1,
+            "3PT%": 0.0,
+            "FTM": 0,
+            "FTA": 0,
+            "FT%": NaN,
+            "REB": 0,
+            "AST": 3,
+            "ST": 0,
+            "BLK": 0,
+            "TO": 3,
+            "PF": 0,
+            "PTS": 0
+        },
+        {
             "Date": "Nov 9",
             "Team": "SAC",
             "Opp": "MIN",
@@ -218,30 +242,6 @@
             "TO": 4,
             "PF": 1,
             "PTS": 17
-        },
-        {
-            "Date": "Oct 22",
-            "Team": "SAC",
-            "Opp": "@PHO",
-            "Score": "L 116-120",
-            "FPts": 51,
-            "MIN": "29:44",
-            "FGM": 6,
-            "FGA": 13,
-            "FG%": 0.462,
-            "3PTM": 2,
-            "3PTA": 4,
-            "3PT%": 0.5,
-            "FTM": 0,
-            "FTA": 0,
-            "FT%": NaN,
-            "REB": 1,
-            "AST": 7,
-            "ST": 2,
-            "BLK": 1,
-            "TO": 4,
-            "PF": 3,
-            "PTS": 14
         }
     ]
 }
