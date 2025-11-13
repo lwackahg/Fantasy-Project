@@ -187,7 +187,37 @@ def show_player_consistency_viewer():
 		
 		st.success(f"✅ Data last updated: {last_updated.strftime('%B %d, %Y at %I:%M %p')} ({update_text})")
 	
-	st.success(f"Found {len(cache_files)} players with cached data")
+	# Extract available seasons from cache files
+	available_seasons = set()
+	for cache_file in cache_files:
+		# Extract season from filename: player_game_log_full_{code}_{league}_{season}.json
+		parts = cache_file.stem.split('_')
+		if len(parts) >= 2:
+			season_part = '_'.join(parts[-2:])  # Get last two parts (e.g., "2025_26")
+			season = season_part.replace('_', '-')  # Convert to "2025-26"
+			available_seasons.add(season)
+	
+	available_seasons = sorted(list(available_seasons), reverse=True)  # Most recent first
+	
+	if not available_seasons:
+		st.warning("No valid season data found in cache files.")
+		return
+	
+	# Season selector for all tabs except Individual Player Analysis
+	st.subheader("🗓️ Season Selection")
+	selected_season = st.selectbox(
+		"Select Season for Analysis",
+		available_seasons,
+		index=0,  # Default to most recent season
+		key="main_season_selector",
+		help="This affects League Overview, Fantasy Teams, and NBA Team Rosters tabs"
+	)
+	
+	# Filter cache files for selected season
+	season_filename = selected_season.replace('-', '_')
+	season_cache_files = [f for f in cache_files if f.stem.endswith(season_filename)]
+	
+	st.success(f"Found {len(season_cache_files)} players with cached data for {selected_season}")
 	
 	# Create main tabs
 	main_tab1, main_tab2, main_tab3, main_tab4 = st.tabs([
@@ -198,20 +228,21 @@ def show_player_consistency_viewer():
 	])
 	
 	with main_tab2:
-		show_league_overview_viewer(league_id, cache_files)
+		show_league_overview_viewer(league_id, season_cache_files, selected_season)
 
 	with main_tab3:
-		show_fantasy_teams_viewer(league_id, cache_files)
+		show_fantasy_teams_viewer(league_id, season_cache_files, selected_season)
 	
 	with main_tab4:
-		show_team_rosters_viewer(league_id, cache_files)
+		show_team_rosters_viewer(league_id, season_cache_files, selected_season)
 	
 	with main_tab1:
+		# Individual player analysis gets all cache files for multi-season view
 		show_individual_player_viewer(league_id, cache_files)
 
-def show_league_overview_viewer(league_id, cache_files):
+def show_league_overview_viewer(league_id, cache_files, selected_season):
 	"""Display league overview (read-only)."""
-	st.subheader("📊 League-Wide Consistency Analysis")
+	st.subheader(f"📊 League-Wide Consistency Analysis - {selected_season}")
 	
 	# Load all cached data
 	overview_df = _load_all_cached_data(cache_files)

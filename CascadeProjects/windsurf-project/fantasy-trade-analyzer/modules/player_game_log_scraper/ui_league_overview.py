@@ -49,13 +49,41 @@ def show_league_overview():
 	cache_dir = get_cache_directory()
 	
 	# Find all cache files for this league (new format only)
-	cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
+	all_cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
 	
-	if not cache_files:
+	if not all_cache_files:
 		st.info("No cached player data found. Run a bulk scrape first to populate the cache.")
 		return
 	
-	st.success(f"Found {len(cache_files)} players with cached data")
+	# Extract available seasons from cache files
+	available_seasons = set()
+	for cache_file in all_cache_files:
+		# Extract season from filename: player_game_log_full_{code}_{league}_{season}.json
+		parts = cache_file.stem.split('_')
+		if len(parts) >= 2:
+			season_part = '_'.join(parts[-2:])  # Get last two parts (e.g., "2025_26")
+			season = season_part.replace('_', '-')  # Convert to "2025-26"
+			available_seasons.add(season)
+	
+	available_seasons = sorted(list(available_seasons), reverse=True)  # Most recent first
+	
+	if not available_seasons:
+		st.warning("No valid season data found in cache files.")
+		return
+	
+	# Season selector
+	selected_season = st.selectbox(
+		"Select Season",
+		available_seasons,
+		index=0,  # Default to most recent season
+		key="overview_season_selector"
+	)
+	
+	# Filter cache files for selected season
+	season_filename = selected_season.replace('-', '_')
+	cache_files = [f for f in all_cache_files if f.stem.endswith(season_filename)]
+	
+	st.success(f"Found {len(cache_files)} players with cached data for {selected_season}")
 	
 	# Load all cached data
 	overview_df = _load_all_cached_data(cache_files)

@@ -132,8 +132,8 @@ def _display_teams_overview(rosters_by_team):
 		mime="text/csv"
 	)
 
-def show_team_rosters_viewer(league_id, cache_files):
-	st.subheader("🏟️ Team Rosters & Consistency")
+def show_team_rosters_viewer(league_id, cache_files, selected_season):
+	st.subheader(f"🏟️ Team Rosters & Consistency - {selected_season}")
 	rosters_by_team = _build_team_view(league_id, cache_files)
 	if not rosters_by_team:
 		st.info("No team roster data found from draft results or no matching cached players.")

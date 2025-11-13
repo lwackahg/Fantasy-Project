@@ -420,9 +420,9 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 			}
 		)
 
-def show_fantasy_teams_viewer(league_id, cache_files):
+def show_fantasy_teams_viewer(league_id, cache_files, selected_season):
 	"""Display fantasy teams roster viewer."""
-	st.subheader("🏆 Fantasy Teams & Consistency")
+	st.subheader(f"🏆 Fantasy Teams & Consistency - {selected_season}")
 	
 	# Add explanatory info
 	with st.expander("ℹ️ Understanding the Analysis", expanded=False):

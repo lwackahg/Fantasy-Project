@@ -503,8 +503,17 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 						fail_count += 1
 					continue
 				
+				consecutive_empty_seasons = 0  # Track consecutive seasons with 0 games
+				
 				for season_index, season in enumerate(seasons_to_scrape):
 					current_operation += 1
+					
+					# Skip remaining seasons if we've had 3 consecutive empty seasons
+					if consecutive_empty_seasons >= 3:
+						# Skip all remaining seasons for this player
+						remaining_seasons = len(seasons_to_scrape) - season_index
+						current_operation += remaining_seasons - 1  # Adjust operation count
+						break
 					
 					if progress_callback:
 						progress_callback(current_operation, total_operations, player_name, season)
@@ -607,6 +616,7 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 									json.dump(cache_data, f, indent=4)
 								
 								success_count += 1  # Count as success (valid empty season)
+								consecutive_empty_seasons += 1  # Increment empty season counter
 								continue
 							else:
 								# No table structure - likely season doesn't exist or scraping failed
@@ -637,6 +647,7 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 							json.dump(cache_data, f, indent=4)
 						
 						success_count += 1
+						consecutive_empty_seasons = 0  # Reset counter when we find games
 						
 					except Exception as e:
 						failed_items.append((player_name, season, str(e)))
