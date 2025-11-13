@@ -70,6 +70,24 @@
   - `status`: `success` or `no_games_played`.
 - UI season parsing unified to take last two parts of filename, convert `_` to `-` for display.
 
+### League Cache Index
+- New per-league summary file: `player_game_log_index_{league_id}.json`.
+- Structure:
+  - `league_id`: Fantrax league ID.
+  - `generated_at`: UTC timestamp when the index was built.
+  - `players`: mapping of `player_code -> { player_name, seasons }`.
+  - Each `seasons[season]` entry contains:
+    - `status`: `success` or `no_games_played`.
+    - `games`: number of games in that cached season.
+    - `cache_file`: filename of the underlying per-player-season JSON.
+    - `last_modified`: filesystem mtime of that JSON.
+- Built and refreshed via:
+  - `build_league_cache_index(league_id)`
+  - Loaded with `load_league_cache_index(league_id, rebuild_if_missing=True)`.
+- Used by the Player Consistency viewer to:
+  - Discover available seasons without globbing every file.
+  - Quickly find the relevant cache files for a selected season.
+
 ---
 
 ## Pending Work
