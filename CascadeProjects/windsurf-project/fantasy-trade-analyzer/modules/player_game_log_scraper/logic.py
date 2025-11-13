@@ -12,6 +12,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from dotenv import load_dotenv, find_dotenv
+from datetime import datetime
 import atexit
 
 # --- CONFIGURATION ---
@@ -26,6 +27,108 @@ CACHE_DIR = Path(__file__).resolve().parent.parent.parent / 'data' / 'player_gam
 def get_cache_directory():
 	"""Returns the cache directory path."""
 	return CACHE_DIR
+
+def get_league_index_path(league_id: str) -> Path:
+	"""Return the path to the league-level cache index file.
+
+	The index summarizes which players and seasons exist for a given league,
+	and where their underlying cache files live on disk.
+	"""
+	return CACHE_DIR / f"player_game_log_index_{league_id}.json"
+
+def build_league_cache_index(league_id: str) -> dict:
+	"""Scan all player_game_log_full JSONs for a league and build an index.
+
+	Structure:
+	{
+	  "league_id": str,
+	  "generated_at": ISO timestamp,
+	  "players": {
+	    player_code: {
+	      "player_name": str,
+	      "seasons": {
+	        season_str: {
+	          "status": str,
+	          "games": int,
+	          "cache_file": str,  # filename only
+	          "last_modified": ISO timestamp
+	        }
+	      }
+	    }
+	  }
+	}
+	"""
+	cache_dir = get_cache_directory()
+	index = {
+		"league_id": league_id,
+		"generated_at": datetime.utcnow().isoformat(),
+		"players": {}
+	}
+
+	pattern = f"player_game_log_full_*_{league_id}_*.json"
+	for cache_file in cache_dir.glob(pattern):
+		try:
+			with open(cache_file, 'r') as f:
+				cache_data = json.load(f)
+		except Exception:
+			continue
+
+		player_code = cache_data.get('player_code')
+		player_name = cache_data.get('player_name', 'Unknown')
+		season = cache_data.get('season')
+		if not player_code or not season:
+			# Derive season from filename as fallback
+			parts = cache_file.stem.split('_')
+			if len(parts) >= 2:
+				season_part = '_'.join(parts[-2:])
+				season = season_part.replace('_', '-')
+			else:
+				continue
+
+		status = cache_data.get('status', 'success')
+		data = cache_data.get('data', cache_data.get('game_log', []))
+		games = len(data) if isinstance(data, list) else 0
+		last_modified = datetime.fromtimestamp(cache_file.stat().st_mtime).isoformat()
+
+		player_entry = index["players"].setdefault(player_code, {
+			"player_name": player_name,
+			"seasons": {}
+		})
+		player_entry["player_name"] = player_name
+		seasons = player_entry["seasons"]
+		seasons[season] = {
+			"status": status,
+			"games": games,
+			"cache_file": cache_file.name,
+			"last_modified": last_modified
+		}
+
+	index_path = get_league_index_path(league_id)
+	try:
+		CACHE_DIR.mkdir(parents=True, exist_ok=True)
+		with open(index_path, 'w') as f:
+			json.dump(index, f, indent=2)
+	except Exception:
+		# Index generation failure should not break callers; they can fall back
+		pass
+
+	return index
+
+def load_league_cache_index(league_id: str, rebuild_if_missing: bool = True) -> dict | None:
+	"""Load the league cache index, optionally rebuilding it if missing/invalid."""
+	index_path = get_league_index_path(league_id)
+	if index_path.exists():
+		try:
+			with open(index_path, 'r') as f:
+				return json.load(f)
+		except Exception:
+			# Fall through to optional rebuild
+			pass
+
+	if rebuild_if_missing:
+		return build_league_cache_index(league_id)
+
+	return None
 
 def clean_html_from_text(text):
 	"""Remove HTML tags from text strings."""

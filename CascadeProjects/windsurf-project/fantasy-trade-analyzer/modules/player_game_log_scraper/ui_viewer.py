@@ -4,7 +4,8 @@ import pandas as pd
 from datetime import datetime
 from modules.player_game_log_scraper.logic import (
 	calculate_variability_stats,
-	get_cache_directory
+	get_cache_directory,
+	load_league_cache_index
 )
 from modules.player_game_log_scraper.ui_components import (
 	display_variability_metrics,
@@ -163,13 +164,13 @@ def show_player_consistency_viewer():
 		st.warning("Please enter a league ID to view cached data.")
 		return
 	
-	# Check for cached data and show last updated
-	cache_dir = get_cache_directory()
-	cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
-	
-	if not cache_files:
+	# Load or build league cache index
+	index = load_league_cache_index(league_id, rebuild_if_missing=True)
+	if not index or not index.get("players"):
 		st.info("📭 No data available yet. Contact your commissioner to run a data update.")
 		return
+	
+	cache_dir = get_cache_directory()
 	
 	# Show last updated timestamp
 	last_updated = get_cache_last_updated(league_id)
@@ -187,15 +188,11 @@ def show_player_consistency_viewer():
 		
 		st.success(f"✅ Data last updated: {last_updated.strftime('%B %d, %Y at %I:%M %p')} ({update_text})")
 	
-	# Extract available seasons from cache files
+	# Extract available seasons from index
 	available_seasons = set()
-	for cache_file in cache_files:
-		# Extract season from filename: player_game_log_full_{code}_{league}_{season}.json
-		parts = cache_file.stem.split('_')
-		if len(parts) >= 2:
-			season_part = '_'.join(parts[-2:])  # Get last two parts (e.g., "2025_26")
-			season = season_part.replace('_', '-')  # Convert to "2025-26"
-			available_seasons.add(season)
+	for player_data in index.get("players", {}).values():
+		seasons = player_data.get("seasons", {})
+		available_seasons.update(seasons.keys())
 	
 	available_seasons = sorted(list(available_seasons), reverse=True)  # Most recent first
 	
@@ -213,11 +210,24 @@ def show_player_consistency_viewer():
 		help="This affects League Overview, Fantasy Teams, and NBA Team Rosters tabs"
 	)
 	
-	# Filter cache files for selected season
-	season_filename = selected_season.replace('-', '_')
-	season_cache_files = [f for f in cache_files if f.stem.endswith(season_filename)]
+	# Build list of cache files for selected season using the index (for league/fantasy/team views)
+	season_cache_files = []
+	for player_data in index.get("players", {}).values():
+		seasons = player_data.get("seasons", {})
+		season_info = seasons.get(selected_season)
+		if not season_info:
+			continue
+		cache_file_name = season_info.get("cache_file")
+		if not cache_file_name:
+			continue
+		cache_file_path = cache_dir / cache_file_name
+		if cache_file_path.exists():
+			season_cache_files.append(cache_file_path)
 	
 	st.success(f"Found {len(season_cache_files)} players with cached data for {selected_season}")
+	
+	# For Individual Player Analysis we still need the full set of cache files
+	cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
 	
 	# Create main tabs
 	main_tab1, main_tab2, main_tab3, main_tab4 = st.tabs([

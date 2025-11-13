@@ -17,11 +17,11 @@ st.write("Commissioner-only tools for league management and data scraping.")
 
 # Create tabs for different admin tools
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-	"📥 Downloader",
-	"📅 Historical YTD",
-	"📊 Player Game Logs", 
+	"📥 Downloader for Current Season (Trading Files)",
+	"📅 Historical YTD (When Significant Data Available)",
+	"📊 Player Game Logs (when Signifcant Data Available)", 
 	"📈 Weekly Standings",
-	"⚙️ Standings Adjuster"
+	"⚙️ Weekly Standings Adjuster"
 ])
 
 with tab1:
