@@ -14,7 +14,7 @@ The downloader provides a user-friendly interface within the Streamlit applicati
 
 The feature is organized into three main components:
 
-- **Page Entry Point (`pages/3_Downloader.py`)**: The Streamlit page that users navigate to. It sets the page title and calls the UI module.
+- **Page Host (`pages/6_Admin_Tools.py` — Fantrax Downloader tab)**: The Admin Tools page hosts this feature in a dedicated tab. It sets up the surrounding layout and authentication/league selection, then delegates the downloader UI to the module below.
 
 - **UI Module (`modules/fantrax_downloader/ui.py`)**: This module renders the user interface, which includes:
   - A dropdown to select the target league (populated from environment variables).

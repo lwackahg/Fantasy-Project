@@ -1,6 +1,6 @@
 # Deep Dive: Auction Draft Tool
 
-**File Path:** `pages/2_Auction_Draft_Tool.py`
+**File Path:** `pages/7_Auction_Draft_Tool.py`
 
 ## 1. Purpose and Overview
 
@@ -39,7 +39,7 @@ The Auction Draft Tool relies on a tight integration of UI, data processing, and
 ```mermaid
 graph TD
     subgraph "Auction Draft Tool Architecture"
-        A[2_Auction_Draft_Tool.py] --> B{Manages UI & State};
+        A[7_Auction_Draft_Tool.py] --> B{Manages UI & State};
         B --> C[logic/auction_tool.py];
 
         B --> E[modules/data_preparation.py];
@@ -56,7 +56,7 @@ graph TD
     end
 ```
 
--   **`pages/2_Auction_Draft_Tool.py`**: The main Streamlit entry point. It controls the UI flow, manages the session state, and orchestrates calls to the logic modules.
+-   **`pages/7_Auction_Draft_Tool.py`**: The main Streamlit entry point. It controls the UI flow, manages the session state, and orchestrates calls to the logic modules.
 -   **`logic/auction_tool.py`**: The valuation engine. It's responsible for all player value calculations, both before and during the draft.
 -   **`modules/data_preparation.py`**: Contains the logic to generate the initial `player_projections.csv` file from raw stats.
 

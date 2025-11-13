@@ -18,6 +18,10 @@ The application is built around several key features:
 -   **Standings Tools**: Utilities for scraping and adjusting weekly standings from Fantrax based on games-played limits.
 -   **Data Exploration**: Tools for viewing raw player statistics and enriched data with draft results.
 -   **Team Analyzer**: A tool to assess the categorical strengths and weaknesses of any team in the league.
+ -   **Player Consistency Viewer**: A public, read-only view of cached game-log-based consistency metrics for all players and teams.
+ -   **Historical YTD & YoY Comparison**: Tools for building multi-season archives and comparing player performance across seasons.
+ -   **Player Value Analyzer**: Multi-season player value and durability profiles with composite scores and tiers.
+ -   **Admin Tools Hub**: A password-protected page that hosts the Fantrax Downloader, Player Game Log Scraper, Weekly Standings Analyzer, Standings Adjuster, and related commissioner utilities.
 
 ## 1.4. Target Audience
 

@@ -8,7 +8,7 @@ This document provides a detailed breakdown of the Team Analyzer feature, which 
 
 The feature follows the application's standard modular design:
 
-- **Page Entry Point (`pages/2_Team_Analyzer.py`)**: A simple script that serves as the entry point for the page. It ensures data is loaded before calling the main UI display function.
+- **Page Entry Point (`pages/5_Team_Analyzer.py`)**: A simple script that serves as the entry point for the page. It ensures data is loaded before calling the main UI display function.
 
 - **UI Module (`modules/team_analyzer/ui.py`)**: This module renders the user interface. It includes:
   - A dropdown to select a team to analyze.

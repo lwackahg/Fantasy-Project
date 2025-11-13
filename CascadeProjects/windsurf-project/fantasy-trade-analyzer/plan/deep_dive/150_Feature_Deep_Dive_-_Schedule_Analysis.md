@@ -14,7 +14,7 @@ The Schedule Analysis feature allows users to move beyond simple win/loss record
 
 The feature is built on a three-part structure:
 
-- **Page Entry Point (`pages/4_Schedule_Analysis.py`)**: This script sets up the main page layout, handles top-level data filtering for teams and scoring periods, and orchestrates the calls to the UI and logic modules.
+- **Page Entry Point (`pages/3_Schedule_Analysis.py`)**: This script sets up the main page layout, handles top-level data filtering for teams and scoring periods, and orchestrates the calls to the UI and logic modules.
 
 - **UI Module (`ui/schedule_analysis_ui.py`)**: This module is responsible for rendering all the user-facing components, including:
   - Current league standings and team performance stats.

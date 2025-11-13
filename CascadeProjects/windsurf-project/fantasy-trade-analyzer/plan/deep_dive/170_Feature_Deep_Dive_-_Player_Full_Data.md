@@ -1,6 +1,6 @@
 # Deep Dive: Player Full Data
 
-**File Path:** `pages/5_Player_Full_Data.py`
+**File Path:** `pages/4_Player_Full_Data.py`
 
 ## 1. Purpose and Overview
 
@@ -17,7 +17,7 @@ The architecture for this feature is simple and direct, involving one main page 
 ```mermaid
 graph TD
     subgraph "Player Full Data Architecture"
-        A[5_Player_Full_Data.py] --> B{Manages UI & State};
+        A[4_Player_Full_Data.py] --> B{Manages UI & State};
         B --> C[modules/player_data/logic.py];
         B --> D[modules/player_data/ui.py];
 
@@ -31,7 +31,7 @@ graph TD
     end
 ```
 
--   **`pages/5_Player_Full_Data.py`**: The Streamlit page entry point. It handles data loading checks, provides the time range selection dropdown, and calls the logic and UI modules.
+-   **`pages/4_Player_Full_Data.py`**: The Streamlit page entry point. It handles data loading checks, provides the time range selection dropdown, and calls the logic and UI modules.
 -   **`modules/player_data/logic.py`**: Contains the business logic. Its sole function, `merge_with_draft_results`, performs a left merge to combine the player performance data with draft data.
 -   **`modules/player_data/ui.py`**: Contains the display components. `display_player_dataframe` renders the main data table, and `display_player_metrics` shows summary statistics.
 

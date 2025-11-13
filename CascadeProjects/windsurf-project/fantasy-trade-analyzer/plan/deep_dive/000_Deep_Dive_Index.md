@@ -16,9 +16,11 @@ This section covers the high-level principles and structure of the project.
     -   *A detailed breakdown of the application's architecture, data handling pipelines, and core logic modules.* Includes a **Team Mapping Resolution** subsection documenting centralized team mappings and seasonal update steps.
 -   [**035: Data Dictionary**](./035_Data_Dictionary.md)
     -   *A guide to the primary data sources, explaining the purpose and schema of key CSV files and DataFrames.*
--   [**040: Development Workflow**](./040_Development_Workflow.md)
+-   [**040: UI Components**](./040_UI_Components.md)
+    -   *Detailed documentation for the auction tool's Streamlit UI components and layout.*
+-   [**050: Development Workflow**](./050_Development_Workflow.md)
     -   *Guidelines for the development process, including branching, testing, and code review.*
--   [**050: Future Ideas & Roadmap**](./050_Future_Ideas_and_Roadmap.md)
+-   [**060: Future Ideas & Roadmap**](./050_Future_Ideas_and_Roadmap.md)
     -   *A living document outlining potential new features and long-term goals.*
 
 ---
@@ -54,7 +56,7 @@ This section provides detailed, technical explanations for each of the applicati
 
 ## Full File Index
 
-Below is a complete list of all Python files in the project, categorized by their function, for quick reference.
+Below is a curated list of key Python files in the project, categorized by their function, for quick reference.
 
 ### Core Application
 - `Home.py`
@@ -84,6 +86,8 @@ Below is a complete list of all Python files in the project, categorized by thei
 - `pages/5_Team_Analyzer.py`
 - `pages/6_Admin_Tools.py` (Password-protected: Downloader, Player Game Logs Scraper, Weekly Standings, Standings Adjuster)
 - `pages/7_Auction_Draft_Tool.py`
+- `pages/8_YoY_Comparison.py`
+- `pages/9_Player_Value_Analyzer.py`
 
 ### Modules
 - `modules/auth/ui.py`
@@ -99,11 +103,16 @@ Below is a complete list of all Python files in the project, categorized by thei
 - `modules/team_analyzer/ui.py`
 - `modules/trade_analysis/logic.py`
 - `modules/trade_analysis/ui.py`
+- `modules/trade_suggestions.py`
 - `modules/weekly_standings_analyzer/logic.py`
 - `modules/weekly_standings_analyzer/ui.py`
 - `modules/player_game_log_scraper/logic.py`
 - `modules/player_game_log_scraper/ui.py`
 - `modules/team_mappings.py`
+- `modules/historical_ytd_downloader/logic.py`
+- `modules/historical_ytd_downloader/ui.py`
+- `modules/player_value/logic.py`
+- `modules/standings_adjuster/audit_log.py`
 
 ### Tests
 - `tests/test_app.py`

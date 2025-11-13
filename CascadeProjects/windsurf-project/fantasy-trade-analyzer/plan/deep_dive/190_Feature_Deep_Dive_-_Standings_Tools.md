@@ -1,6 +1,6 @@
 # Deep Dive: Standings Tools
 
-**File Path:** `pages/6_Standings_Tools.py`
+**File Path:** `pages/6_Admin_Tools.py` (Standings Tools tabs)
 
 ## 1. Purpose and Overview
 
@@ -16,12 +16,12 @@ This multi-step process ensures that commissioners can first review the calculat
 
 ## 2. Architecture and Core Components
 
-The feature is architected around two independent but connected modules, each with its own UI and logic. A parent page, `6_Standings_Tools.py`, uses tabs to provide access to each tool.
+The feature is architected around two independent but connected modules, each with its own UI and logic. A parent page, `pages/6_Admin_Tools.py`, uses tabs to provide access to each tool within the broader Admin Tools hub.
 
 ```mermaid
 graph TD
     subgraph "Standings Tools Architecture"
-        A[6_Standings_Tools.py] --> B{Weekly Standings Analyzer};
+        A[6_Admin_Tools.py] --> B{Weekly Standings Analyzer};
         A --> C{Standings Adjuster};
 
         subgraph "Weekly Standings Analyzer"
@@ -41,7 +41,7 @@ graph TD
     end
 ```
 
--   **`pages/6_Standings_Tools.py`**: The main entry point that houses the two tools in separate tabs.
+-   **`pages/6_Admin_Tools.py`**: The main entry point that houses the two tools in separate tabs alongside other admin features.
 -   **`modules/weekly_standings_analyzer/`**: Contains the UI and logic for fetching, analyzing, and caching the standings data.
 -   **`modules/standings_adjuster/`**: Contains the UI and logic for reading the cached data, logging adjustments, and submitting them to Fantrax.
 -   **`modules/standings_adjuster/audit_log.py`**: Manages the ongoing audit log Excel file that tracks all adjustments.
