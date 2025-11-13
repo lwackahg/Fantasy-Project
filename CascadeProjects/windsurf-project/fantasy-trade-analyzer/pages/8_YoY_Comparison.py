@@ -124,7 +124,7 @@ with col2:
 	min_gp = st.number_input(
 		"Min GP (most recent season)",
 		min_value=0,
-		value=70,
+		value=1,
 		step=1,
 		help="Filter to players who played at least this many games in the most recent season"
 	)

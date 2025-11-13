@@ -7,6 +7,7 @@ from modules.player_game_log_scraper.logic import (
 	get_cache_directory,
 	load_league_cache_index
 )
+from modules.player_value.logic import build_player_value_profiles
 from modules.player_game_log_scraper.ui_components import (
 	display_variability_metrics,
 	display_boom_bust_analysis,
@@ -171,6 +172,13 @@ def show_player_consistency_viewer():
 		return
 	
 	cache_dir = get_cache_directory()
+
+	# Build multi-season player value profiles for this league (used in individual view)
+	value_profiles_df = None
+	try:
+		value_profiles_df = build_player_value_profiles(league_id)
+	except Exception:
+		value_profiles_df = None
 	
 	# Show last updated timestamp
 	last_updated = get_cache_last_updated(league_id)
@@ -248,7 +256,7 @@ def show_player_consistency_viewer():
 	
 	with main_tab1:
 		# Individual player analysis gets all cache files for multi-season view
-		show_individual_player_viewer(league_id, cache_files)
+		show_individual_player_viewer(league_id, cache_files, value_profiles_df)
 
 def show_league_overview_viewer(league_id, cache_files, selected_season):
 	"""Display league overview (read-only)."""
@@ -270,7 +278,7 @@ def show_league_overview_viewer(league_id, cache_files, selected_season):
 	# Display visualizations
 	_display_visualizations(overview_df)
 
-def show_individual_player_viewer(league_id, cache_files):
+def show_individual_player_viewer(league_id, cache_files, value_profiles_df=None):
 	"""Display individual player analysis with multi-season support."""
 	st.subheader("🔍 Individual Player Analysis")
 	
@@ -312,6 +320,35 @@ def show_individual_player_viewer(league_id, cache_files):
 		st.write("")
 		st.info(f"**Code:** {player_code}")
 	
+	# Multi-season value profile panel for selected player (if available)
+	if value_profiles_df is not None and not value_profiles_df.empty:
+		player_row = value_profiles_df[value_profiles_df["player_code"] == player_code]
+		if player_row.empty:
+			player_row = value_profiles_df[value_profiles_df["Player"] == selected_player]
+		if not player_row.empty:
+			row = player_row.iloc[0]
+			st.markdown("---")
+			st.subheader("📈 Multi-Season Value Profile")
+			col_a, col_b, col_c, col_d = st.columns(4)
+			with col_a:
+				st.metric("Value Score", f"{row['ValueScore']:.1f}")
+			with col_b:
+				st.metric("Production", f"{row['ProductionScore']:.1f}")
+			with col_c:
+				st.metric("Consistency", f"{row['ConsistencyScore']:.1f}")
+			with col_d:
+				st.metric("Durability", str(row['DurabilityTier']))
+			col_e, col_f, col_g, col_h = st.columns(4)
+			with col_e:
+				st.metric("Avail. Score", f"{row['AvailabilityScore']:.1f}")
+			with col_f:
+				st.metric("Seasons", int(row['SeasonsIncluded']))
+			with col_g:
+				st.metric("Avg GP/Season", f"{row['AvgGamesPerSeason']:.1f}")
+			with col_h:
+				st.metric("Avg FP/G", f"{row['AvgMeanFPts']:.1f}")
+			st.markdown("---")
+
 	# Get available seasons for this player
 	available_seasons = get_available_seasons_for_player(player_code, league_id)
 	

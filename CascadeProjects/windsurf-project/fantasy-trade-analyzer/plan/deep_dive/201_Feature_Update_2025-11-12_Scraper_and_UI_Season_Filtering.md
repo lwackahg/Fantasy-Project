@@ -90,6 +90,102 @@
 
 ---
 
+## Player Value Analyzer (Cross-Season Value & Durability)
+
+- New backend module: `modules/player_value/logic.py`
+  - Core function: `build_player_value_profiles(league_id, seasons=None, min_games_per_season=20, min_seasons=1, max_games_per_season=82) -> pd.DataFrame`.
+  - Uses the **league cache index** + per-player-season JSONs to compute per-season stats and aggregate into a multi-season profile per player.
+  - Per-season profile (from raw `game_log` via `calculate_variability_stats` + `calculate_multi_range_stats`):
+    - `games_played`
+    - `mean_fpts`, `median_fpts`, `std_dev`, `cv_pct`
+    - `boom_rate`, `bust_rate`
+    - `min_fpts`, `max_fpts`
+    - `last15_mean_fpts`
+  - Aggregated cross-season fields per player:
+    - `SeasonsIncluded`, `TotalGames`, `AvgGamesPerSeason`
+    - `AvgMeanFPts`, `AvgCV%`, `AvgBoomRate%`, `AvgBustRate%`
+    - `AvailabilityRatio` = `AvgGamesPerSeason / max_games_per_season` (clamped to 1.0).
+  - Derived scores (normalized 0–100):
+    - `ProductionScore` (higher `AvgMeanFPts` is better)
+    - `ConsistencyScore` (lower `AvgCV%` is better)
+    - `AvailabilityScore` (from `AvailabilityRatio`)
+    - `PlayoffReliabilityScore` (currently aliased to `AvailabilityScore`).
+  - Composite `ValueScore`:
+    - `0.40 * ProductionScore + 0.25 * ConsistencyScore + 0.20 * AvailabilityScore + 0.15 * PlayoffReliabilityScore`.
+  - `DurabilityTier` buckets based on `AvailabilityRatio`:
+    - `Ironman` (>= 0.90), `Reliable` (>= 0.75), `Fragile` (>= 0.60), `Landmine` (< 0.60).
+
+### New Page: `pages/9_Player_Value_Analyzer.py`
+
+- Purpose: cross-player **ranking** and **visualization** of multi-season value and durability.
+- Inputs:
+  - League ID (text input, defaulting from env `FANTRAX_DEFAULT_LEAGUE_ID`).
+  - Seasons to include (multi-select populated from league cache index).
+  - `min_games_per_season`, `min_seasons` filters.
+- Behavior:
+  - Calls `build_player_value_profiles(...)` under a spinner and bails out gracefully if empty.
+  - Displays a **rankings table** with key columns:
+    - `Player`, `ValueScore`, `ProductionScore`, `ConsistencyScore`, `AvailabilityScore`, `PlayoffReliabilityScore`,
+      `DurabilityTier`, `SeasonsIncluded`, `AvgMeanFPts`, `AvgCV%`, `AvgGamesPerSeason`.
+  - Uses Streamlit main layout (no sidebar filters) with:
+    - "Filters" section at the top.
+    - Main table below.
+  - Visualization: **Value vs Production (Trade Target Map)**
+    - Plotly scatter:
+      - X = `AvgMeanFPts` (Avg FPts/G).
+      - Y = `ValueScore`.
+      - Color = `DurabilityTier`.
+      - Size = `AvgGamesPerSeason`.
+    - Designed to highlight:
+      - Top-right, `Ironman` / `Reliable` = prime acquisition targets.
+      - High production but low value/durability = potential sell-highs.
+    - Implemented **without** `trendline="ols"` to avoid a hard dependency on `statsmodels`.
+  - CSV export: full value profile table as `player_value_rankings_{league_id}.csv`.
+
+### Integration: Trade Analysis
+
+- File: `modules/trade_analysis/logic.py`
+  - `TradeAnalyzer.evaluate_trade_fairness(...)` now:
+    - Pulls `league_id` from `st.session_state` (falling back to `FANTRAX_DEFAULT_LEAGUE_ID`).
+    - Builds `value_profiles_df = build_player_value_profiles(league_id)` once per call (guarded with try/except).
+    - For each time range (`YTD`, `60 Days`, `30 Days`, `14 Days`, `7 Days`):
+      - Builds pre- and post-trade top-N rosters (existing behavior).
+      - Enriches both with consistency metrics via `enrich_roster_with_consistency` (existing behavior).
+      - **New:** joins `value_profiles_df[['Player', 'ValueScore']]` onto each roster to compute:
+        - `pre_trade_value_scores[time_range]` and `post_trade_value_scores[time_range]`:
+          - `total_value_score` (sum of `ValueScore` for that roster).
+          - `avg_value_score` (mean of `ValueScore`).
+      - `value_changes[time_range]` now includes:
+        - `value_score_change` = post `total_value_score` − pre `total_value_score` (when available).
+    - `analysis_results[team]` extended with:
+      - `pre_trade_value_scores`, `post_trade_value_scores`, `value_changes` (including `value_score_change`).
+
+- File: `modules/trade_analysis/ui.py`
+  - `_display_trade_metrics_table(...)` consumes the new fields:
+    - Looks up `pre_trade_value_scores` / `post_trade_value_scores` per time range.
+    - Adds a **"Total ValueScore"** column to the metrics table when data exists:
+      - Renders as `pre → post` with green/red coloring based on improvement.
+  - Net effect: Trade Analysis now shows **production, consistency, and multi-season value/durability impact** side by side for each team and time range.
+
+### Integration: Player Consistency Viewer
+
+- File: `modules/player_game_log_scraper/ui_viewer.py`
+  - Imports `build_player_value_profiles`.
+  - Inside `show_player_consistency_viewer`:
+    - After loading the league cache index:
+      - Builds `value_profiles_df = build_player_value_profiles(league_id)` once (try/except guarded).
+  - The **Individual Player Analysis** tab now receives `value_profiles_df`:
+    - `show_individual_player_viewer(league_id, cache_files, value_profiles_df)`.
+  - Inside `show_individual_player_viewer`:
+    - After the user selects `selected_player` / `player_code`, the UI attempts to locate the player in `value_profiles_df`:
+      - Matches on `player_code` first, falls back to `Player` name.
+    - If found, renders a **"📈 Multi-Season Value Profile"** panel above the single-season / multi-season controls with:
+      - `ValueScore`, `ProductionScore`, `ConsistencyScore`, `AvailabilityScore`, `DurabilityTier`.
+      - `SeasonsIncluded`, `AvgGamesPerSeason`, `AvgMeanFPts`.
+    - This ties the value/durability model directly into the per-player consistency UI without changing existing variability charts.
+
+---
+
 ## Pending Work
 - Current Season Performance Summary (Fantasy Teams)
   - Add per-team current season summary: avg FPts, CV%, last-10 trend, boom/bust.

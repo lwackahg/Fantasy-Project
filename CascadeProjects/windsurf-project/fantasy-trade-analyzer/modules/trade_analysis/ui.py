@@ -165,6 +165,8 @@ def _display_trade_metrics_table(results: Dict[str, Any], time_ranges: List[str]
         post_metrics = results.get('post_trade_metrics', {}).get(time_range, {})
         pre_consistency = results.get('pre_trade_consistency', {}).get(time_range, {})
         post_consistency = results.get('post_trade_consistency', {}).get(time_range, {})
+        pre_value_scores = results.get('pre_trade_value_scores', {}).get(time_range, {})
+        post_value_scores = results.get('post_trade_value_scores', {}).get(time_range, {})
         
         if pre_metrics and post_metrics:
             row = {
@@ -182,6 +184,16 @@ def _display_trade_metrics_table(results: Dict[str, Any], time_ranges: List[str]
                 post_cv = post_consistency.get('avg_cv', 0)
                 # Lower CV is better (more consistent)
                 row['Avg CV%'] = f"{pre_cv:.1f}% → <span style='color:{'green' if post_cv < pre_cv else 'red'}'>{post_cv:.1f}%</span>"
+            
+            # Add value score aggregates if available
+            if pre_value_scores and post_value_scores:
+                pre_total_vs = pre_value_scores.get('total_value_score')
+                post_total_vs = post_value_scores.get('total_value_score')
+                if pre_total_vs is not None and post_total_vs is not None:
+                    row['Total ValueScore'] = (
+                        f"{pre_total_vs:.1f} → "
+                        f"<span style='color:{'green' if post_total_vs >= pre_total_vs else 'red'}'>{post_total_vs:.1f}</span>"
+                    )
             
             combined_data.append(row)
     

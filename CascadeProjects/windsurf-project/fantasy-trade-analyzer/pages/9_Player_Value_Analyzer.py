@@ -3,6 +3,7 @@
 import streamlit as st
 import os
 from typing import List
+import plotly.express as px
 
 from modules.player_value.logic import build_player_value_profiles
 from modules.player_game_log_scraper.logic import load_league_cache_index
@@ -38,10 +39,34 @@ def main():
 		st.info("No cached seasons found for this league. Run the game log scraper first.")
 		return
 
-	st.sidebar.header("Filters")
-	selected_seasons = st.sidebar.multiselect("Seasons to include", options=seasons, default=seasons)
-	min_games = st.sidebar.number_input("Min games per season", min_value=1, max_value=82, value=20, step=1)
-	min_seasons = st.sidebar.number_input("Min seasons", min_value=1, max_value=10, value=1, step=1)
+	st.markdown("---")
+	st.subheader("Filters")
+	col1, col2, col3 = st.columns([2, 1, 1])
+	with col1:
+		selected_seasons = st.multiselect(
+			"Seasons to include",
+			options=seasons,
+			default=seasons,
+			help="Choose which seasons to include in the value calculation."
+		)
+	with col2:
+		min_games = st.number_input(
+			"Min games/season",
+			min_value=1,
+			max_value=82,
+			value=20,
+			step=1,
+			help="Players must meet this games played threshold in a season to be included."
+		)
+	with col3:
+		min_seasons = st.number_input(
+			"Min seasons",
+			min_value=1,
+			max_value=10,
+			value=1,
+			step=1,
+			help="Players must have at least this many qualifying seasons."
+		)
 
 	with st.spinner("Building player value profiles from cache..."):
 		df = build_player_value_profiles(
@@ -77,6 +102,31 @@ def main():
 		use_container_width=True,
 		height=600,
 	)
+
+	st.markdown("---")
+	st.subheader("Value vs Production (Trade Target Map)")
+
+	# Scatter plot to visualize players by production, consistency, and durability
+	fig = px.scatter(
+		df,
+		x="AvgMeanFPts",
+		y="ValueScore",
+		color="DurabilityTier",
+		hover_name="Player",
+		size="AvgGamesPerSeason",
+		size_max=20,
+		labels={
+			"AvgMeanFPts": "Avg FPts/G",
+			"ValueScore": "Value Score",
+		},
+	)
+	fig.update_layout(
+		height=500,
+		xaxis_title="Average Fantasy Points per Game",
+		yaxis_title="Composite Value Score",
+		hovermode="closest",
+	)
+	st.plotly_chart(fig, use_container_width=True)
 
 	# Download button
 	csv = df.to_csv(index=False)

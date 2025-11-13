@@ -13,6 +13,7 @@ from modules.trade_analysis.consistency_integration import (
 	load_all_player_consistency,
 	enrich_roster_with_consistency
 )
+from modules.player_value.logic import build_player_value_profiles
 
 # Import league config
 try:
@@ -89,9 +90,17 @@ class TradeAnalyzer:
             post_trade_metrics = {}
             pre_trade_consistency = {}
             post_trade_consistency = {}
+            pre_trade_value_scores = {}
+            post_trade_value_scores = {}
             
             # Get league ID from session state or use default
             league_id = st.session_state.get('league_id', FANTRAX_DEFAULT_LEAGUE_ID)
+            value_profiles_df = None
+            if league_id:
+                try:
+                    value_profiles_df = build_player_value_profiles(league_id)
+                except Exception:
+                    value_profiles_df = None
             
             for time_range in time_ranges:
                 if time_range in pre_trade_rosters and pre_trade_rosters.get(time_range):
@@ -117,6 +126,18 @@ class TradeAnalyzer:
                                     'moderate': len(cv_values[(cv_values >= 20) & (cv_values <= 30)]),
                                     'volatile': len(cv_values[cv_values > 30])
                                 }
+                    # Add value score aggregates if profiles are available
+                    if value_profiles_df is not None and not value_profiles_df.empty:
+                        merged_pre = pre_roster_df.merge(
+                            value_profiles_df[['Player', 'ValueScore']],
+                            on='Player',
+                            how='left'
+                        )
+                        if not merged_pre.empty:
+                            pre_trade_value_scores[time_range] = {
+                                'total_value_score': float(merged_pre['ValueScore'].fillna(0).sum()),
+                                'avg_value_score': float(merged_pre['ValueScore'].fillna(0).mean())
+                            }
                 
                 if time_range in post_trade_rosters and post_trade_rosters.get(time_range):
                     post_roster_df = pd.DataFrame(post_trade_rosters[time_range])
@@ -141,15 +162,33 @@ class TradeAnalyzer:
                                     'moderate': len(cv_values[(cv_values >= 20) & (cv_values <= 30)]),
                                     'volatile': len(cv_values[cv_values > 30])
                                 }
+                    # Add value score aggregates if profiles are available
+                    if value_profiles_df is not None and not value_profiles_df.empty:
+                        merged_post = post_roster_df.merge(
+                            value_profiles_df[['Player', 'ValueScore']],
+                            on='Player',
+                            how='left'
+                        )
+                        if not merged_post.empty:
+                            post_trade_value_scores[time_range] = {
+                                'total_value_score': float(merged_post['ValueScore'].fillna(0).sum()),
+                                'avg_value_score': float(merged_post['ValueScore'].fillna(0).mean())
+                            }
 
             value_changes = {}
             for time_range in time_ranges:
                 if time_range in pre_trade_metrics and time_range in post_trade_metrics:
-                    value_changes[time_range] = {
+                    change_entry = {
                         'mean_fpg_change': post_trade_metrics[time_range]['mean_fpg'] - pre_trade_metrics[time_range]['mean_fpg'],
                         'total_fpts_change': post_trade_metrics[time_range]['total_fpts'] - pre_trade_metrics[time_range]['total_fpts'],
                         'avg_gp_change': post_trade_metrics[time_range]['avg_gp'] - pre_trade_metrics[time_range]['avg_gp']
                     }
+                    if time_range in pre_trade_value_scores and time_range in post_trade_value_scores:
+                        change_entry['value_score_change'] = (
+                            post_trade_value_scores[time_range]['total_value_score']
+                            - pre_trade_value_scores[time_range]['total_value_score']
+                        )
+                    value_changes[time_range] = change_entry
 
             analysis_results[team] = {
                 'outgoing_players': outgoing_players,
@@ -158,6 +197,8 @@ class TradeAnalyzer:
                 'post_trade_metrics': post_trade_metrics,
                 'pre_trade_consistency': pre_trade_consistency,
                 'post_trade_consistency': post_trade_consistency,
+                'pre_trade_value_scores': pre_trade_value_scores,
+                'post_trade_value_scores': post_trade_value_scores,
                 'value_changes': value_changes,
                 'pre_trade_rosters': pre_trade_rosters,
                 'post_trade_rosters': post_trade_rosters,
