@@ -22,6 +22,18 @@ def _get_all_seasons_for_league(league_id: str) -> List[str]:
 	return sorted(list(seasons), reverse=True)
 
 
+@st.cache_data(show_spinner=False)
+def _get_player_value_profiles_cached(league_id: str, seasons: list[str], min_games_per_season: int, min_seasons: int):
+	"""Cached wrapper around build_player_value_profiles to avoid recomputing on every rerun."""
+	seasons_arg = seasons if seasons else None
+	return build_player_value_profiles(
+		league_id=league_id,
+		seasons=seasons_arg,
+		min_games_per_season=min_games_per_season,
+		min_seasons=min_seasons,
+	)
+
+
 def main():
 	st.set_page_config(page_title="Player Value Analyzer", page_icon="🏆", layout="wide")
 	st.title("🏆 Player Value & Reliability Analyzer")
@@ -69,7 +81,7 @@ def main():
 		)
 
 	with st.spinner("Building player value profiles from cache..."):
-		df = build_player_value_profiles(
+		df = _get_player_value_profiles_cached(
 			league_id=league_id,
 			seasons=selected_seasons,
 			min_games_per_season=min_games,

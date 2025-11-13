@@ -26,9 +26,9 @@ if not league_id:
 	st.warning("Please enter a league ID to get trade suggestions.")
 	st.stop()
 
-# Load cached player data
+# Load cached player data (new full-format files)
 cache_dir = get_cache_directory()
-cache_files = list(cache_dir.glob(f"player_game_log_*_{league_id}.json"))
+cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
 
 if not cache_files:
 	st.error(f"No cached player data found for league {league_id}. Please run Bulk Scrape in Admin Tools first.")
