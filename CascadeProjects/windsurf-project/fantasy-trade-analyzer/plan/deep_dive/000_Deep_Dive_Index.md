@@ -47,6 +47,8 @@ This section provides detailed, technical explanations for each of the applicati
     -   *Scraping and applying weekly standings adjustments for commissioners.*
 -   [**200: Player Game Log Scraper**](./200_Feature_Deep_Dive_-_Player_Game_Log_Scraper.md)
     -   *Scraping game-by-game player stats with variability analysis and consistency metrics.*
+-   [**201: Update — 2025-11-12 Scraper & Season-Aware UI**](./201_Feature_Update_2025-11-12_Scraper_and_UI_Season_Filtering.md)
+    -   *Smart season skipping, standardized caching, and season-scoped League/Fantasy/Team views.*
 
 ---
 
