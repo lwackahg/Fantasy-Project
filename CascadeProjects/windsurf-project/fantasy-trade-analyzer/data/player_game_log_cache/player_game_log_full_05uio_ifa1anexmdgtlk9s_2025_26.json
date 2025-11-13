@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 12",
+            "Team": "GS",
+            "Opp": "@SA",
+            "Score": "W 125-120",
+            "FPts": 55,
+            "FG-": "7.0",
+            "3PTM": 5,
+            "FT-": "0",
+            "PTS": 19,
+            "OREB": "1",
+            "REB": 3,
+            "AST": 3,
+            "ST": 0,
+            "BLK": 0,
+            "TO": 0,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 11",
             "Team": "GS",
             "Opp": "@OKC",

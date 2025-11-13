@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 12",
+            "Team": "POR",
+            "Opp": "@NO",
+            "Score": "W 125-117",
+            "FPts": 37,
+            "FG-": "5.0",
+            "3PTM": 0,
+            "FT-": "0",
+            "PTS": 9,
+            "OREB": "3",
+            "REB": 10,
+            "AST": 0,
+            "ST": 0,
+            "BLK": 3,
+            "TO": 3,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 10",
             "Team": "POR",
             "Opp": "@ORL",
