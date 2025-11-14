@@ -1,0 +1,49 @@
+[
+  {
+    "trade_teams": {
+      "PartyMar": {
+        "Nikola Jokic": "Bomb"
+      },
+      "Bomb": {
+        "Grayson Allen": "PartyMar",
+        "Domantas Sabonis": "PartyMar",
+        "Zion Williamson": "PartyMar"
+      }
+    },
+    "summary": "PartyMar (YTD):\n  Giving: Nikola Jokic\n  Getting: Grayson Allen, Domantas Sabonis, Zion Williamson\n  Impact: -3.7 FP/G, +375 Total FPts\n\nPartyMar (60 Days):\n  Giving: Nikola Jokic\n  Getting: Grayson Allen, Domantas Sabonis, Zion Williamson\n  Impact: -3.7 FP/G, +375 Total FPts\n\nPartyMar (30 Days):\n  Giving: Nikola Jokic\n  Getting: Grayson Allen, Domantas Sabonis, Zion Williamson\n  Impact: -3.7 FP/G, +375 Total FPts\n\nPartyMar (14 Days):\n  Giving: Nikola Jokic\n  Getting: Grayson Allen, Domantas Sabonis, Zion Williamson\n  Impact: -5.8 FP/G, +95 Total FPts\n\nPartyMar (7 Days):\n  Giving: Nikola Jokic\n  Getting: Grayson Allen, Domantas Sabonis, Zion Williamson\n  Impact: -5.3 FP/G, -100 Total FPts\n\nBomb (YTD):\n  Giving: Grayson Allen, Domantas Sabonis, Zion Williamson\n  Getting: Nikola Jokic\n  Impact: +2.2 FP/G, -341 Total FPts\n\nBomb (60 Days):\n  Giving: Grayson Allen, Domantas Sabonis, Zion Williamson\n  Getting: Nikola Jokic\n  Impact: +2.2 FP/G, -341 Total FPts\n\nBomb (30 Days):\n  Giving: Grayson Allen, Domantas Sabonis, Zion Williamson\n  Getting: Nikola Jokic\n  Impact: +2.2 FP/G, -341 Total FPts\n\nBomb (14 Days):\n  Giving: Grayson Allen, Domantas Sabonis, Zion Williamson\n  Getting: Nikola Jokic\n  Impact: +7.7 FP/G, -95 Total FPts\n\nBomb (7 Days):\n  Giving: Grayson Allen, Domantas Sabonis, Zion Williamson\n  Getting: Nikola Jokic\n  Impact: +6.9 FP/G, +100 Total FPts\n",
+    "label": "",
+    "date": "2025-11-10",
+    "num_players": 10,
+    "source": "historical",
+    "season": "2025-26",
+    "rosters_by_team": {
+      "PartyMar": [
+        "Tre Johnson",
+        "Jordan Poole",
+        "Norman Powell",
+        "Tari Eason",
+        "Rui Hachimura",
+        "Nikola Jokic",
+        "Neemias Queta",
+        "Isaiah Stewart",
+        "T.J. McConnell",
+        "Aaron Nesmith"
+      ],
+      "Bomb": [
+        "Grayson Allen",
+        "Kon Knueppel",
+        "Jaylon Tyson",
+        "Davion Mitchell",
+        "Josh Giddey",
+        "Immanuel Quickley",
+        "Cedric Coward",
+        "Domantas Sabonis",
+        "Zion Williamson",
+        "Dennis Schroder",
+        "Dejounte Murray",
+        "Kevin Porter"
+      ]
+    },
+    "league_id": "ifa1anexmdgtlk9s"
+  }
+]

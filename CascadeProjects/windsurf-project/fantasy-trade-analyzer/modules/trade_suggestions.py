@@ -5,6 +5,17 @@ from typing import List, Dict, Tuple, Optional
 from itertools import combinations
 import streamlit as st
 
+# Tier thresholds (FP/G) and league settings extracted from existing logic.
+# Changing these values will change behavior; they are defined here only
+# to centralize configuration.
+TIER_TOP5_FP = 90
+TIER_TOP10_FP = 80
+TIER_TOP20_FP = 70
+TIER_SOLID_STARTER_FP = 50
+TIER_STREAMER_FP = 35
+
+ROSTER_SIZE = 10  # From league rules
+REPLACEMENT_PERCENTILE = 0.85  # Top 85% of rostered players
 
 def calculate_exponential_value(fpts: float) -> float:
 	"""
@@ -67,8 +78,8 @@ def calculate_league_scarcity_context(all_teams_data: Dict[str, pd.DataFrame]) -
 	
 	# Calculate replacement level (top 85% of rostered players)
 	num_teams = len(all_teams_data)
-	roster_size = 10  # From league rules
-	replacement_idx = int(num_teams * roster_size * 0.85)
+	roster_size = ROSTER_SIZE
+	replacement_idx = int(num_teams * roster_size * REPLACEMENT_PERCENTILE)
 	
 	if len(league_df) >= replacement_idx:
 		replacement_level = league_df.nlargest(replacement_idx, 'Mean FPts')['Mean FPts'].iloc[-1]
@@ -77,15 +88,15 @@ def calculate_league_scarcity_context(all_teams_data: Dict[str, pd.DataFrame]) -
 	
 	# Tier classification based on FP/G
 	def assign_tier(fpts):
-		if fpts >= 90:
+		if fpts >= TIER_TOP5_FP:
 			return 1  # Top 5 tier
-		elif fpts >= 80:
+		elif fpts >= TIER_TOP10_FP:
 			return 2  # Top 10 tier
-		elif fpts >= 70:
+		elif fpts >= TIER_TOP20_FP:
 			return 3  # Top 20 tier
-		elif fpts >= 50:
+		elif fpts >= TIER_SOLID_STARTER_FP:
 			return 4  # Solid starters
-		elif fpts >= 35:
+		elif fpts >= TIER_STREAMER_FP:
 			return 5  # Streamers
 		else:
 			return 6  # Bench/waiver

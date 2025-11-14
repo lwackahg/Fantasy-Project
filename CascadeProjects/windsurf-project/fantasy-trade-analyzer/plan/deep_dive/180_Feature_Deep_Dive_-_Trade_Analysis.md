@@ -66,3 +66,90 @@ The `ui.py` module takes the complex dictionary of results from the logic layer 
 -   **Metrics Table**: A powerful table shows the Before -> After comparison for each key metric, with color-coding (green for improvement, red for decline) to quickly highlight the impact.
 -   **Performance Charts**: Plotly line charts visualize the trend of key metrics (like FP/G) across all time ranges, making it easy to see if a trade provides a short-term gain but a long-term loss.
 -   **Roster Details**: A side-by-side view of the pre-trade and post-trade rosters, with outgoing players highlighted in red and incoming players highlighted in green.
+
+## 5. Trade History & Snapshot Replay
+
+### 5.1 History Storage
+
+The Trade Analyzer persists trade history to JSON under:
+
+- `data/trade_history/league_<league_id>_trades.json` 
+
+Each entry has a compact schema:
+
+```jsonc
+{
+  "trade_teams": {
+    "TeamA": { "Player 1": "TeamB", "Player 2": "TeamC" },
+    "TeamB": { "Player 3": "TeamA" }
+  },
+  "summary": "Human‑readable multi‑line summary of the trade by team/time range",
+  "label": "Optional user‑defined label",
+  "date": "2025-11-10",          // ISO date, empty for non‑historical
+  "num_players": 10,             // Top-N players included in the analysis
+  "source": "live | historical", // See below
+  "season": "2025-26",           // Present for historical entries
+  "rosters_by_team": {           // Present for historical entries
+    "TeamA": ["Player 1", "..."],
+    "TeamB": ["Player 3", "..."]
+  },
+  "league_id": "ifa1anexmdgtlk9s"
+}
+```
+
+Notes:
+
+- **Live** trades (`source` absent or != `"historical"`) are computed against the current CSV‑driven `combined_data`.
+- **Historical** trades (`source == "historical"`) originate from the Historical Trade Analyzer and include enough metadata to rebuild a full snapshot from game‑log caches.
+
+### 5.2 Trade History UI
+
+The main Trade Analysis page renders a collapsible:
+
+- **"Trade Analysis History"** expander:
+  - Lists entries (most recent first).
+  - Displays `date` + `label` with a `(historical snapshot)` badge when `source == "historical"`.
+  - Shows the stored `summary` text for quick scanning.
+  - Provides a **"View details"** button for each entry.
+
+Internally, the button simply captures the selected entry; the replay itself is rendered outside the narrow column to preserve full‑width layout.
+
+### 5.3 Replay Behavior (_replay_trade_from_history)
+
+Replays are handled by `modules.trade_analysis.ui._replay_trade_from_history(entry)`:
+
+```python
+def _replay_trade_from_history(entry: Dict[str, Any]) -> None:
+    """Recompute and display a read-only view of a cached trade history entry.
+
+    For historical entries with full context, this rebuilds the original
+    game-log snapshot. For other entries, it recomputes the analysis using
+    the current combined_data.
+    """
+```
+
+**Historical entries (`source == "historical"`):**
+
+1. Extract `season`, `date`, `league_id`, and `rosters_by_team` from the entry.
+2. Parse `date` into a `trade_dt`.
+3. Call `build_historical_combined_data(trade_dt, league_id, season, rosters_by_team)` from `modules.historical_trade_analyzer.logic` to reconstruct `combined_data` as of the trade date.
+4. Instantiate a fresh `TradeAnalyzer(snapshot_df)` and call `evaluate_trade_fairness(trade_teams, num_players)`.
+5. Annotate each team’s results with:
+   - `season` 
+   - `trade_date` (string)
+   - `league_id` 
+6. Pass the results to `display_trade_results`, yielding the **full normal Trade Analysis UI in a read‑only mode**.
+
+**Non‑historical / legacy entries:**
+
+- If `combined_data` is loaded:
+  - Update the existing `st.session_state.trade_analyzer` with the current data.
+  - Re‑run `evaluate_trade_fairness(trade_teams, num_players)`.
+  - Display via `display_trade_results`.
+- This shows how the trade looks **under current data**, not as a historical snapshot.
+
+### 5.4 Limitations
+
+- Historical replay is exact only for entries that came from the Historical Trade Analyzer (i.e. have `season`, `date`, `rosters_by_team`, `league_id`).
+- Older entries without this context cannot be reconstructed as true snapshots; they are recomputed using whatever `combined_data` is currently loaded.
+- To keep history JSON compact, **the full `analysis_results` dict is not persisted**; instead, the snapshot is deterministically rebuilt from the game‑log caches.

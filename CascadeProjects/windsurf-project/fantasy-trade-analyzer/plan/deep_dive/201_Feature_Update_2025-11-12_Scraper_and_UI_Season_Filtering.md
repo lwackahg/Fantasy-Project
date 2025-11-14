@@ -184,6 +184,40 @@
       - `SeasonsIncluded`, `AvgGamesPerSeason`, `AvgMeanFPts`.
     - This ties the value/durability model directly into the per-player consistency UI without changing existing variability charts.
 
+### Follow-up UI Refinements — 2025-11-14
+
+- **Unified Player Value & Consistency hub**
+  - `pages/9_Player_Value_Analyzer.py` was promoted to a combined hub:
+    - Page title: **"Player Value & Consistency"**.
+    - Two main tabs sharing a single league ID input:
+      - **📈 Player Value Rankings** — cross-player multi-season value view (existing value analyzer behavior).
+      - **📊 Player Consistency Browser** — embeds the existing Player Consistency viewer.
+  - The consistency tab calls `show_player_consistency_viewer(initial_league_id=league_id)` so the league field is pre-populated from the hub.
+
+- **Consistency viewer API tweak**
+  - `show_player_consistency_viewer` now accepts an optional `initial_league_id` parameter.
+  - Behavior is unchanged when called without arguments (e.g., from `2_Player_Consistency.py`).
+
+- **CV% tiers and metric explanations**
+  - Consistency tiers were relaxed to better match real fantasy distributions:
+    - `< 25%` → `🟢 Very Consistent`.
+    - `25–40%` → `🟡 Solid / Moderate`.
+    - `> 40%` → `🔴 Volatile / Boom-Bust`.
+  - `display_variability_metrics` now:
+    - Shows CV% with **two decimal places**.
+    - Updates the help text to describe the new thresholds and emphasize that lower CV% is better.
+  - The Multi-Season Value Profile block in `show_individual_player_viewer` adds a short caption explaining:
+    - How ValueScore blends Production, Consistency, and Availability.
+    - That Consistency rewards lower CV% and Durability is derived from games played tiers (Ironman/Reliable/Fragile/Landmine).
+    - The updated CV tiers (`<25%`, `25–40%`, `>40%`).
+
+- **Rounding / presentation cleanup**
+  - Multi-season value metrics (ValueScore, Production, Consistency, Availability, Avg FP/G, Avg GP/Season) are now rendered with **at most 2 decimal places**.
+  - The Player Value Rankings table in `9_Player_Value_Analyzer.py` rounds key numeric columns to two decimals before display.
+  - Single-season Visual Analysis adds an explanatory caption clarifying:
+    - **FPts Trend**: line chart with shaded boom/bust bands around the mean.
+    - **Boom/Bust Zones**: per-game classification into Boom/Normal/Bust using the same ±1 standard deviation thresholds, plus a summary table.
+
 ---
 
 ## Pending Work

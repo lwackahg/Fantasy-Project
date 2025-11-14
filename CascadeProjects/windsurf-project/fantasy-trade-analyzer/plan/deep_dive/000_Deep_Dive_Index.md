@@ -45,6 +45,8 @@ This section provides detailed, technical explanations for each of the applicati
     -   *Evaluating multi-player, multi-team trades with detailed impact analysis.*
 -   [**185: Trade Suggestions**](./185_Feature_Deep_Dive_-_Trade_Suggestions.md)
     -   *Identifying realistic trade opportunities using exponential value and consistency heuristics.*
+ -   [**187: Historical Trade Analyzer**](./187_Feature_Deep_Dive_-_Historical_Trade_Analyzer.md)
+    -   *Replaying past trades using cached game logs, trade-date snapshots, and shared Trade Analysis UI.*
 -   [**190: Standings Tools**](./190_Feature_Deep_Dive_-_Standings_Tools.md)
     -   *Scraping and applying weekly standings adjustments for commissioners.*
 -   [**200: Player Game Log Scraper**](./200_Feature_Deep_Dive_-_Player_Game_Log_Scraper.md)

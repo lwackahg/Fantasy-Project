@@ -145,15 +145,19 @@ def calculate_cross_season_stats(player_code, league_id, seasons):
 	
 	return None
 
-def show_player_consistency_viewer():
-	"""Public viewer for player consistency data (read-only)."""
+def show_player_consistency_viewer(initial_league_id: str | None = None):
+	"""Public viewer for player consistency data (read-only).
+
+	initial_league_id allows other pages to pre-populate the league id field.
+	"""
 	st.title("📊 Player Consistency Analysis")
 	st.write("View game-by-game performance variability and consistency metrics for all rostered players.")
 	
 	# League ID input with name display
+	default_value = initial_league_id or FANTRAX_DEFAULT_LEAGUE_ID or ""
 	league_id = st.text_input(
 		"Fantrax League ID", 
-		value=FANTRAX_DEFAULT_LEAGUE_ID or "",
+		value=default_value,
 		help="Enter your Fantrax league ID"
 	)
 	
@@ -331,22 +335,28 @@ def show_individual_player_viewer(league_id, cache_files, value_profiles_df=None
 			st.subheader("📈 Multi-Season Value Profile")
 			col_a, col_b, col_c, col_d = st.columns(4)
 			with col_a:
-				st.metric("Value Score", f"{row['ValueScore']:.1f}")
+				st.metric("Value Score", f"{row['ValueScore']:.2f}")
 			with col_b:
-				st.metric("Production", f"{row['ProductionScore']:.1f}")
+				st.metric("Production", f"{row['ProductionScore']:.2f}")
 			with col_c:
-				st.metric("Consistency", f"{row['ConsistencyScore']:.1f}")
+				st.metric("Consistency", f"{row['ConsistencyScore']:.2f}")
 			with col_d:
 				st.metric("Durability", str(row['DurabilityTier']))
 			col_e, col_f, col_g, col_h = st.columns(4)
 			with col_e:
-				st.metric("Avail. Score", f"{row['AvailabilityScore']:.1f}")
+				st.metric("Avail. Score", f"{row['AvailabilityScore']:.2f}")
 			with col_f:
 				st.metric("Seasons", int(row['SeasonsIncluded']))
 			with col_g:
-				st.metric("Avg GP/Season", f"{row['AvgGamesPerSeason']:.1f}")
+				st.metric("Avg GP/Season", f"{row['AvgGamesPerSeason']:.2f}")
 			with col_h:
-				st.metric("Avg FP/G", f"{row['AvgMeanFPts']:.1f}")
+				st.metric("Avg FP/G", f"{row['AvgMeanFPts']:.2f}")
+			st.caption(
+				"Value Score blends production, consistency, and availability (higher is better). "
+				"Production reflects average FP/G across seasons, Consistency rewards lower CV% (less game-to-game swing), "
+				"and Durability comes from games played (Ironman/Reliable/Fragile/Landmine). CV tiers: <25% = very consistent, "
+				"25–40% = solid/moderate, >40% = volatile/boom-bust."
+			)
 			st.markdown("---")
 
 	# Get available seasons for this player
@@ -415,6 +425,11 @@ def show_single_season_analysis(player_code, league_id, season, selected_player)
 		# Visualizations
 		st.markdown("---")
 		st.subheader("📈 Visual Analysis")
+		st.caption(
+			"FPts Trend shows game-by-game fantasy points with shaded boom/bust bands around the mean. "
+			"Boom/Bust Zones classifies each game as Boom/Normal/Bust with color-coding and a summary table, using the "
+			"same ±1 standard deviation thresholds."
+		)
 		
 		viz_tab1, viz_tab2, viz_tab3, viz_tab4 = st.tabs([
 			"FPts Trend", "Distribution", "Boom/Bust Zones", "Category Breakdown"

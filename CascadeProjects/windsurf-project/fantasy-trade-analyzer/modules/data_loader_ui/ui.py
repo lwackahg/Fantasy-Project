@@ -5,7 +5,7 @@ import re
 from collections import defaultdict
 from typing import List, Dict
 from data_loader import clean_data
-from modules.trade_analysis.logic import TradeAnalyzer
+from modules.trade_analysis.logic import TradeAnalyzer, _load_trade_history
 import time
 import os
 
@@ -110,6 +110,8 @@ def process_files_into_session_state(selected_files: List[Path]):
     st.session_state.combined_data = combined_data
     if 'combined_data' in st.session_state and st.session_state.combined_data is not None:
         st.session_state.trade_analyzer = TradeAnalyzer(st.session_state.combined_data)
+        # Load any cached history for the current league so trades persist across reloads
+        st.session_state.trade_analyzer.trade_history = _load_trade_history()
         st.session_state.trade_analyzer_data_is_stale = True
 
     # Update the CSV timestamp in the session state

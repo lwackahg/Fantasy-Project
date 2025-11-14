@@ -5,8 +5,9 @@ UI components for the trade analysis feature.
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import datetime
 from typing import Dict, Any, List
-from modules.trade_analysis.logic import get_team_name, run_trade_analysis, get_all_teams
+from modules.trade_analysis.logic import TradeAnalyzer, get_team_name, run_trade_analysis, get_all_teams
 
 def display_trade_analysis_page():
     """Display the trade analysis page."""
@@ -47,8 +48,33 @@ def display_trade_analysis_page():
     with st.expander("Trade Analysis History", expanded=False):
         if st.session_state.trade_analyzer:
             history = st.session_state.trade_analyzer.get_trade_history()
-            for trade, summary in history:
-                st.text(summary)
+            if not history:
+                st.info("No trades recorded yet.")
+            else:
+                selected_entry = None
+
+                for idx, entry in enumerate(reversed(history)):
+                    label = entry.get("label") or "Unlabeled trade"
+                    date = entry.get("date") or ""
+                    source = entry.get("source") or ""
+                    badge = " (historical snapshot)" if source == "historical" else ""
+                    header = f"{date} — {label}{badge}" if date else f"{label}{badge}"
+                    st.markdown(f"**{header}**")
+
+                    summary = entry.get("summary")
+                    if summary:
+                        st.text(summary)
+
+                    # Narrow column just holds the button
+                    col1, col2 = st.columns([1, 5])
+                    with col1:
+                        if st.button("View details", key=f"history_view_{idx}"):
+                            selected_entry = entry
+                    st.write("---")
+
+                # Render the replay OUTSIDE the narrow column → full width
+                if selected_entry is not None:
+                    _replay_trade_from_history(selected_entry)
 
 def _display_player_selection_interface(selected_teams: List[str]) -> Dict[str, Dict[str, str]]:
     """Displays the UI for selecting players and their destinations."""
@@ -87,6 +113,94 @@ def _display_player_selection_interface(selected_teams: List[str]) -> Dict[str, 
                     trade_teams[team][player] = dest
     return trade_teams
 
+def _replay_trade_from_history(entry: Dict[str, Any]) -> None:
+    """Recompute and display a read-only view of a cached trade history entry.
+
+    For historical entries with full context, this rebuilds the original
+    game-log snapshot. For other entries, it recomputes the analysis using
+    the current combined_data.
+    """
+    from modules.historical_trade_analyzer.logic import build_historical_combined_data
+
+    trade_teams = entry.get("trade_teams") or {}
+    if not trade_teams:
+        st.info("This history entry does not have enough information to replay.")
+        return
+
+    num_players = int(entry.get("num_players") or 10)
+    source = entry.get("source") or ""
+    label = entry.get("label") or "Unlabeled trade"
+
+    st.markdown("### Trade Replay (Read-Only)")
+    st.caption(f"Replaying stored trade: {label}")
+
+    # Historical snapshot replay: rebuild from cached game logs
+    if (
+        source == "historical"
+        and all(k in entry for k in ("season", "date", "rosters_by_team", "league_id"))
+    ):
+        season = entry["season"]
+        trade_date_str = entry["date"]
+        league_id = entry["league_id"]
+        rosters_by_team = entry["rosters_by_team"]
+
+        try:
+            trade_dt = pd.to_datetime(trade_date_str, errors="coerce").date()
+        except Exception:
+            trade_dt = None
+
+        if trade_dt is None:
+            st.info("Could not parse trade date for this historical entry.")
+            return
+
+        with st.spinner("Rebuilding historical snapshot from game logs..."):
+            snapshot_df = build_historical_combined_data(
+                trade_dt,
+                league_id,
+                season,
+                rosters_by_team,
+            )
+            if snapshot_df is None or snapshot_df.empty:
+                st.error("Could not rebuild historical snapshot for this entry.")
+                return
+
+            analyzer = TradeAnalyzer(snapshot_df)
+            results = analyzer.evaluate_trade_fairness(trade_teams, num_players)
+            if not results:
+                st.error("No results produced when replaying this historical trade.")
+                return
+
+            # Stamp context so logs/consistency use the right season & league
+            for _, team_results in results.items():
+                if isinstance(team_results, dict):
+                    team_results["season"] = season
+                    team_results["trade_date"] = trade_date_str
+                    team_results["league_id"] = league_id
+
+            display_trade_results(results)
+        return
+
+    # Non-historical or legacy entries: recompute using current combined_data
+    if (
+        not st.session_state.get("trade_analyzer")
+        or st.session_state.get("combined_data") is None
+    ):
+        st.info("Load a league dataset before replaying non-historical trades.")
+        return
+
+    with st.spinner("Recomputing trade analysis with current data..."):
+        st.session_state.trade_analyzer.update_data(st.session_state.combined_data)
+        results = st.session_state.trade_analyzer.evaluate_trade_fairness(
+            trade_teams,
+            num_players,
+        )
+        if not results:
+            st.error("No results produced when replaying this trade with current data.")
+            return
+
+        display_trade_results(results)
+
+
 def trade_setup():
     """Setup the trade interface."""
     st.write("## Analysis Settings")
@@ -97,6 +211,18 @@ def trade_setup():
         max_value=12,
         value=10,
         help="Select the number of top players to analyze"
+    )
+
+    trade_label = st.text_input(
+        "Trade label / description (optional)",
+        value="",
+        help="Give this trade a name so you can recognize it later in the history."
+    )
+
+    include_advanced_metrics = st.checkbox(
+        "Include advanced metrics (consistency, Total ValueScore)",
+        value=True,
+        help="Turn this off for faster runs if you don't need consistency and value-score details."
     )
 
     st.write("### Select Teams to Trade Between (2 or more)")
@@ -118,8 +244,24 @@ def trade_setup():
 
     trade_teams = _display_player_selection_interface(selected_teams)
 
+    last_duration = st.session_state.get("trade_analysis_last_duration_sec")
+    if last_duration:
+        est_seconds = int(round(last_duration)) or 1
+        st.caption(f"Last analysis took about {est_seconds} seconds. Future runs should be similar.")
+
     if trade_teams and st.button("Analyze Trade"):
-        results = run_trade_analysis(trade_teams, num_players)
+        spinner_msg = "Running trade analysis..."
+        if last_duration:
+            est_seconds = int(round(last_duration)) or 1
+            spinner_msg = f"Running trade analysis (expected ~{est_seconds} seconds)..."
+
+        with st.spinner(spinner_msg):
+            results = run_trade_analysis(
+                trade_teams,
+                num_players,
+                trade_label=trade_label,
+                include_advanced_metrics=include_advanced_metrics,
+            )
         if results:
             display_trade_results(results)
 
@@ -132,14 +274,17 @@ def display_trade_results(analysis_results: Dict[str, Dict[str, Any]]):
     for team_tab, (team, results) in zip(team_tabs, analysis_results.items()):
         with team_tab:
             _display_trade_overview(results)
-            
-            with st.expander("Trade Impact Analysis", expanded=True):
-                _display_trade_metrics_table(results, time_ranges)
-                st.write("---")
-                _display_trade_insights(results, time_ranges)
-                st.write("---")
-                _display_performance_visualizations(results, time_ranges)
-                _display_roster_details(results, time_ranges)
+            _display_trade_impact_section(results, time_ranges)
+
+def _display_trade_impact_section(results: Dict[str, Any], time_ranges: List[str]):
+    """Display the main trade impact analysis section for a single team tab."""
+    with st.expander("Trade Impact Analysis", expanded=True):
+        _display_trade_metrics_table(results, time_ranges)
+        st.write("---")
+        _display_trade_insights(results, time_ranges)
+        st.write("---")
+        _display_performance_visualizations(results, time_ranges)
+        _display_roster_details(results, time_ranges)
 
 def _display_trade_overview(results: Dict[str, Any]):
     st.title("Trade Overview")
@@ -158,7 +303,10 @@ def _display_trade_overview(results: Dict[str, Any]):
     _display_traded_players_game_logs(results)
 
 def _display_trade_metrics_table(results: Dict[str, Any], time_ranges: List[str]):
-    st.markdown("""ℹ️ **Metrics Guide**: - **FP/G**: Fantasy Points per Game - **GP**: Games Played - **Std Dev**: Standard Deviation (consistency measure) - **CV%**: Coefficient of Variation (lower = more consistent)""", unsafe_allow_html=True)
+    st.markdown(
+        """ℹ️ **Metrics Guide**: - **FP/G**: Fantasy Points per Game - **GP**: Games Played - **Std Dev**: Standard Deviation (consistency measure) - **CV%**: Coefficient of Variation (lower = more consistent) - **Total ValueScore**: Sum of each roster player's composite value score (production, consistency, availability) — higher is better.""",
+        unsafe_allow_html=True,
+    )
     combined_data = []
     for time_range in time_ranges:
         pre_metrics = results.get('pre_trade_metrics', {}).get(time_range, {})
@@ -236,7 +384,7 @@ def _display_performance_visualizations(results: Dict[str, Any], time_ranges: Li
         })
 
         fig = _create_performance_chart(metric_data, display_name)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
     
 
 def _display_styled_roster(title: str, roster_data: List[Dict[str, Any]], players_to_highlight: List[str], highlight_color: str):
@@ -249,7 +397,7 @@ def _display_styled_roster(title: str, roster_data: List[Dict[str, Any]], player
             return [f'background-color: {highlight_color}' if row['Player'] in players_to_highlight else '' for _ in row]
 
         styled_roster = roster_df.style.apply(highlight_players, axis=1)
-        st.dataframe(styled_roster, hide_index=True)
+        st.dataframe(styled_roster, hide_index=True, width='stretch')
     else:
         st.write("No data available.")
 
@@ -274,20 +422,52 @@ def _display_traded_players_game_logs(results: Dict[str, Any]):
         for player_tab, player_name in zip(player_tabs, all_players):
             with player_tab:
                 # Find and load player's game log
-                cache_files = list(cache_dir.glob(f"player_game_log_*_{league_id}.json"))
+                cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
                 game_log_df = None
+                preferred_season = results.get("season") if isinstance(results, dict) else None
+                best_candidate = None
+                best_season = None
                 
                 for cache_file in cache_files:
                     try:
                         with open(cache_file, 'r') as f:
                             cache_data = json.load(f)
-                        if cache_data.get('player_name', '') == player_name:
-                            game_log = cache_data.get('data', cache_data.get('game_log', []))
-                            if game_log:
-                                game_log_df = pd.DataFrame(game_log)
+                        cached_name = cache_data.get('player_name', '')
+                        if str(cached_name).strip().lower() != str(player_name).strip().lower():
+                            continue
+                        season_str = str(cache_data.get('season', '')).strip()
+                        # If a specific season is attached to the results, prefer an exact match
+                        if preferred_season and season_str == preferred_season:
+                            best_candidate = cache_data
+                            best_season = season_str
                             break
+                        # Otherwise track the most recent season lexicographically
+                        if not preferred_season:
+                            if best_season is None or season_str > best_season:
+                                best_candidate = cache_data
+                                best_season = season_str
                     except Exception:
                         continue
+                
+                if best_candidate is not None:
+                    game_log = best_candidate.get('data', best_candidate.get('game_log', []))
+                    if game_log:
+                        game_log_df = pd.DataFrame(game_log)
+                        # For historical trades, filter logs to games on or before the trade date
+                        trade_date_str = results.get("trade_date") if isinstance(results, dict) else None
+                        if trade_date_str and preferred_season and "Date" in game_log_df.columns:
+                            try:
+                                from modules.historical_trade_analyzer.logic import _parse_game_dates_for_season
+                                trade_dt = pd.to_datetime(trade_date_str, errors="coerce")
+                                if not pd.isna(trade_dt):
+                                    parsed_dates = _parse_game_dates_for_season(game_log_df["Date"], preferred_season)
+                                    game_log_df = game_log_df.copy()
+                                    game_log_df["DateParsed"] = parsed_dates
+                                    game_log_df = game_log_df[game_log_df["DateParsed"] <= trade_dt]
+                                    game_log_df = game_log_df.drop(columns=["DateParsed"])
+                            except Exception:
+                                # If anything goes wrong, fall back to full log display
+                                pass
                 
                 if game_log_df is not None and not game_log_df.empty:
                     # Display consistency metrics
@@ -316,7 +496,7 @@ def _display_traded_players_game_logs(results: Dict[str, Any]):
                     
                     st.dataframe(
                         game_log_df[display_cols],
-                        use_container_width=True,
+                        width='stretch',
                         height=400
                     )
                     
@@ -390,9 +570,14 @@ def _display_trade_insights(results: Dict[str, Any], time_ranges: List[str]):
             st.markdown(assessment_text)
             
             # Trade recommendation
-            if fpg_change > 2 and cv_change < 5:
+            small_production = abs(fpg_change) < 1.0 and abs(percent_change) < 5.0
+            small_consistency = abs(cv_change) < 3.0
+
+            if small_production and small_consistency:
+                st.info("🟡 **Marginal Trade** - Minimal impact either way")
+            elif fpg_change > 3 and cv_change < 5:
                 st.success("🟢 **Strong Trade** - Significant production gain with acceptable consistency impact")
-            elif fpg_change > 0 and cv_change < 0:
+            elif fpg_change > 1.5 and cv_change < 0:
                 st.success("🟢 **Excellent Trade** - Production gain AND improved consistency")
             elif fpg_change > 0 and cv_change < 10:
                 st.info("🟡 **Decent Trade** - Production gain but slight consistency loss")
@@ -401,7 +586,7 @@ def _display_trade_insights(results: Dict[str, Any], time_ranges: List[str]):
             elif cv_change > 10:
                 st.warning("🟠 **Risky Trade** - Major consistency loss, high volatility")
             else:
-                st.info("🟡 **Marginal Trade** - Minimal impact either way")
+                st.info("🟡 **Marginal Trade** - Mixed signals or minimal net impact")
         
         with col2:
             st.markdown("**Production**")
@@ -482,7 +667,7 @@ def _display_trade_insights(results: Dict[str, Any], time_ranges: List[str]):
             
             fig_trend.update_layout(height=500, showlegend=False)
             
-            st.plotly_chart(fig_trend, use_container_width=True)
+            st.plotly_chart(fig_trend, width='stretch')
             
             # Trend interpretation
             recent_trend = trend_df.iloc[-1]['FP/G Change']
@@ -592,7 +777,7 @@ def _display_statistical_analysis(results, time_ranges, ytd_pre, ytd_post):
     fig_dist.update_layout(height=400, showlegend=False)
     fig_dist.update_yaxes(title_text="Fantasy Points per Game")
     
-    st.plotly_chart(fig_dist, use_container_width=True)
+    st.plotly_chart(fig_dist, width='stretch')
     
     st.caption("**Box plots** show the distribution of expected performance. The box represents the middle 50% of outcomes, with the line showing the median.")
 
@@ -620,7 +805,7 @@ def _display_player_comparison(outgoing_players, incoming_players, results):
                 })
         
         if outgoing_data:
-            st.dataframe(pd.DataFrame(outgoing_data), hide_index=True, use_container_width=True)
+            st.dataframe(pd.DataFrame(outgoing_data), hide_index=True, width='stretch')
             avg_fpg_out = sum([float(d['Mean FPts']) for d in outgoing_data]) / len(outgoing_data)
             st.caption(f"Average: {avg_fpg_out:.1f} FP/G")
         else:

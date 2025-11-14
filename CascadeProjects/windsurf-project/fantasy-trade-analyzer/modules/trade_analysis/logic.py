@@ -5,13 +5,17 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 from typing import List, Dict, Any, Optional, Tuple
+from pathlib import Path
+import json
+import time
 
 from data_loader import TEAM_MAPPINGS
 from debug import debug_manager
 from modules.trade_analysis.consistency_integration import (
 	load_player_consistency,
 	load_all_player_consistency,
-	enrich_roster_with_consistency
+	enrich_roster_with_consistency,
+	build_league_consistency_index,
 )
 from modules.player_value.logic import build_player_value_profiles
 
@@ -20,6 +24,50 @@ try:
 	from league_config import FANTRAX_DEFAULT_LEAGUE_ID
 except ImportError:
 	FANTRAX_DEFAULT_LEAGUE_ID = ""
+
+
+def _get_trade_history_key() -> str:
+	"""Build a key for trade history based on league id or loaded league name."""
+	league_id = st.session_state.get("league_id") or FANTRAX_DEFAULT_LEAGUE_ID
+	if league_id:
+		return f"league_{league_id}"
+	league_name = st.session_state.get("loaded_league_name")
+	if league_name:
+		return f"league_{str(league_name).replace(' ', '_')}"
+	return "league_default"
+
+
+def _get_trade_history_path() -> Path:
+	"""Return the filesystem path for the current league's trade history cache."""
+	project_root = Path(__file__).resolve().parents[2]
+	history_dir = project_root / "data" / "trade_history"
+	history_dir.mkdir(parents=True, exist_ok=True)
+	return history_dir / f"{_get_trade_history_key()}_trades.json"
+
+
+def _load_trade_history() -> List[Dict[str, Any]]:
+	"""Load trade history for the current league from disk, if available."""
+	try:
+		path = _get_trade_history_path()
+		if not path.exists():
+			return []
+		with path.open("r", encoding="utf-8") as f:
+			data = json.load(f)
+		if isinstance(data, list):
+			return data
+	except Exception as exc:  # pragma: no cover - best-effort logging
+		debug_manager.log(f"Failed to load trade history: {exc}", level="warning")
+	return []
+
+
+def _save_trade_history(history: List[Dict[str, Any]]) -> None:
+	"""Persist trade history for the current league to disk."""
+	try:
+		path = _get_trade_history_path()
+		with path.open("w", encoding="utf-8") as f:
+			json.dump(history, f, ensure_ascii=False, indent=2)
+	except Exception as exc:  # pragma: no cover - best-effort logging
+		debug_manager.log(f"Failed to save trade history: {exc}", level="warning")
 
 
 class TradeAnalyzer:
@@ -49,8 +97,17 @@ class TradeAnalyzer:
         debug_manager.log(f"Retrieved {len(team_data)} players for team {team}", level='debug')
         return team_data
 
-    def evaluate_trade_fairness(self, trade_teams: Dict[str, Dict[str, str]], num_top_players: int = 10) -> Dict[str, Dict[str, Any]]:
-        """Evaluate the fairness of a trade between teams."""
+    def evaluate_trade_fairness(
+        self,
+        trade_teams: Dict[str, Dict[str, str]],
+        num_top_players: int = 10,
+        include_advanced_metrics: bool = True,
+    ) -> Dict[str, Dict[str, Any]]:
+        """Evaluate the fairness of a trade between teams.
+
+        If include_advanced_metrics is False, skips consistency and value
+        profile computations to speed up analysis.
+        """
         analysis_results = {}
 
         for team, players in trade_teams.items():
@@ -92,16 +149,40 @@ class TradeAnalyzer:
             post_trade_consistency = {}
             pre_trade_value_scores = {}
             post_trade_value_scores = {}
-            
+
             # Get league ID from session state or use default
             league_id = st.session_state.get('league_id', FANTRAX_DEFAULT_LEAGUE_ID)
             value_profiles_df = None
-            if league_id:
-                try:
-                    value_profiles_df = build_player_value_profiles(league_id)
-                except Exception:
-                    value_profiles_df = None
-            
+            consistency_index = None
+            if include_advanced_metrics and league_id:
+                # Cache player value profiles per league
+                vp_cache_key = "player_value_profiles_cache"
+                vp_cache = st.session_state.get(vp_cache_key) or {}
+                if isinstance(vp_cache, dict) and league_id in vp_cache:
+                    value_profiles_df = vp_cache.get(league_id)
+                else:
+                    try:
+                        value_profiles_df = build_player_value_profiles(league_id)
+                    except Exception:
+                        value_profiles_df = None
+                    if value_profiles_df is not None:
+                        vp_cache[league_id] = value_profiles_df
+                        st.session_state[vp_cache_key] = vp_cache
+
+                # Cache league-wide consistency index per league
+                ci_cache_key = "consistency_index_cache"
+                ci_cache = st.session_state.get(ci_cache_key) or {}
+                if isinstance(ci_cache, dict) and league_id in ci_cache:
+                    consistency_index = ci_cache.get(league_id)
+                else:
+                    try:
+                        consistency_index = build_league_consistency_index(league_id)
+                    except Exception:
+                        consistency_index = None
+                    if consistency_index is not None:
+                        ci_cache[league_id] = consistency_index
+                        st.session_state[ci_cache_key] = ci_cache
+
             for time_range in time_ranges:
                 if time_range in pre_trade_rosters and pre_trade_rosters.get(time_range):
                     pre_roster_df = pd.DataFrame(pre_trade_rosters[time_range])
@@ -112,10 +193,14 @@ class TradeAnalyzer:
                         'total_fpts': pre_roster_df['FPts'].sum(),
                         'avg_gp': pre_roster_df['GP'].mean()
                     }
-                    
-                    # Add consistency metrics if available
-                    if league_id:
-                        enriched_pre = enrich_roster_with_consistency(pre_roster_df.copy(), league_id)
+
+                    # Add consistency metrics for this time range using cached index
+                    if include_advanced_metrics and league_id:
+                        enriched_pre = enrich_roster_with_consistency(
+                            pre_roster_df.copy(),
+                            league_id,
+                            consistency_index=consistency_index,
+                        )
                         if 'CV%' in enriched_pre.columns:
                             cv_values = enriched_pre['CV%'].dropna()
                             if len(cv_values) > 0:
@@ -126,19 +211,7 @@ class TradeAnalyzer:
                                     'moderate': len(cv_values[(cv_values >= 20) & (cv_values <= 30)]),
                                     'volatile': len(cv_values[cv_values > 30])
                                 }
-                    # Add value score aggregates if profiles are available
-                    if value_profiles_df is not None and not value_profiles_df.empty:
-                        merged_pre = pre_roster_df.merge(
-                            value_profiles_df[['Player', 'ValueScore']],
-                            on='Player',
-                            how='left'
-                        )
-                        if not merged_pre.empty:
-                            pre_trade_value_scores[time_range] = {
-                                'total_value_score': float(merged_pre['ValueScore'].fillna(0).sum()),
-                                'avg_value_score': float(merged_pre['ValueScore'].fillna(0).mean())
-                            }
-                
+
                 if time_range in post_trade_rosters and post_trade_rosters.get(time_range):
                     post_roster_df = pd.DataFrame(post_trade_rosters[time_range])
                     post_trade_metrics[time_range] = {
@@ -148,10 +221,14 @@ class TradeAnalyzer:
                         'total_fpts': post_roster_df['FPts'].sum(),
                         'avg_gp': post_roster_df['GP'].mean()
                     }
-                    
-                    # Add consistency metrics if available
-                    if league_id:
-                        enriched_post = enrich_roster_with_consistency(post_roster_df.copy(), league_id)
+
+                    # Add consistency metrics for this time range using cached index
+                    if include_advanced_metrics and league_id:
+                        enriched_post = enrich_roster_with_consistency(
+                            post_roster_df.copy(),
+                            league_id,
+                            consistency_index=consistency_index,
+                        )
                         if 'CV%' in enriched_post.columns:
                             cv_values = enriched_post['CV%'].dropna()
                             if len(cv_values) > 0:
@@ -162,9 +239,23 @@ class TradeAnalyzer:
                                     'moderate': len(cv_values[(cv_values >= 20) & (cv_values <= 30)]),
                                     'volatile': len(cv_values[cv_values > 30])
                                 }
-                    # Add value score aggregates if profiles are available
-                    if value_profiles_df is not None and not value_profiles_df.empty:
-                        merged_post = post_roster_df.merge(
+
+                # Add value score aggregates if profiles are available and requested
+                if include_advanced_metrics and value_profiles_df is not None and not value_profiles_df.empty:
+                    if time_range in pre_trade_rosters and pre_trade_rosters.get(time_range):
+                        merged_pre = pd.DataFrame(pre_trade_rosters[time_range]).merge(
+                            value_profiles_df[['Player', 'ValueScore']],
+                            on='Player',
+                            how='left'
+                        )
+                        if not merged_pre.empty:
+                            pre_trade_value_scores[time_range] = {
+                                'total_value_score': float(merged_pre['ValueScore'].fillna(0).sum()),
+                                'avg_value_score': float(merged_pre['ValueScore'].fillna(0).mean())
+                            }
+
+                    if time_range in post_trade_rosters and post_trade_rosters.get(time_range):
+                        merged_post = pd.DataFrame(post_trade_rosters[time_range]).merge(
                             value_profiles_df[['Player', 'ValueScore']],
                             on='Player',
                             how='left'
@@ -175,6 +266,7 @@ class TradeAnalyzer:
                                 'avg_value_score': float(merged_post['ValueScore'].fillna(0).mean())
                             }
 
+            # Aggregate value changes per time range
             value_changes = {}
             for time_range in time_ranges:
                 if time_range in pre_trade_metrics and time_range in post_trade_metrics:
@@ -202,12 +294,13 @@ class TradeAnalyzer:
                 'value_changes': value_changes,
                 'pre_trade_rosters': pre_trade_rosters,
                 'post_trade_rosters': post_trade_rosters,
-                'league_id': league_id
+                'league_id': league_id,
+                'include_advanced_metrics': include_advanced_metrics,
             }
         return analysis_results
 
-    def get_trade_history(self) -> List[Tuple[Dict[str, Dict[str, str]], str]]:
-        """Get the history of analyzed trades."""
+    def get_trade_history(self) -> List[Dict[str, Any]]:
+        """Get the history of analyzed trades as structured entries."""
         return self.trade_history
 
     def _generate_trade_summary(self, analysis_results: Dict[str, Dict[str, Any]]) -> str:
@@ -236,10 +329,48 @@ def get_all_teams() -> List[str]:
     # It does not need to check session state.
     return sorted(TEAM_MAPPINGS.keys())
 
-def run_trade_analysis(trade_teams: Dict[str, Dict[str, str]], num_players: int) -> Dict[str, Any]:
-    """Run the trade analysis and return the results."""
+def run_trade_analysis(
+    trade_teams: Dict[str, Dict[str, str]],
+    num_players: int,
+    trade_label: str = "",
+    trade_date: Optional[str] = None,
+    include_advanced_metrics: bool = True,
+) -> Dict[str, Any]:
+    """Run the trade analysis, record it in history, and return the results."""
     if st.session_state.trade_analyzer:
+        start_time = time.perf_counter()
         st.session_state.trade_analyzer.update_data(st.session_state.combined_data)
-        results = st.session_state.trade_analyzer.evaluate_trade_fairness(trade_teams, num_players)
+        try:
+            results = st.session_state.trade_analyzer.evaluate_trade_fairness(
+                trade_teams,
+                num_players,
+                include_advanced_metrics=include_advanced_metrics,
+            )
+        except TypeError:
+            # Backwards compatibility for existing TradeAnalyzer instances: reinitialize
+            st.session_state.trade_analyzer = TradeAnalyzer(st.session_state.combined_data)
+            results = st.session_state.trade_analyzer.evaluate_trade_fairness(
+                trade_teams,
+                num_players,
+                include_advanced_metrics=include_advanced_metrics,
+            )
+        duration = time.perf_counter() - start_time
+        try:
+            st.session_state["trade_analysis_last_duration_sec"] = float(duration)
+        except Exception:
+            pass
+        if results:
+            try:
+                summary = st.session_state.trade_analyzer._generate_trade_summary(results)
+            except Exception:
+                summary = ""
+            history_entry = {
+                "trade_teams": trade_teams,
+                "summary": summary,
+                "label": trade_label or "",
+                "date": trade_date or "",
+                "num_players": num_players,
+            }
+            st.session_state.trade_analyzer.trade_history.append(history_entry)
         return results
     return {}

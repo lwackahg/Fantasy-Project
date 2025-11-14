@@ -24,8 +24,8 @@ def display_variability_metrics(stats, player_name):
 		st.metric("Range", f"{stats['range']:.0f}", help="Difference between max and min. Shows total scoring spread")
 		st.metric(
 			"CV %", 
-			f"{stats['coefficient_of_variation']:.1f}%",
-			help="Coefficient of Variation = (Std Dev / Mean) × 100. Lower % = more consistent. <20% = very consistent, 20-30% = moderate, >30% = volatile"
+			f"{stats['coefficient_of_variation']:.2f}%",
+			help="Coefficient of Variation = (Std Dev / Mean) × 100. Lower % = more consistent. <25% = very consistent, 25–40% = solid/moderate, >40% = volatile/boom-bust"
 		)
 	
 	# Context for high performers

@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 from typing import Dict, Optional
+from functools import lru_cache
 import pandas as pd
 
 def get_consistency_cache_directory():
@@ -10,67 +11,64 @@ def get_consistency_cache_directory():
 	cache_dir.mkdir(parents=True, exist_ok=True)
 	return cache_dir
 
-def load_player_consistency(player_name: str, league_id: str) -> Optional[Dict]:
-	"""
-	Load consistency metrics for a specific player from cache.
-	
-	Args:
-		player_name: Name of the player
-		league_id: Fantrax league ID
-		
-	Returns:
-		Dict with consistency metrics or None if not found
-	"""
+@lru_cache(maxsize=2048)
+def _load_player_consistency_internal(player_name: str, league_id: str) -> Optional[Dict]:
 	cache_dir = get_consistency_cache_directory()
-	
-	# Find cache file for this player
-	# Cache files are named: player_game_log_{player_code}_{league_id}.json
-	cache_files = list(cache_dir.glob(f"player_game_log_*_{league_id}.json"))
-	
+	cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
+	best_candidate = None
+	best_season = None
 	for cache_file in cache_files:
 		try:
 			with open(cache_file, 'r') as f:
 				cache_data = json.load(f)
-			
 			cached_player_name = cache_data.get('player_name', '')
-			if cached_player_name == player_name:
-				# Calculate metrics from game log
-				game_log = cache_data.get('data', cache_data.get('game_log', []))
-				if game_log:
-					df = pd.DataFrame(game_log)
-					if 'FPts' in df.columns and len(df) > 0:
-						fpts = df['FPts']
-						mean_fpts = fpts.mean()
-						std_dev = fpts.std()
-						cv = (std_dev / mean_fpts * 100) if mean_fpts > 0 else 0
-						
-						# Boom/Bust thresholds (±1 std dev)
-						boom_threshold = mean_fpts + std_dev
-						bust_threshold = mean_fpts - std_dev
-						boom_games = len(fpts[fpts > boom_threshold])
-						bust_games = len(fpts[fpts < bust_threshold])
-						total_games = len(fpts)
-						
-						return {
-							'player_name': player_name,
-							'games_played': total_games,
-							'mean_fpts': mean_fpts,
-							'median_fpts': fpts.median(),
-							'std_dev': std_dev,
-							'cv_percent': cv,
-							'min_fpts': fpts.min(),
-							'max_fpts': fpts.max(),
-							'range': fpts.max() - fpts.min(),
-							'boom_games': boom_games,
-							'boom_rate': (boom_games / total_games * 100) if total_games > 0 else 0,
-							'bust_games': bust_games,
-							'bust_rate': (bust_games / total_games * 100) if total_games > 0 else 0,
-							'consistency_tier': get_consistency_tier(cv)
-						}
+			if str(cached_player_name).strip().lower() != str(player_name).strip().lower():
+				continue
+			season_str = str(cache_data.get('season', '')).strip()
+			if best_season is None or season_str > best_season:
+				best_candidate = cache_data
+				best_season = season_str
 		except Exception:
 			continue
-	
-	return None
+
+	if best_candidate is None:
+		return None
+	game_log = best_candidate.get('data', best_candidate.get('game_log', []))
+	if not game_log:
+		return None
+	df = pd.DataFrame(game_log)
+	if 'FPts' not in df.columns or len(df) == 0:
+		return None
+	fpts = df['FPts']
+	mean_fpts = fpts.mean()
+	std_dev = fpts.std()
+	cv = (std_dev / mean_fpts * 100) if mean_fpts > 0 else 0
+	boom_threshold = mean_fpts + std_dev
+	bust_threshold = mean_fpts - std_dev
+	boom_games = len(fpts[fpts > boom_threshold])
+	bust_games = len(fpts[fpts < bust_threshold])
+	total_games = len(fpts)
+	return {
+		'player_name': player_name,
+		'games_played': total_games,
+		'mean_fpts': mean_fpts,
+		'median_fpts': fpts.median(),
+		'std_dev': std_dev,
+		'cv_percent': cv,
+		'min_fpts': fpts.min(),
+		'max_fpts': fpts.max(),
+		'range': fpts.max() - fpts.min(),
+		'boom_games': boom_games,
+		'boom_rate': (boom_games / total_games * 100) if total_games > 0 else 0,
+		'bust_games': bust_games,
+		'bust_rate': (bust_games / total_games * 100) if total_games > 0 else 0,
+		'consistency_tier': get_consistency_tier(cv)
+	}
+
+
+def load_player_consistency(player_name: str, league_id: str) -> Optional[Dict]:
+	"""Public wrapper around the cached consistency loader."""
+	return _load_player_consistency_internal(player_name, league_id)
 
 def get_consistency_tier(cv_percent: float) -> str:
 	"""
@@ -82,12 +80,12 @@ def get_consistency_tier(cv_percent: float) -> str:
 	Returns:
 		Tier string with emoji
 	"""
-	if cv_percent < 20:
+	if cv_percent < 25:
 		return "🟢 Very Consistent"
-	elif cv_percent <= 30:
-		return "🟡 Moderate"
+	elif cv_percent <= 40:
+		return "🟡 Solid / Moderate"
 	else:
-		return "🔴 Volatile"
+		return "🔴 Volatile / Boom-Bust"
 
 def load_all_player_consistency(league_id: str) -> Dict[str, Dict]:
 	"""
@@ -100,7 +98,7 @@ def load_all_player_consistency(league_id: str) -> Dict[str, Dict]:
 		Dict mapping player names to their consistency metrics
 	"""
 	cache_dir = get_consistency_cache_directory()
-	cache_files = list(cache_dir.glob(f"player_game_log_*_{league_id}.json"))
+	cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
 	
 	all_consistency = {}
 	
@@ -119,7 +117,68 @@ def load_all_player_consistency(league_id: str) -> Dict[str, Dict]:
 	
 	return all_consistency
 
-def enrich_roster_with_consistency(roster_df: pd.DataFrame, league_id: str) -> pd.DataFrame:
+
+def build_league_consistency_index(league_id: str) -> Dict[str, Dict]:
+	cache_dir = get_consistency_cache_directory()
+	cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
+
+	best_by_player: Dict[str, Dict] = {}
+
+	for cache_file in cache_files:
+		try:
+			with open(cache_file, 'r') as f:
+				cache_data = json.load(f)
+			player_name = cache_data.get('player_name', '')
+			if not player_name:
+				continue
+			season_str = str(cache_data.get('season', '')).strip()
+			existing = best_by_player.get(player_name)
+			if existing is None or season_str > str(existing.get('season', '')):
+				best_by_player[player_name] = {
+					'season': season_str,
+					'data': cache_data,
+				}
+		except Exception:
+			continue
+
+	all_consistency: Dict[str, Dict] = {}
+	for player_name, meta in best_by_player.items():
+		cache_data = meta.get('data') or {}
+		game_log = cache_data.get('data', cache_data.get('game_log', []))
+		if not game_log:
+			continue
+		df = pd.DataFrame(game_log)
+		if 'FPts' not in df.columns or len(df) == 0:
+			continue
+		fpts = df['FPts']
+		mean_fpts = fpts.mean()
+		std_dev = fpts.std()
+		cv = (std_dev / mean_fpts * 100) if mean_fpts > 0 else 0
+		boom_threshold = mean_fpts + std_dev
+		bust_threshold = mean_fpts - std_dev
+		boom_games = len(fpts[fpts > boom_threshold])
+		bust_games = len(fpts[fpts < bust_threshold])
+		total_games = len(fpts)
+		all_consistency[player_name] = {
+			'player_name': player_name,
+			'games_played': total_games,
+			'mean_fpts': mean_fpts,
+			'median_fpts': fpts.median(),
+			'std_dev': std_dev,
+			'cv_percent': cv,
+			'min_fpts': fpts.min(),
+			'max_fpts': fpts.max(),
+			'range': fpts.max() - fpts.min(),
+			'boom_games': boom_games,
+			'boom_rate': (boom_games / total_games * 100) if total_games > 0 else 0,
+			'bust_games': bust_games,
+			'bust_rate': (bust_games / total_games * 100) if total_games > 0 else 0,
+			'consistency_tier': get_consistency_tier(cv),
+		}
+
+	return all_consistency
+
+def enrich_roster_with_consistency(roster_df: pd.DataFrame, league_id: str, consistency_index: Optional[Dict[str, Dict]] = None) -> pd.DataFrame:
 	"""
 	Add consistency metrics to a roster DataFrame.
 	
@@ -139,9 +198,15 @@ def enrich_roster_with_consistency(roster_df: pd.DataFrame, league_id: str) -> p
 	roster_df['Boom%'] = None
 	roster_df['Bust%'] = None
 	
+	index = consistency_index or {}
+	
 	for idx, row in roster_df.iterrows():
 		player_name = row['Player']
-		consistency = load_player_consistency(player_name, league_id)
+		consistency = None
+		if index and player_name in index:
+			consistency = index[player_name]
+		else:
+			consistency = load_player_consistency(player_name, league_id)
 		
 		if consistency:
 			roster_df.at[idx, 'CV%'] = round(consistency['cv_percent'], 1)

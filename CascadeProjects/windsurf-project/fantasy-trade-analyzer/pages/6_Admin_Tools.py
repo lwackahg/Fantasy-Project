@@ -5,6 +5,7 @@ from modules.player_game_log_scraper.ui import show_player_game_log_scraper
 from modules.standings_adjuster.ui import show_standings_adjuster
 from modules.weekly_standings_analyzer.ui import show_weekly_standings_analyzer
 from modules.historical_ytd_downloader.ui import display_historical_ytd_ui
+from modules.historical_trade_analyzer.ui import show_historical_trade_analyzer
 
 st.set_page_config(page_title="Admin Tools", page_icon="🔐", layout="wide")
 
@@ -16,12 +17,13 @@ st.title("🔐 Admin Tools")
 st.write("Commissioner-only tools for league management and data scraping.")
 
 # Create tabs for different admin tools
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 	"📥 Downloader for Current Season (Trading Files)",
 	"📅 Historical YTD (When Significant Data Available)",
 	"📊 Player Game Logs (when Signifcant Data Available)", 
 	"📈 Weekly Standings",
-	"⚙️ Weekly Standings Adjuster"
+	"⚙️ Weekly Standings Adjuster",
+	"📜 Historical Trade Analyzer",
 ])
 
 with tab1:
@@ -38,3 +40,6 @@ with tab4:
 
 with tab5:
 	show_standings_adjuster()
+
+with tab6:
+	show_historical_trade_analyzer()
