@@ -10,6 +10,11 @@ from modules.player_game_log_scraper.logic import (
 	get_cache_directory,
 	clean_html_from_text
 )
+from modules.trade_analysis.consistency_integration import (
+	CONSISTENCY_VERY_MAX_CV,
+	CONSISTENCY_MODERATE_MAX_CV,
+	get_consistency_tier,
+)
 from modules.team_mappings import TEAM_MAPPINGS
 
 def _load_fantasy_team_rosters():
@@ -139,9 +144,9 @@ def _display_fantasy_teams_overview(rosters_by_team):
 			'Players': len(df),
 			'Avg FPts': round(df['Mean FPts'].mean(), 1),
 			'Avg CV%': round(df['CV %'].mean(), 1),
-			'🟢 Consistent': len(df[df['CV %'] < 20]),
-			'🟡 Moderate': len(df[(df['CV %'] >= 20) & (df['CV %'] <= 30)]),
-			'🔴 Volatile': len(df[df['CV %'] > 30]),
+			'🟢 Very Consistent': len(df[df['CV %'] < CONSISTENCY_VERY_MAX_CV]),
+			'🟡 Solid / Moderate': len(df[(df['CV %'] >= CONSISTENCY_VERY_MAX_CV) & (df['CV %'] <= CONSISTENCY_MODERATE_MAX_CV)]),
+			'🔴 Volatile / Boom-Bust': len(df[df['CV %'] > CONSISTENCY_MODERATE_MAX_CV]),
 			'Total GP': int(df['GP'].sum())
 		})
 	
@@ -161,9 +166,9 @@ def _display_fantasy_teams_overview(rosters_by_team):
 			'Players': st.column_config.NumberColumn('Players'),
 			'Avg FPts': st.column_config.NumberColumn('Avg FPts', format='%.1f'),
 			'Avg CV%': st.column_config.NumberColumn('Avg CV%', format='%.1f', help='Lower = more consistent'),
-			'🟢 Consistent': st.column_config.NumberColumn('🟢 Consistent', help='CV% < 20%'),
-			'🟡 Moderate': st.column_config.NumberColumn('🟡 Moderate', help='CV% 20-30%'),
-			'🔴 Volatile': st.column_config.NumberColumn('🔴 Volatile', help='CV% > 30%'),
+			'🟢 Very Consistent': st.column_config.NumberColumn('🟢 Very Consistent', help=f'CV% < {int(CONSISTENCY_VERY_MAX_CV)}%'),
+			'🟡 Solid / Moderate': st.column_config.NumberColumn('🟡 Solid / Moderate', help=f'CV% {int(CONSISTENCY_VERY_MAX_CV)}-{int(CONSISTENCY_MODERATE_MAX_CV)}%'),
+			'🔴 Volatile / Boom-Bust': st.column_config.NumberColumn('🔴 Volatile / Boom-Bust', help=f'CV% > {int(CONSISTENCY_MODERATE_MAX_CV)}%'),
 			'Total GP': st.column_config.NumberColumn('Total GP')
 		}
 	)
@@ -200,9 +205,9 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 	bench_count = len(team_df[team_df['Mean FPts'] < 25])
 	
 	# Consistency breakdown
-	consistent_count = len(team_df[team_df['CV %'] < 20])
-	moderate_count = len(team_df[(team_df['CV %'] >= 20) & (team_df['CV %'] <= 30)])
-	volatile_count = len(team_df[team_df['CV %'] > 30])
+	consistent_count = len(team_df[team_df['CV %'] < CONSISTENCY_VERY_MAX_CV])
+	moderate_count = len(team_df[(team_df['CV %'] >= CONSISTENCY_VERY_MAX_CV) & (team_df['CV %'] <= CONSISTENCY_MODERATE_MAX_CV)])
+	volatile_count = len(team_df[team_df['CV %'] > CONSISTENCY_MODERATE_MAX_CV])
 	
 	# League ranking
 	team_rankings = []
@@ -284,7 +289,7 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 		with col2:
 			st.markdown("#### Consistency Profile")
 			cons_data = pd.DataFrame({
-				'Type': ['🟢 Consistent', '🟡 Moderate', '🔴 Volatile'],
+				'Type': ['🟢 Very Consistent', '🟡 Solid / Moderate', '🔴 Volatile / Boom-Bust'],
 				'Count': [consistent_count, moderate_count, volatile_count]
 			})
 			
@@ -355,8 +360,8 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 			title="Production vs Consistency (bubble size = GP)",
 			labels={'Mean FPts': 'Production (Mean FPts)', 'CV %': 'Risk (CV%)'}
 		)
-		fig_scatter.add_hline(y=20, line_dash="dash", line_color="green", opacity=0.5, annotation_text="Very Consistent")
-		fig_scatter.add_hline(y=30, line_dash="dash", line_color="orange", opacity=0.5, annotation_text="Moderate")
+		fig_scatter.add_hline(y=CONSISTENCY_VERY_MAX_CV, line_dash="dash", line_color="green", opacity=0.5, annotation_text="Very Consistent")
+		fig_scatter.add_hline(y=CONSISTENCY_MODERATE_MAX_CV, line_dash="dash", line_color="orange", opacity=0.5, annotation_text="Moderate")
 		fig_scatter.update_layout(height=400)
 		st.plotly_chart(fig_scatter, use_container_width=True)
 	
@@ -373,7 +378,7 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 					'Avg FPts': t_df['Mean FPts'].mean(),
 					'Avg CV%': t_df['CV %'].mean(),
 					'Elite Players': len(t_df[t_df['Mean FPts'] >= 80]),
-					'Consistent Players': len(t_df[t_df['CV %'] < 20]),
+					'Consistent Players': len(t_df[t_df['CV %'] < CONSISTENCY_VERY_MAX_CV]),
 					'Highlight': t_name == team_name
 				})
 		
@@ -416,7 +421,7 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 				'Avg FPts': st.column_config.NumberColumn('Avg FPts', format='%.1f'),
 				'Avg CV%': st.column_config.NumberColumn('Avg CV%', format='%.1f'),
 				'Elite Players': st.column_config.NumberColumn('Elite (80+)'),
-				'Consistent Players': st.column_config.NumberColumn('Consistent (<20% CV)')
+				'Consistent Players': st.column_config.NumberColumn('Consistent (<{:.0f}%)'.format(CONSISTENCY_VERY_MAX_CV))
 			}
 		)
 
@@ -437,9 +442,9 @@ def show_fantasy_teams_viewer(league_id, cache_files, selected_season):
 		**CV% (Coefficient of Variation)**
 		- Measures consistency/volatility
 		- Lower = more predictable performance
-		- 🟢 Very Consistent: <20% (reliable floor)
-		- 🟡 Moderate: 20-30% (balanced)
-		- 🔴 Volatile: >30% (boom/bust)
+		- 🟢 Very Consistent: <{:.0f}% (reliable floor)
+		- 🟡 Solid / Moderate: {:.0f}–{:.0f}% (balanced)
+		- 🔴 Volatile / Boom-Bust: >{:.0f}% (boom/bust)
 		
 		**Boom/Bust Rates**
 		- Boom: Games >1 std dev above mean (ceiling games)
@@ -483,7 +488,7 @@ def show_fantasy_teams_viewer(league_id, cache_files, selected_season):
 		**Consistency for Playoffs**
 		- Reliable players win championships
 		- High volatility = risky in elimination games
-		""")
+		""".format(CONSISTENCY_VERY_MAX_CV, CONSISTENCY_VERY_MAX_CV, CONSISTENCY_MODERATE_MAX_CV, CONSISTENCY_MODERATE_MAX_CV))
 	
 	rosters_by_team = _build_fantasy_team_view(league_id, cache_files)
 	
@@ -513,7 +518,7 @@ def show_fantasy_teams_viewer(league_id, cache_files, selected_season):
 	filtered = df[df['GP'] >= min_gp].copy()
 	
 	def _consistency(cv):
-		return '🟢 Very Consistent' if cv < 20 else ('🟡 Moderate' if cv <= 30 else '🔴 Volatile')
+		return get_consistency_tier(cv)
 	
 	filtered.insert(3, 'Consistency', filtered['CV %'].apply(_consistency))
 	

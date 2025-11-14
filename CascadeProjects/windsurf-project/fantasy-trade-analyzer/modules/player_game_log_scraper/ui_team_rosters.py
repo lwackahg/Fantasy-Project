@@ -6,6 +6,11 @@ from modules.player_game_log_scraper.logic import (
 	calculate_variability_stats,
 	get_cache_directory
 )
+from modules.trade_analysis.consistency_integration import (
+	CONSISTENCY_VERY_MAX_CV,
+	CONSISTENCY_MODERATE_MAX_CV,
+	get_consistency_tier,
+)
 
 def _find_latest_draft_results():
 	data_dir = Path(__file__).resolve().parent.parent.parent / 'data'
@@ -94,9 +99,9 @@ def _display_teams_overview(rosters_by_team):
 			'Players': len(df),
 			'Avg FPts': round(df['Mean FPts'].mean(), 1),
 			'Avg CV%': round(df['CV %'].mean(), 1),
-			'🟢 Consistent': len(df[df['CV %'] < 20]),
-			'🟡 Moderate': len(df[(df['CV %'] >= 20) & (df['CV %'] <= 30)]),
-			'🔴 Volatile': len(df[df['CV %'] > 30]),
+			'🟢 Very Consistent': len(df[df['CV %'] < CONSISTENCY_VERY_MAX_CV]),
+			'🟡 Solid / Moderate': len(df[(df['CV %'] >= CONSISTENCY_VERY_MAX_CV) & (df['CV %'] <= CONSISTENCY_MODERATE_MAX_CV)]),
+			'🔴 Volatile / Boom-Bust': len(df[df['CV %'] > CONSISTENCY_MODERATE_MAX_CV]),
 			'Total GP': int(df['GP'].sum())
 		})
 	
@@ -116,9 +121,9 @@ def _display_teams_overview(rosters_by_team):
 			'Players': st.column_config.NumberColumn('Players'),
 			'Avg FPts': st.column_config.NumberColumn('Avg FPts', format='%.1f'),
 			'Avg CV%': st.column_config.NumberColumn('Avg CV%', format='%.1f', help='Lower = more consistent'),
-			'🟢 Consistent': st.column_config.NumberColumn('🟢 Consistent', help='CV% < 20%'),
-			'🟡 Moderate': st.column_config.NumberColumn('🟡 Moderate', help='CV% 20-30%'),
-			'🔴 Volatile': st.column_config.NumberColumn('🔴 Volatile', help='CV% > 30%'),
+			'🟢 Very Consistent': st.column_config.NumberColumn('🟢 Very Consistent', help=f'CV% < {int(CONSISTENCY_VERY_MAX_CV)}%'),
+			'🟡 Solid / Moderate': st.column_config.NumberColumn('🟡 Solid / Moderate', help=f'CV% {int(CONSISTENCY_VERY_MAX_CV)}-{int(CONSISTENCY_MODERATE_MAX_CV)}%'),
+			'🔴 Volatile / Boom-Bust': st.column_config.NumberColumn('🔴 Volatile / Boom-Bust', help=f'CV% > {int(CONSISTENCY_MODERATE_MAX_CV)}%'),
 			'Total GP': st.column_config.NumberColumn('Total GP')
 		}
 	)
@@ -158,7 +163,7 @@ def show_team_rosters_viewer(league_id, cache_files, selected_season):
 		return
 	filtered = df[df['GP'] >= min_gp].copy()
 	def _consistency(cv):
-		return '🟢 Very Consistent' if cv < 20 else ('🟡 Moderate' if cv <= 30 else '🔴 Volatile')
+		return get_consistency_tier(cv)
 	filtered.insert(3, 'Consistency', filtered['CV %'].apply(_consistency))
 	st.dataframe(
 		filtered.drop(columns=['code']),

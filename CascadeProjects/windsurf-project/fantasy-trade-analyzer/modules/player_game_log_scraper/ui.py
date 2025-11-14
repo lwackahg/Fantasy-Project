@@ -15,6 +15,10 @@ from modules.player_game_log_scraper.logic import (
 	clear_all_cache,
 	get_cache_directory
 )
+from modules.trade_analysis.consistency_integration import (
+	CONSISTENCY_VERY_MAX_CV,
+	CONSISTENCY_MODERATE_MAX_CV,
+)
 from modules.player_game_log_scraper.ui_league_overview import show_league_overview
 import json
 
@@ -206,8 +210,13 @@ def show_player_game_log_scraper():
 							st.metric("Range", f"{stats['range']:.0f}", help="Difference between max and min. Shows total scoring spread")
 							st.metric(
 								"CV %", 
-								f"{stats['coefficient_of_variation']:.1f}%",
-								help="Coefficient of Variation = (Std Dev / Mean) × 100. Lower % = more consistent. <20% = very consistent, 20-30% = moderate, >30% = volatile"
+								f"{stats['coefficient_of_variation']:.2f}%",
+								help=(
+									"Coefficient of Variation = (Std Dev / Mean) × 100. Lower % = more consistent. "
+									f"<{int(CONSISTENCY_VERY_MAX_CV)}% = very consistent, "
+									f"{int(CONSISTENCY_VERY_MAX_CV)}–{int(CONSISTENCY_MODERATE_MAX_CV)}% = solid/moderate, "
+									f">{int(CONSISTENCY_MODERATE_MAX_CV)}% = volatile/boom-bust"
+								)
 							)
 					
 						st.markdown("---")

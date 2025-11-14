@@ -5,6 +5,9 @@ from typing import Dict, Optional
 from functools import lru_cache
 import pandas as pd
 
+CONSISTENCY_VERY_MAX_CV = 25.0
+CONSISTENCY_MODERATE_MAX_CV = 40.0
+
 def get_consistency_cache_directory():
 	"""Get the player game log cache directory."""
 	cache_dir = Path(__file__).resolve().parent.parent.parent / 'data' / 'player_game_log_cache'
@@ -80,9 +83,9 @@ def get_consistency_tier(cv_percent: float) -> str:
 	Returns:
 		Tier string with emoji
 	"""
-	if cv_percent < 25:
+	if cv_percent < CONSISTENCY_VERY_MAX_CV:
 		return "🟢 Very Consistent"
-	elif cv_percent <= 40:
+	elif cv_percent <= CONSISTENCY_MODERATE_MAX_CV:
 		return "🟡 Solid / Moderate"
 	else:
 		return "🔴 Volatile / Boom-Bust"

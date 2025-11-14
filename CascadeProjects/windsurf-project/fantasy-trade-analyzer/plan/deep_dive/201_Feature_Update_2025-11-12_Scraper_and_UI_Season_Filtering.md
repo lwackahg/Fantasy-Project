@@ -218,6 +218,41 @@
     - **FPts Trend**: line chart with shaded boom/bust bands around the mean.
     - **Boom/Bust Zones**: per-game classification into Boom/Normal/Bust using the same ±1 standard deviation thresholds, plus a summary table.
 
+#### Additional Refinements — YoY, CV Tiers, and Navigation
+
+- **YoY comparison folded into the Value & Consistency hub**
+  - The standalone **YoY Comparison** page has been merged into a third tab on `9_Player_Value_Analyzer.py`:
+    - **📈 Player Value Rankings** (multi-season value view).
+    - **📊 Player Consistency Browser** (embedded consistency viewer).
+    - **📊 YoY Trends** (historical FP/G year-over-year comparison).
+  - The YoY tab reuses `load_and_compare_seasons` and mirrors the original summary:
+    - Total players, Improvers, Decliners, Breakouts (>20%), plus the full FP/G and YoY% table.
+
+- **Global CV% tiers used across views**
+  - Introduced shared constants and tier helper in `modules/trade_analysis/consistency_integration.py`:
+    - `CONSISTENCY_VERY_MAX_CV = 25.0`, `CONSISTENCY_MODERATE_MAX_CV = 40.0`.
+    - `get_consistency_tier(cv_percent) -> "🟢 Very Consistent" | "🟡 Solid / Moderate" | "🔴 Volatile / Boom-Bust"`.
+  - Fantasy Teams / Team Rosters (`ui_fantasy_teams.py`, `ui_team_rosters.py`) now:
+    - Use the shared constants for team-level CV breakdowns and scatter thresholds.
+    - Use `get_consistency_tier` for per-player consistency labels in roster tables.
+  - League Overview (`ui_league_overview.py`) uses the same thresholds for:
+    - Summary metrics, consistency filters, color indicators, and CV% histogram v-lines.
+  - Trade Suggestions and Trade Analysis UIs reference the updated tiers in help text and risk labels so all consistency messaging is aligned.
+
+- **YoY performance pre-warming in the hub**
+  - Added `_get_yoy_context_for_league(league_id)` and `_get_yoy_comparison_cached(...)` helpers in `9_Player_Value_Analyzer.py`:
+    - Context helper locates historical YTD CSVs for the current league using `FANTRAX_LEAGUE_IDS/NAMES` mapping and returns `(league_name_sanitized, seasons)` when at least two seasons are present.
+    - Comparison helper wraps `load_and_compare_seasons` in `@st.cache_data` for fast reuse.
+  - While viewing **📈 Player Value Rankings**, the page now **warms the YoY cache in the background**:
+    - If YoY context is available, the comparison is computed and cached once.
+    - The **📊 YoY Trends** tab then reads from the cache, dramatically reducing first-render latency.
+
+- **Legacy page redirects for clean navigation**
+  - To avoid duplicate heavy UIs and speed up navigation:
+    - `pages/2_Player_Consistency.py` and `pages/8_YoY_Comparison.py` were converted into thin wrappers.
+    - They now only import Streamlit, show a short "view moved" message, and expose a `st.page_link("pages/9_Player_Value_Analyzer.py", ...)` into the hub, followed by `st.stop()`.
+  - This preserves existing sidebar entries and URLs for backwards compatibility, but ensures all users land on the consolidated **Player Value & Consistency** hub experience.
+
 ---
 
 ## Pending Work

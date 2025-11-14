@@ -16,6 +16,8 @@ from modules.trade_analysis.consistency_integration import (
 	load_all_player_consistency,
 	enrich_roster_with_consistency,
 	build_league_consistency_index,
+	CONSISTENCY_VERY_MAX_CV,
+	CONSISTENCY_MODERATE_MAX_CV,
 )
 from modules.player_value.logic import build_player_value_profiles
 
@@ -207,9 +209,9 @@ class TradeAnalyzer:
                                 pre_trade_consistency[time_range] = {
                                     'avg_cv': cv_values.mean(),
                                     'players_with_data': len(cv_values),
-                                    'very_consistent': len(cv_values[cv_values < 20]),
-                                    'moderate': len(cv_values[(cv_values >= 20) & (cv_values <= 30)]),
-                                    'volatile': len(cv_values[cv_values > 30])
+                                    'very_consistent': len(cv_values[cv_values < CONSISTENCY_VERY_MAX_CV]),
+                                    'moderate': len(cv_values[(cv_values >= CONSISTENCY_VERY_MAX_CV) & (cv_values <= CONSISTENCY_MODERATE_MAX_CV)]),
+                                    'volatile': len(cv_values[cv_values > CONSISTENCY_MODERATE_MAX_CV])
                                 }
 
                 if time_range in post_trade_rosters and post_trade_rosters.get(time_range):

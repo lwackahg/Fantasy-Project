@@ -884,7 +884,7 @@ def _display_consistency_summary(results: Dict[str, Any], time_ranges: List[str]
             "🟢 Very Consistent",
             post_consistent,
             delta=post_consistent - pre_consistent,
-            help="Players with CV% < 20%"
+            help="Players with CV% below the very-consistent threshold (currently <25%)"
         )
     
     with col3:
@@ -894,7 +894,7 @@ def _display_consistency_summary(results: Dict[str, Any], time_ranges: List[str]
             "🟡 Moderate",
             post_moderate,
             delta=post_moderate - pre_moderate,
-            help="Players with CV% 20-30%"
+            help="Players with CV% in the solid/moderate band (currently ~25–40%)"
         )
     
     with col4:
@@ -905,7 +905,7 @@ def _display_consistency_summary(results: Dict[str, Any], time_ranges: List[str]
             post_volatile,
             delta=post_volatile - pre_volatile,
             delta_color="inverse",  # Fewer is better
-            help="Players with CV% > 30%"
+            help="Players with CV% above the volatile threshold (currently >40%)"
         )
 
 def _display_roster_details(results: Dict[str, Any], time_ranges: List[str]):

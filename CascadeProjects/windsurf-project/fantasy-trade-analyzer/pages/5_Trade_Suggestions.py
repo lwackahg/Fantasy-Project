@@ -6,6 +6,10 @@ import plotly.graph_objects as go
 from modules.trade_suggestions import find_trade_suggestions, calculate_exponential_value
 from modules.player_game_log_scraper.logic import get_cache_directory
 from modules.player_game_log_scraper.ui_fantasy_teams import _load_fantasy_team_rosters, _build_fantasy_team_view
+from modules.trade_analysis.consistency_integration import (
+	CONSISTENCY_VERY_MAX_CV,
+	CONSISTENCY_MODERATE_MAX_CV,
+)
 from pathlib import Path
 import json
 
@@ -222,10 +226,10 @@ def display_trade_suggestion(suggestion, rank):
 			st.metric("Avg CV%", f"{your_avg_cv:.1f}%")
 			st.metric("Players", len(suggestion['you_give']))
 			
-			# Risk assessment
-			if your_avg_cv < 20:
+			# Risk assessment based on global CV% bands
+			if your_avg_cv < CONSISTENCY_VERY_MAX_CV:
 				risk = "🟢 Low Risk"
-			elif your_avg_cv <= 30:
+			elif your_avg_cv <= CONSISTENCY_MODERATE_MAX_CV:
 				risk = "🟡 Moderate Risk"
 			else:
 				risk = "🔴 High Risk"
@@ -240,9 +244,9 @@ def display_trade_suggestion(suggestion, rank):
 			st.metric("Players", len(suggestion['you_get']))
 			
 			# Risk assessment
-			if their_avg_cv < 20:
+			if their_avg_cv < CONSISTENCY_VERY_MAX_CV:
 				risk = "🟢 Low Risk"
-			elif their_avg_cv <= 30:
+			elif their_avg_cv <= CONSISTENCY_MODERATE_MAX_CV:
 				risk = "🟡 Moderate Risk"
 			else:
 				risk = "🔴 High Risk"
@@ -402,9 +406,9 @@ with st.expander("ℹ️ How Value is Calculated", expanded=False):
 	- Top 20 (70-80 FPts): +8% bonus
 	
 	Consistency Adjustment:
-	- Very Consistent (CV < 20%): +15% value
-	- Moderate (CV 20-30%): No adjustment  
-	- Volatile (CV > 30%): -15% value
+	- Very Consistent (CV < 25%): +15% value
+	- Solid / Moderate (CV 25-40%): No adjustment  
+	- Volatile / Boom-Bust (CV > 40%): -15% value
 	
 	Games Played Penalty:
 	- < 10 games: -30% value (small sample)

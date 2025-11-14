@@ -13,6 +13,11 @@ from modules.player_game_log_scraper.logic import (
 	calculate_variability_stats,
 	get_cache_directory
 )
+from modules.trade_analysis.consistency_integration import (
+	CONSISTENCY_VERY_MAX_CV,
+	CONSISTENCY_MODERATE_MAX_CV,
+	get_consistency_tier,
+)
 
 # Import public league config (no sensitive data)
 try:
@@ -208,14 +213,31 @@ def _display_summary_metrics(overview_df):
 	col1, col2, col3, col4 = st.columns(4)
 	
 	with col1:
-		consistent_players = len(overview_df[overview_df['CV %'] < 20])
-		st.metric("🟢 Very Consistent", consistent_players, help="CV% < 20%")
+		consistent_players = len(overview_df[overview_df['CV %'] < CONSISTENCY_VERY_MAX_CV])
+		st.metric(
+			"🟢 Very Consistent",
+			consistent_players,
+			help=f"CV% < {int(CONSISTENCY_VERY_MAX_CV)}%",
+		)
 	with col2:
-		moderate_players = len(overview_df[(overview_df['CV %'] >= 20) & (overview_df['CV %'] <= 30)])
-		st.metric("🟡 Moderate", moderate_players, help="CV% 20-30%")
+		moderate_players = len(
+			overview_df[
+				(overview_df['CV %'] >= CONSISTENCY_VERY_MAX_CV)
+				& (overview_df['CV %'] <= CONSISTENCY_MODERATE_MAX_CV)
+			]
+		)
+		st.metric(
+			"🟡 Solid / Moderate",
+			moderate_players,
+			help=f"CV% {int(CONSISTENCY_VERY_MAX_CV)}-{int(CONSISTENCY_MODERATE_MAX_CV)}%",
+		)
 	with col3:
-		volatile_players = len(overview_df[overview_df['CV %'] > 30])
-		st.metric("🔴 Volatile", volatile_players, help="CV% > 30%")
+		volatile_players = len(overview_df[overview_df['CV %'] > CONSISTENCY_MODERATE_MAX_CV])
+		st.metric(
+			"🔴 Volatile / Boom-Bust",
+			volatile_players,
+			help=f"CV% > {int(CONSISTENCY_MODERATE_MAX_CV)}%",
+		)
 	with col4:
 		avg_range = overview_df['Range'].mean()
 		st.metric("Avg Range", f"{avg_range:.0f}", help="Average scoring range")
@@ -246,10 +268,16 @@ def _display_consistency_table(overview_df, league_id):
 	col1, col2, col3, col4 = st.columns(4)
 	
 	with col1:
+		consistency_options = [
+			"All",
+			f"🟢 Very Consistent (<{int(CONSISTENCY_VERY_MAX_CV)}%)",
+			f"🟡 Solid / Moderate ({int(CONSISTENCY_VERY_MAX_CV)}-{int(CONSISTENCY_MODERATE_MAX_CV)}%)",
+			f"🔴 Volatile / Boom-Bust (>{int(CONSISTENCY_MODERATE_MAX_CV)}%)",
+		]
 		consistency_filter = st.selectbox(
 			"Consistency",
-			["All", "🟢 Very Consistent (<20%)", "🟡 Moderate (20-30%)", "🔴 Volatile (>30%)"],
-			key="overview_consistency"
+			consistency_options,
+			key="overview_consistency",
 		)
 	
 	with col2:
@@ -270,12 +298,15 @@ def _display_consistency_table(overview_df, league_id):
 	filtered_df = filtered_df[filtered_df['CV %'] <= max_cv]
 	filtered_df = filtered_df[filtered_df['Min'] >= min_min]
 	
-	if consistency_filter == "🟢 Very Consistent (<20%)":
-		filtered_df = filtered_df[filtered_df['CV %'] < 20]
-	elif consistency_filter == "🟡 Moderate (20-30%)":
-		filtered_df = filtered_df[(filtered_df['CV %'] >= 20) & (filtered_df['CV %'] <= 30)]
-	elif consistency_filter == "🔴 Volatile (>30%)":
-		filtered_df = filtered_df[filtered_df['CV %'] > 30]
+	if consistency_filter == consistency_options[1]:
+		filtered_df = filtered_df[filtered_df['CV %'] < CONSISTENCY_VERY_MAX_CV]
+	elif consistency_filter == consistency_options[2]:
+		filtered_df = filtered_df[
+			(filtered_df['CV %'] >= CONSISTENCY_VERY_MAX_CV)
+			& (filtered_df['CV %'] <= CONSISTENCY_MODERATE_MAX_CV)
+		]
+	elif consistency_filter == consistency_options[3]:
+		filtered_df = filtered_df[filtered_df['CV %'] > CONSISTENCY_MODERATE_MAX_CV]
 	
 	if search_player:
 		filtered_df = filtered_df[filtered_df['Player'].str.contains(search_player, case=False, na=False)]
@@ -286,13 +317,8 @@ def _display_consistency_table(overview_df, league_id):
 	
 	# Add a color indicator column
 	def get_consistency_indicator(cv):
-		if cv < 20:
-			return "🟢 Very Consistent"
-		elif cv <= 30:
-			return "🟡 Moderate"
-		else:
-			return "🔴 Volatile"
-	
+		return get_consistency_tier(cv)
+		
 	display_df = filtered_df.copy()
 	display_df.insert(6, 'Consistency', display_df['CV %'].apply(get_consistency_indicator))
 
@@ -383,8 +409,8 @@ def _display_cv_distribution(overview_df):
 	)
 	
 	# Add vertical lines for thresholds
-	fig_cv_dist.add_vline(x=20, line_dash="dash", line_color="green", annotation_text="Very Consistent")
-	fig_cv_dist.add_vline(x=30, line_dash="dash", line_color="red", annotation_text="Volatile")
+	fig_cv_dist.add_vline(x=CONSISTENCY_VERY_MAX_CV, line_dash="dash", line_color="green", annotation_text="Very Consistent")
+	fig_cv_dist.add_vline(x=CONSISTENCY_MODERATE_MAX_CV, line_dash="dash", line_color="red", annotation_text="Volatile / Boom-Bust")
 	
 	fig_cv_dist.update_layout(height=400)
 	st.plotly_chart(fig_cv_dist, use_container_width=True)

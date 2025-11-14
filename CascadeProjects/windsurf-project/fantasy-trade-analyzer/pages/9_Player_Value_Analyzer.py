@@ -2,12 +2,14 @@
 
 import streamlit as st
 import os
+import re
 from typing import List
 import plotly.express as px
 
 from modules.player_value.logic import build_player_value_profiles
 from modules.player_game_log_scraper.logic import load_league_cache_index
 from modules.player_game_log_scraper.ui_viewer import show_player_consistency_viewer
+from modules.historical_ytd_downloader.logic import load_and_compare_seasons, DOWNLOAD_DIR
 
 
 def _get_all_seasons_for_league(league_id: str) -> List[str]:
@@ -35,6 +37,39 @@ def _get_player_value_profiles_cached(league_id: str, seasons: list[str], min_ga
 	)
 
 
+@st.cache_data(show_spinner=False)
+def _get_yoy_context_for_league(league_id: str):
+	"""Return (league_name_sanitized, seasons) for YoY comparison, or None if unavailable."""
+	env_ids = os.getenv("FANTRAX_LEAGUE_IDS", "")
+	env_names = os.getenv("FANTRAX_LEAGUE_NAMES", "")
+	id_list = [s.strip() for s in env_ids.split(",") if s.strip()]
+	name_list = [s.strip() for s in env_names.split(",") if s.strip()]
+	league_name_map = {
+		lid: (name_list[idx] if idx < len(name_list) else lid)
+		for idx, lid in enumerate(id_list)
+	}
+	display_name = league_name_map.get(league_id, league_id)
+	league_name_sanitized = re.sub(r"[^A-Za-z0-9_]+", "_", str(display_name).strip().replace(" ", "_"))
+	available_files = list(DOWNLOAD_DIR.glob(f"Fantrax-Players-{league_name_sanitized}-YTD-*.csv"))
+	if not available_files:
+		return None
+	seasons: list[str] = []
+	for fpath in available_files:
+		parts = fpath.stem.split('-YTD-')
+		if len(parts) == 2:
+			seasons.append(parts[1])
+	seasons = sorted(set(seasons), reverse=True)
+	if len(seasons) < 2:
+		return None
+	return league_name_sanitized, seasons
+
+
+@st.cache_data(show_spinner=False)
+def _get_yoy_comparison_cached(league_name_sanitized: str, seasons: list[str]):
+	"""Cached wrapper around load_and_compare_seasons for YoY trends."""
+	return load_and_compare_seasons(league_name_sanitized, seasons)
+
+
 def main():
 	st.set_page_config(page_title="Player Value & Consistency", page_icon="🏆", layout="wide")
 	st.title("🏆 Player Value & Consistency Hub")
@@ -48,9 +83,10 @@ def main():
 		return
 
 	st.markdown("---")
-	value_tab, consistency_tab = st.tabs([
+	value_tab, consistency_tab, yoy_tab = st.tabs([
 		"📈 Player Value Rankings",
 		"📊 Player Consistency Browser",
+		"📊 YoY Trends",
 	])
 
 	with value_tab:
@@ -163,8 +199,97 @@ def main():
 					mime="text/csv",
 				)
 
+				# Warm YoY comparison cache in the background so the YoY tab feels instant
+				ctx = _get_yoy_context_for_league(league_id)
+				if ctx is not None:
+					league_name_sanitized, yoy_seasons = ctx
+					_ = _get_yoy_comparison_cached(league_name_sanitized, yoy_seasons)
+
 	with consistency_tab:
 		show_player_consistency_viewer(initial_league_id=league_id)
+
+	with yoy_tab:
+		st.subheader("📊 Year-over-Year FP/G Trends")
+		st.caption("Compare player FP/G across historical YTD CSVs to spot breakouts, regressions, and stable producers.")
+		# Use cached context + comparison to keep this tab responsive
+		ctx = _get_yoy_context_for_league(league_id)
+		if ctx is None:
+			st.warning("No historical YTD CSVs found for this league, or fewer than two seasons are available.")
+			return
+		league_name_sanitized, seasons = ctx
+		st.info(f"Comparing all available seasons: {', '.join(seasons)}")
+		with st.spinner("Loading YoY comparison data..."):
+			comparison_df = _get_yoy_comparison_cached(league_name_sanitized, seasons)
+		if comparison_df is None or comparison_df.empty:
+			st.warning("No valid YoY comparison data available.")
+			return
+		
+		# Basic filters similar to the standalone YoY page
+		st.markdown("---")
+		col1, col2, col3 = st.columns(3)
+		with col1:
+			min_fpg = st.number_input(
+				"Min FP/G (most recent season)",
+				min_value=0.0,
+				value=30.0,
+				step=5.0,
+			)
+		with col2:
+			min_gp = st.number_input(
+				"Min GP (most recent season)",
+				min_value=0,
+				value=1,
+				step=1,
+			)
+		with col3:
+			show_only_improvers = st.checkbox("Show only improvers", value=False)
+		
+		# Apply filters on a copy
+		filtered_df = comparison_df.copy()
+		most_recent_fp_col = f"FP/G_{seasons[0]}"
+		most_recent_gp_col = f"GP_{seasons[0]}"
+		if most_recent_fp_col in filtered_df.columns:
+			filtered_df = filtered_df[filtered_df[most_recent_fp_col] >= min_fpg]
+		if most_recent_gp_col in filtered_df.columns:
+			filtered_df = filtered_df[filtered_df[most_recent_gp_col] >= min_gp]
+		
+		if len(seasons) >= 2:
+			pct_col = f"YoY_Pct_{seasons[0]}_vs_{seasons[1]}"
+			if pct_col in filtered_df.columns and show_only_improvers:
+				filtered_df = filtered_df[filtered_df[pct_col] > 0]
+		
+		# Round numeric columns and display
+		if filtered_df.empty:
+			st.info("No players match the current YoY filters.")
+		else:
+			for col in filtered_df.columns:
+				if col != "Player" and str(filtered_df[col].dtype).startswith("float"):
+					filtered_df[col] = filtered_df[col].round(2)
+			# Summary metrics (compact version of standalone YoY page)
+			st.markdown("#### Summary")
+			col1, col2, col3, col4 = st.columns(4)
+			with col1:
+				st.metric("Total Players", len(filtered_df))
+			with col2:
+				if len(seasons) >= 2:
+					pct_col = f"YoY_Pct_{seasons[0]}_vs_{seasons[1]}"
+					if pct_col in filtered_df.columns:
+						improvers = len(filtered_df[filtered_df[pct_col] > 0])
+						st.metric("Improvers", improvers)
+			with col3:
+				if len(seasons) >= 2:
+					pct_col = f"YoY_Pct_{seasons[0]}_vs_{seasons[1]}"
+					if pct_col in filtered_df.columns:
+						decliners = len(filtered_df[filtered_df[pct_col] < 0])
+						st.metric("Decliners", decliners)
+			with col4:
+				if len(seasons) >= 2:
+					pct_col = f"YoY_Pct_{seasons[0]}_vs_{seasons[1]}"
+					if pct_col in filtered_df.columns:
+						breakouts = len(filtered_df[filtered_df[pct_col] > 20])
+						st.metric("Breakouts (>20%)", breakouts)
+			st.markdown("#### Player Comparison")
+			st.dataframe(filtered_df, use_container_width=True, height=550)
 
 
 if __name__ == "__main__":
