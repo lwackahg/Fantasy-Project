@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 14",
+            "Team": "CHA",
+            "Opp": "@MIL",
+            "Score": "L 134-147",
+            "FPts": 80,
+            "FG-": "12.0",
+            "3PTM": 6,
+            "FT-": "0",
+            "PTS": 32,
+            "OREB": "0",
+            "REB": 7,
+            "AST": 2,
+            "ST": 0,
+            "BLK": 1,
+            "TO": 1,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 12",
             "Team": "CHA",
             "Opp": "MIL",

@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 13",
+            "Team": "PHO",
+            "Opp": "IND",
+            "Score": "W 133-98",
+            "FPts": 59,
+            "FG-": "6.0",
+            "3PTM": 3,
+            "FT-": "0",
+            "PTS": 32,
+            "OREB": "0",
+            "REB": 1,
+            "AST": 0,
+            "ST": 1,
+            "BLK": 0,
+            "TO": 2,
+            "TF": "1",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 12",
             "Team": "PHO",
             "Opp": "@DAL",

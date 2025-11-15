@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 14",
+            "Team": "SAC",
+            "Opp": "@MIN",
+            "Score": "L 110-124",
+            "FPts": 76,
+            "FG-": "6.0",
+            "3PTM": 2,
+            "FT-": "3",
+            "PTS": 13,
+            "OREB": "5",
+            "REB": 10,
+            "AST": 14,
+            "ST": 0,
+            "BLK": 0,
+            "TO": 6,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "1",
+            "2D": "1"
+        },
+        {
             "Date": "Nov 12",
             "Team": "SAC",
             "Opp": "ATL",

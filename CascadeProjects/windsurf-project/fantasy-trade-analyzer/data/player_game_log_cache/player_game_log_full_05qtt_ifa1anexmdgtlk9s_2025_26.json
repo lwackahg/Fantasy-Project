@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 13",
+            "Team": "ATL",
+            "Opp": "@UTA",
+            "Score": "W 132-122",
+            "FPts": 124,
+            "FG-": "7.0",
+            "3PTM": 8,
+            "FT-": "0",
+            "PTS": 32,
+            "OREB": "2",
+            "REB": 11,
+            "AST": 2,
+            "ST": 2,
+            "BLK": 3,
+            "TO": 4,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "1"
+        },
+        {
             "Date": "Nov 12",
             "Team": "ATL",
             "Opp": "@SAC",

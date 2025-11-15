@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 14",
+            "Team": "BKN",
+            "Opp": "@ORL",
+            "Score": "L 98-105",
+            "FPts": 85,
+            "FG-": "13.0",
+            "3PTM": 3,
+            "FT-": "0",
+            "PTS": 24,
+            "OREB": "1",
+            "REB": 11,
+            "AST": 7,
+            "ST": 1,
+            "BLK": 0,
+            "TO": 0,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "1"
+        },
+        {
             "Date": "Nov 11",
             "Team": "BKN",
             "Opp": "TOR",
