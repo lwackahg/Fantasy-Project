@@ -83,10 +83,17 @@ with st.expander("🔧 Advanced Filters", expanded=False):
 	col1, col2 = st.columns(2)
 	
 	with col1:
+		available_teams = [t for t in sorted(rosters_by_team.keys()) if t != your_team_name]
 		target_teams = st.multiselect(
 			"Target Specific Teams (optional)",
-			options=[t for t in sorted(rosters_by_team.keys()) if t != your_team_name],
+			options=available_teams,
 			help="Leave empty to consider all teams"
+		)
+		
+		exclude_teams = st.multiselect(
+			"Exclude Teams (optional)",
+			options=available_teams,
+			help="Teams you do NOT want to trade with"
 		)
 		
 		max_suggestions = st.number_input(
@@ -104,55 +111,96 @@ with st.expander("🔧 Advanced Filters", expanded=False):
 			options=sorted(your_team_df['Player'].tolist()),
 			help="Players you don't want to trade away"
 		)
+		
+		include_players = st.multiselect(
+			"Must-Include From Your Team (trade bait)",
+			options=sorted(your_team_df['Player'].tolist()),
+			help="Only show trades where at least one of these players is included on your side"
+		)
+		
+		# Opposing player filters
+		other_players = sorted(
+			p
+			for team, df in rosters_by_team.items()
+			if team != your_team_name
+			for p in df['Player'].tolist()
+		)
+		target_opposing_players = st.multiselect(
+			"Target Opposing Players",
+			options=other_players,
+			help="Only show trades where at least one of these players is included on the other side"
+		)
+		exclude_opposing_players = st.multiselect(
+			"Exclude Opposing Players",
+			options=other_players,
+			help="Opposing players you do NOT want to receive in trades"
+		)
 
 # Helper function for displaying suggestions
 def display_trade_suggestion(suggestion, rank):
 	"""Display a single trade suggestion with details."""
+	# Calculate core FP/G metrics (value_gain is weekly core FP change)
+	# Assume MIN_GAMES = 25, core_size ≈ 7-8
+	core_size_approx = 7.14  # 25 / 3.5
+	min_games = 25
+	
+	# value_gain is already scaled to weekly FP, so derive core PPG change
+	weekly_core_fp_change = suggestion['value_gain']
+	core_ppg_change = weekly_core_fp_change / min_games
+	
+	# Opponent perspective
+	opp_weekly_core_fp_change = suggestion.get('opp_core_gain', 0)
+	opp_core_ppg_change = opp_weekly_core_fp_change / min_games
+	
+	# Header with core impact
+	st.markdown(f"### 🔄 Trade Impact: **+{weekly_core_fp_change:.1f} weekly core FP** for you")
+	st.caption(f"Your core FP/G improves by ~{core_ppg_change:.2f} across your top {int(core_size_approx)} players")
+	
 	col1, col2 = st.columns(2)
 	
 	with col1:
 		st.markdown("### 📤 You Give")
 		give_df = pd.DataFrame({
 			'Player': suggestion['you_give'],
-			'FPts': suggestion['your_fpts'],
+			'FP/G': suggestion['your_fpts'],
 			'CV%': suggestion['your_cv']
 		})
 		st.dataframe(give_df, hide_index=True, use_container_width=True)
-		st.metric("Total Value", f"{suggestion['your_value']:.1f}")
-		st.caption(f"Avg FPts: {sum(suggestion['your_fpts'])/len(suggestion['your_fpts']):.1f}")
+		your_avg_fpts = sum(suggestion['your_fpts']) / len(suggestion['your_fpts'])
+		st.caption(f"Package avg: {your_avg_fpts:.1f} FP/G")
 	
 	with col2:
 		st.markdown("### 📥 You Get")
 		get_df = pd.DataFrame({
 			'Player': suggestion['you_get'],
-			'FPts': suggestion['their_fpts'],
+			'FP/G': suggestion['their_fpts'],
 			'CV%': suggestion['their_cv']
 		})
 		st.dataframe(get_df, hide_index=True, use_container_width=True)
-		st.metric("Total Value", f"{suggestion['their_value']:.1f}")
-		st.caption(f"Avg FPts: {sum(suggestion['their_fpts'])/len(suggestion['their_fpts']):.1f}")
+		their_avg_fpts = sum(suggestion['their_fpts']) / len(suggestion['their_fpts'])
+		st.caption(f"Package avg: {their_avg_fpts:.1f} FP/G")
 	
-	# Value comparison chart
+	# Core impact visualization
 	st.markdown("---")
-	st.markdown("#### Value Comparison")
+	st.markdown("#### 📊 Weekly Core FP Impact")
 	
 	fig = go.Figure()
 	
 	fig.add_trace(go.Bar(
-		name='You Give',
-		x=['Value'],
-		y=[suggestion['your_value']],
-		marker_color='#ff6b6b',
-		text=[f"{suggestion['your_value']:.1f}"],
+		name='Your Gain',
+		x=['Weekly Core FP'],
+		y=[weekly_core_fp_change],
+		marker_color='#4CAF50',
+		text=[f"+{weekly_core_fp_change:.1f}"],
 		textposition='outside'
 	))
 	
 	fig.add_trace(go.Bar(
-		name='You Get',
-		x=['Value'],
-		y=[suggestion['their_value']],
-		marker_color='#90ee90',
-		text=[f"{suggestion['their_value']:.1f}"],
+		name='Opponent Change',
+		x=['Weekly Core FP'],
+		y=[opp_weekly_core_fp_change],
+		marker_color='#FF9800' if opp_weekly_core_fp_change < 0 else '#2196F3',
+		text=[f"{opp_weekly_core_fp_change:+.1f}"],
 		textposition='outside'
 	))
 	
@@ -160,27 +208,32 @@ def display_trade_suggestion(suggestion, rank):
 		barmode='group',
 		height=300,
 		showlegend=True,
-		yaxis_title="Exponential Value"
+		yaxis_title="Weekly Core FP Change"
 	)
 	
 	st.plotly_chart(fig, use_container_width=True, key=f"trade_value_chart_{rank}")
 	
-	# Trade assessment
-	value_gain = suggestion['value_gain']
-	if value_gain > 30:
-		st.success("🟢 **Excellent Trade** - Significant value upgrade!")
-	elif value_gain > 15:
-		st.success("🟢 **Strong Trade** - Good value improvement")
-	elif value_gain > 5:
-		st.info("🟡 **Decent Trade** - Modest value gain")
+	# Trade assessment based on core impact
+	if weekly_core_fp_change > 30:
+		st.success("🟢 **Excellent Trade** - Major weekly core FP upgrade!")
+	elif weekly_core_fp_change > 15:
+		st.success("🟢 **Strong Trade** - Solid weekly core FP gain")
+	elif weekly_core_fp_change > 5:
+		st.info("🟡 **Decent Trade** - Modest weekly core FP improvement")
 	else:
-		st.info("🟡 **Marginal Trade** - Small value improvement")
+		st.info("🟡 **Marginal Trade** - Small weekly core FP gain")
 	
-	# Why this trade works
-	st.markdown("#### 💡 Why This Trade Works")
+	# Opponent fairness check
+	if opp_weekly_core_fp_change < -15:
+		st.warning("⚠️ **Opponent loses significant core FP** - they may not accept")
+	elif opp_weekly_core_fp_change < -5:
+		st.info("ℹ️ **Opponent loses some core FP** - negotiate carefully")
+	elif opp_weekly_core_fp_change > 0:
+		st.success("✅ **Win-win trade** - opponent also gains core FP")
 	
-	your_avg_fpts = sum(suggestion['your_fpts']) / len(suggestion['your_fpts'])
-	their_avg_fpts = sum(suggestion['their_fpts']) / len(suggestion['their_fpts'])
+	# Why this trade works (901/902 aligned)
+	st.markdown("#### 💡 Why This Trade Works (League Philosophy)")
+	
 	fpts_diff = their_avg_fpts - your_avg_fpts
 	
 	your_avg_cv = sum(suggestion['your_cv']) / len(suggestion['your_cv'])
@@ -189,28 +242,35 @@ def display_trade_suggestion(suggestion, rank):
 	
 	reasons = []
 	
-	if fpts_diff > 10:
-		reasons.append(f"✅ **Production Upgrade:** Gaining {fpts_diff:.1f} avg FPts")
-	elif fpts_diff > 0:
-		reasons.append(f"📈 **Slight Production Gain:** +{fpts_diff:.1f} avg FPts")
+	# Core FP/G is king
+	reasons.append(f"📈 **Core Roster Upgrade:** Your top ~{int(core_size_approx)} players improve by {core_ppg_change:.2f} FP/G on average")
+	reasons.append(f"🎯 **Weekly Impact:** Estimated +{weekly_core_fp_change:.1f} FP per week at the 25-game minimum")
+	
+	# Consolidation strategy (from 901)
+	if suggestion['pattern'] in ['2-for-1', '3-for-1']:
+		reasons.append(f"✅ **Consolidation Strategy:** Trading depth for elite FP/G aligns with 25-game minimum format")
+		reasons.append(f"💡 **Freed Roster Spot:** Opens space for smart streaming or waiver pickups")
+	
+	# Expansion strategy (depth play)
+	if suggestion['pattern'] in ['1-for-2', '1-for-3']:
+		reasons.append(f"✅ **Depth Strategy:** Trading star for solid depth helps hit 25 games without risky streamers")
+		reasons.append(f"📊 **Floor Improvement:** Replaces weak roster spots (30-35 FP/G) with reliable players (40+ FP/G)")
+		reasons.append(f"💡 **Streaming Risk Reduction:** Less reliance on volatile waiver pickups")
+	
+	# Package context (but emphasize it's not the main story)
+	if fpts_diff > 5:
+		reasons.append(f"📊 **Package FP/G:** +{fpts_diff:.1f} FP/G (but core impact matters more)")
+	elif fpts_diff < -5:
+		reasons.append(f"⚖️ **Trading Down in Package FP/G:** −{abs(fpts_diff):.1f} FP/G, but your **core** still improves")
 	
 	if cv_diff < -5:
 		reasons.append(f"✅ **Consistency Upgrade:** {abs(cv_diff):.1f}% less volatile")
-	elif cv_diff < 0:
-		reasons.append(f"📉 **Slightly More Consistent:** {abs(cv_diff):.1f}% less CV")
-	
-	if suggestion['pattern'] in ['2-for-1', '3-for-1']:
-		reasons.append(f"✅ **Roster Consolidation:** Upgrading {len(suggestion['you_give'])} players to {len(suggestion['you_get'])} elite piece(s)")
-	
-	# Exponential value explanation
-	if len(suggestion['you_give']) > len(suggestion['you_get']):
-		reasons.append(f"💎 **Exponential Value:** Elite players are worth more than the sum of mid-tier players")
 	
 	for reason in reasons:
 		st.markdown(reason)
 	
 	if not reasons:
-		st.markdown("📊 **Value-based improvement** through optimized roster construction")
+		st.markdown("📊 **Value-based improvement** through optimized core roster construction")
 	
 	# Deep Dive Analysis
 	with st.expander("🔬 Deep Dive Analysis", expanded=False):
@@ -348,7 +408,11 @@ if st.button("🔍 Find Trade Suggestions", type="primary"):
 			min_value_gain=min_value_gain,
 			max_suggestions=max_suggestions,
 			target_teams=target_teams if target_teams else None,
-			exclude_players=exclude_players if exclude_players else None
+			exclude_players=exclude_players if exclude_players else None,
+			include_players=include_players if include_players else None,
+			exclude_teams=exclude_teams if exclude_teams else None,
+			target_opposing_players=target_opposing_players if target_opposing_players else None,
+			exclude_opposing_players=exclude_opposing_players if exclude_opposing_players else None,
 		)
 		
 		if not suggestions:

@@ -10,6 +10,7 @@ from modules.player_value.logic import build_player_value_profiles
 from modules.player_game_log_scraper.logic import load_league_cache_index
 from modules.player_game_log_scraper.ui_viewer import show_player_consistency_viewer
 from modules.historical_ytd_downloader.logic import load_and_compare_seasons, DOWNLOAD_DIR
+from modules.trade_suggestions import calculate_player_value, calculate_league_scarcity_context
 
 
 def _get_all_seasons_for_league(league_id: str) -> List[str]:
@@ -133,11 +134,37 @@ def main():
 			if df is None or df.empty:
 				st.warning("No players met the criteria for the selected filters.")
 			else:
+				# Compute FP/G-centric trade model value using the same logic as the trade engine.
+				# We treat the multi-season averages as an approximate league snapshot.
+				try:
+					league_df = df[[
+						"Player",
+						"AvgMeanFPts",
+						"AvgCV%",
+						"AvgGamesPerSeason",
+					]].rename(columns={
+						"AvgMeanFPts": "Mean FPts",
+						"AvgCV%": "CV %",
+						"AvgGamesPerSeason": "GP",
+					})
+					# Build a synthetic league context from all players in this view
+					scarcity_context = calculate_league_scarcity_context({"League": league_df})
+					trade_values = league_df.apply(
+						lambda row: calculate_player_value(row, scarcity_context=scarcity_context),
+						axis=1,
+					)
+					# Align index just in case
+					df["TradeModelValue"] = trade_values.values
+				except Exception:
+					# Fallback: if anything goes wrong, at least keep the column present
+					df["TradeModelValue"] = float("nan")
+				
 				st.success(f"Computed value profiles for {len(df)} players.")
 				# Rankings table
 				st.subheader("Player Rankings")
 				display_cols = [
 					"Player",
+					"TradeModelValue",
 					"ValueScore",
 					"ProductionScore",
 					"ConsistencyScore",
@@ -151,6 +178,7 @@ def main():
 				]
 				df_display = df[display_cols].copy()
 				for col in [
+					"TradeModelValue",
 					"ValueScore",
 					"ProductionScore",
 					"ConsistencyScore",
@@ -163,7 +191,7 @@ def main():
 					if col in df_display.columns:
 						df_display[col] = df_display[col].round(2)
 				st.dataframe(
-					df_display.sort_values("ValueScore", ascending=False),
+					df_display.sort_values("TradeModelValue", ascending=False),
 					use_container_width=True,
 					height=600,
 				)

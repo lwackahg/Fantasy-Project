@@ -87,8 +87,14 @@ def _cache_index_by_player_name(cache_files):
 			continue
 	return index
 
+@st.cache_data(show_spinner=False)
 def _build_fantasy_team_view(league_id, cache_files):
-	"""Build fantasy team rosters with consistency metrics across multiple time ranges."""
+	"""Build fantasy team rosters with consistency metrics across multiple time ranges.
+
+	This is relatively expensive because it reads game logs and computes multi-range
+	stats for every rostered player. We cache it per league/cache_files so trade
+	suggestions and team viewers can reuse the results without re-reading logs.
+	"""
 	rosters = _load_fantasy_team_rosters()
 	cache_index = _cache_index_by_player_name(cache_files)
 	teams = {}
