@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 16",
+            "Team": "DAL",
+            "Opp": "POR",
+            "Score": "W 138-133",
+            "FPts": 54,
+            "FG-": "9.0",
+            "3PTM": 5,
+            "FT-": "2",
+            "PTS": 21,
+            "OREB": "1",
+            "REB": 7,
+            "AST": 2,
+            "ST": 1,
+            "BLK": 0,
+            "TO": 5,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 12",
             "Team": "DAL",
             "Opp": "PHO",
@@ -256,6 +277,5 @@
             "3D": "0",
             "2D": "0"
         }
-    ],
-    "status": "success"
+    ]
 }

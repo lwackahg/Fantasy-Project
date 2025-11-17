@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 15",
+            "Team": "CHA",
+            "Opp": "OKC",
+            "Score": "L 96-109",
+            "FPts": 49,
+            "FG-": "2.0",
+            "3PTM": 0,
+            "FT-": "1",
+            "PTS": 13,
+            "OREB": "4",
+            "REB": 7,
+            "AST": 0,
+            "ST": 1,
+            "BLK": 1,
+            "TO": 0,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 12",
             "Team": "CHA",
             "Opp": "MIL",
@@ -235,6 +256,5 @@
             "3D": "0",
             "2D": "1"
         }
-    ],
-    "status": "success"
+    ]
 }

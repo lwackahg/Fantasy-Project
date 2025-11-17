@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 16",
+            "Team": "PHO",
+            "Opp": "ATL",
+            "Score": "L 122-124",
+            "FPts": 54,
+            "FG-": "13.0",
+            "3PTM": 0,
+            "FT-": "0",
+            "PTS": 27,
+            "OREB": "1",
+            "REB": 2,
+            "AST": 7,
+            "ST": 1,
+            "BLK": 1,
+            "TO": 5,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 13",
             "Team": "PHO",
             "Opp": "IND",
@@ -277,6 +298,5 @@
             "3D": "0",
             "2D": "0"
         }
-    ],
-    "status": "success"
+    ]
 }

@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 16",
+            "Team": "PHO",
+            "Opp": "ATL",
+            "Score": "L 122-124",
+            "FPts": 22,
+            "FG-": "1.0",
+            "3PTM": 0,
+            "FT-": "0",
+            "PTS": 8,
+            "OREB": "1",
+            "REB": 4,
+            "AST": 1,
+            "ST": 0,
+            "BLK": 0,
+            "TO": 2,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 12",
             "Team": "PHO",
             "Opp": "@DAL",
@@ -30,13 +51,13 @@
             "Team": "PHO",
             "Opp": "NO",
             "Score": "W 121-98",
-            "FPts": 32,
+            "FPts": 34,
             "FG-": "1.0",
             "3PTM": 0,
             "FT-": "0",
             "PTS": 2,
             "OREB": "1",
-            "REB": 6,
+            "REB": 7,
             "AST": 1,
             "ST": 1,
             "BLK": 2,
@@ -235,6 +256,5 @@
             "3D": "0",
             "2D": "0"
         }
-    ],
-    "status": "success"
+    ]
 }

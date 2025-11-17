@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 15",
+            "Team": "CLE",
+            "Opp": "MEM",
+            "Score": "W 108-100",
+            "FPts": 85,
+            "FG-": "9.0",
+            "3PTM": 3,
+            "FT-": "3",
+            "PTS": 22,
+            "OREB": "3",
+            "REB": 13,
+            "AST": 4,
+            "ST": 0,
+            "BLK": 4,
+            "TO": 4,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "1"
+        },
+        {
             "Date": "Nov 13",
             "Team": "CLE",
             "Opp": "TOR",
@@ -256,6 +277,5 @@
             "3D": "0",
             "2D": "0"
         }
-    ],
-    "status": "success"
+    ]
 }
