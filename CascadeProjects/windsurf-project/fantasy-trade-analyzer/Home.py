@@ -4,7 +4,7 @@ from config import PAGE_TITLE, PAGE_ICON, LAYOUT, MENUITEMS
 from data_loader import csv_time, load_schedule_data
 from logic.schedule_analysis import calculate_all_schedule_swaps
 from modules.sidebar.ui import display_global_sidebar
-from modules.data_loader_ui.ui import find_default_files_to_load, process_files_into_session_state
+from modules.legacy.data_loader_ui.ui import find_default_files_to_load, process_files_into_session_state
 
 import pandas as pd
 

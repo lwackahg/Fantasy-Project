@@ -8,6 +8,7 @@ from modules.player_game_log_scraper.logic import (
 	load_league_cache_index
 )
 from modules.player_value.logic import build_player_value_profiles
+from modules.player_game_log_scraper import db_store
 from modules.player_game_log_scraper.ui_components import (
 	display_variability_metrics,
 	display_boom_bust_analysis,
@@ -18,6 +19,7 @@ from modules.player_game_log_scraper.ui_components import (
 )
 from modules.player_game_log_scraper.ui_league_overview import (
 	_load_all_cached_data,
+	_load_all_cached_data_from_db,
 	_display_summary_metrics,
 	_display_consistency_table,
 	_display_visualizations
@@ -39,65 +41,86 @@ except ImportError:
 
 def get_cache_last_updated(league_id):
 	"""Get the most recent cache file modification time."""
+	# Prefer DB last_updated if available
+	try:
+		iso_ts = db_store.get_league_last_updated(league_id)
+		if iso_ts:
+			try:
+				return datetime.fromisoformat(iso_ts)
+			except Exception:
+				pass
+	except Exception:
+		pass
+	
+	# Fallback: use JSON cache file mtimes
 	cache_dir = get_cache_directory()
 	cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
-	
 	if not cache_files:
 		return None
-	
-	# Get the most recent modification time
 	latest_time = max(f.stat().st_mtime for f in cache_files)
 	return datetime.fromtimestamp(latest_time)
 
 def get_available_seasons_for_player(player_code, league_id):
 	"""Get all available seasons for a specific player."""
+	seasons: list[str] = []
+	# DB-first: derive seasons from player_seasons table
+	try:
+		meta = db_store.get_league_player_seasons(league_id)
+		for m in meta:
+			if m.get("player_code") == player_code:
+				season = m.get("season")
+				if season:
+					seasons.append(season)
+	except Exception:
+		seasons = []
+	
+	if seasons:
+		return sorted(list(set(seasons)), reverse=True)
+	
+	# Fallback: infer seasons from JSON cache filenames
 	cache_dir = get_cache_directory()
-	
-	# Look for new format cache files only
 	new_format = cache_dir.glob(f"player_game_log_full_{player_code}_{league_id}_*.json")
-	
 	seasons = []
-	
-	# Check new format (extract season from filename)
 	for file in new_format:
-		# Extract season from filename: player_game_log_full_{code}_{league}_{season}.json
-		# Example: player_game_log_full_03al0_ifa1anexmdgtlk9s_2025_26.json
 		parts = file.stem.split('_')
 		if len(parts) >= 6:
-			# Find where the league_id ends and season starts
-			# The season should be the last part after the league_id
-			season_part = parts[-1]  # Get the last part (e.g., "2025" and "26")
+			season_part = parts[-1]
 			if len(parts) >= 7:
-				# If we have year and season parts separately
 				season = f"{parts[-2]}-{parts[-1]}"  # e.g., "2025-26"
 			else:
-				# Single season part, convert underscores to dashes
 				season = season_part.replace('_', '-')
 			seasons.append(season)
 	
-	return sorted(list(set(seasons)), reverse=True)  # Most recent first, no duplicates
+	return sorted(list(set(seasons)), reverse=True)
 
 def load_player_season_data(player_code, league_id, season):
 	"""Load game log data for a specific player and season."""
-	cache_dir = get_cache_directory()
+	# DB-first: load directly from SQLite
+	try:
+		loaded = db_store.load_player_season(
+			player_code=player_code,
+			league_id=league_id,
+			season=season,
+		)
+	except Exception:
+		loaded = None
+	if loaded:
+		records, status, player_name = loaded
+		return records or [], player_name or 'Unknown', True
 	
-	# Only use new format
+	# Fallback: load from JSON cache file
+	cache_dir = get_cache_directory()
 	season_filename = season.replace('-', '_')
 	cache_file = cache_dir / f"player_game_log_full_{player_code}_{league_id}_{season_filename}.json"
-	
 	if cache_file.exists():
 		try:
 			with open(cache_file, 'r') as f:
 				cache_data = json.load(f)
-			
-			# Check if this is an empty season (player didn't play)
 			status = cache_data.get('status', 'success')
 			data = cache_data.get('data', [])
 			player_name = cache_data.get('player_name', 'Unknown')
-			
-			# Return data even if empty (could be injury season, etc.)
 			return data, player_name, True
-		except:
+		except Exception:
 			pass
 	
 	return [], 'Unknown', False
@@ -169,7 +192,7 @@ def show_player_consistency_viewer(initial_league_id: str | None = None):
 		st.warning("Please enter a league ID to view cached data.")
 		return
 	
-	# Load or build league cache index
+	# Load or build league cache index (kept for fallback paths)
 	index = load_league_cache_index(league_id, rebuild_if_missing=True)
 	if not index or not index.get("players"):
 		st.info("📭 No data available yet. Contact your commissioner to run a data update.")
@@ -205,6 +228,14 @@ def show_player_consistency_viewer(initial_league_id: str | None = None):
 	for player_data in index.get("players", {}).values():
 		seasons = player_data.get("seasons", {})
 		available_seasons.update(seasons.keys())
+	
+	# If DB knows about seasons for this league, prefer that ordering
+	try:
+		db_seasons = db_store.get_league_available_seasons(league_id)
+		if db_seasons:
+			available_seasons = set(db_seasons)
+	except Exception:
+		pass
 	
 	available_seasons = sorted(list(available_seasons), reverse=True)  # Most recent first
 	
@@ -266,8 +297,15 @@ def show_league_overview_viewer(league_id, cache_files, selected_season):
 	"""Display league overview (read-only)."""
 	st.subheader(f"📊 League-Wide Consistency Analysis - {selected_season}")
 	
-	# Load all cached data
-	overview_df = _load_all_cached_data(cache_files)
+	# Prefer DB-backed logs for this league + season, fall back to JSON cache files.
+	try:
+		season_logs = db_store.get_league_season_player_logs(league_id, selected_season)
+	except Exception:
+		season_logs = []
+	if season_logs:
+		overview_df = _load_all_cached_data_from_db(season_logs)
+	else:
+		overview_df = _load_all_cached_data(cache_files)
 	
 	if overview_df is None or overview_df.empty:
 		st.warning("No valid player data found in cache.")
@@ -286,21 +324,31 @@ def show_individual_player_viewer(league_id, cache_files, value_profiles_df=None
 	"""Display individual player analysis with multi-season support."""
 	st.subheader("🔍 Individual Player Analysis")
 	
-	# Load player list from all cache files (new format only)
-	cache_dir = get_cache_directory()
-	all_cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
-	
+	# Load player list - DB first, fallback to cache files
 	player_dict = {}
-	for cache_file in all_cache_files:
-		try:
-			with open(cache_file, 'r') as f:
-				cache_data = json.load(f)
-			player_name = cache_data.get('player_name', 'Unknown')
-			player_code = cache_data.get('player_code', '')
-			if player_name and player_code:
+	try:
+		meta = db_store.get_league_player_seasons(league_id)
+		for m in meta:
+			player_name = m.get('player_name', 'Unknown')
+			player_code = m.get('player_code', '')
+			if player_name and player_code and player_name not in player_dict:
 				player_dict[player_name] = player_code
-		except:
-			continue
+	except Exception:
+		player_dict = {}
+	
+	if not player_dict:
+		cache_dir = get_cache_directory()
+		all_cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
+		for cache_file in all_cache_files:
+			try:
+				with open(cache_file, 'r') as f:
+					cache_data = json.load(f)
+				player_name = cache_data.get('player_name', 'Unknown')
+				player_code = cache_data.get('player_code', '')
+				if player_name and player_code and player_name not in player_dict:
+					player_dict[player_name] = player_code
+			except Exception:
+				continue
 	
 	if not player_dict:
 		st.warning("No player data available.")

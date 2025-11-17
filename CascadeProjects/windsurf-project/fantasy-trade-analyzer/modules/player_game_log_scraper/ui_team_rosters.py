@@ -6,6 +6,7 @@ from modules.player_game_log_scraper.logic import (
 	calculate_variability_stats,
 	get_cache_directory
 )
+from modules.player_game_log_scraper import db_store
 from modules.trade_analysis.consistency_integration import (
 	CONSISTENCY_VERY_MAX_CV,
 	CONSISTENCY_MODERATE_MAX_CV,
@@ -62,9 +63,29 @@ def _cache_index_by_player_name(cache_files):
 			continue
 	return index
 
-def _build_team_view(league_id, cache_files):
+def _build_team_view(league_id, cache_files, season):
 	rosters = _load_team_rosters_from_draft()
-	cache_index = _cache_index_by_player_name(cache_files)
+	# DB-first: build index from SQLite for the requested season, fallback to JSON cache_files.
+	cache_index = {}
+	use_db = False
+	try:
+		season_logs = db_store.get_league_season_player_logs(league_id, season)
+		if season_logs:
+			use_db = True
+			for player_code, player_name, records in season_logs:
+				if not records:
+					continue
+				df = pd.DataFrame(records)
+				cache_index[player_name] = {
+					'code': player_code,
+					'path': None,
+					'games': df,
+				}
+	except Exception:
+		use_db = False
+	
+	if not use_db:
+		cache_index = _cache_index_by_player_name(cache_files)
 	teams = {}
 	for team, players in rosters.items():
 		rows = []
@@ -139,7 +160,7 @@ def _display_teams_overview(rosters_by_team):
 
 def show_team_rosters_viewer(league_id, cache_files, selected_season):
 	st.subheader(f"🏟️ Team Rosters & Consistency - {selected_season}")
-	rosters_by_team = _build_team_view(league_id, cache_files)
+	rosters_by_team = _build_team_view(league_id, cache_files, selected_season)
 	if not rosters_by_team:
 		st.info("No team roster data found from draft results or no matching cached players.")
 		return

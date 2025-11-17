@@ -13,6 +13,7 @@ from modules.player_game_log_scraper.logic import (
 	calculate_variability_stats,
 	get_cache_directory
 )
+from modules.player_game_log_scraper import db_store
 from modules.trade_analysis.consistency_integration import (
 	CONSISTENCY_VERY_MAX_CV,
 	CONSISTENCY_MODERATE_MAX_CV,
@@ -50,27 +51,38 @@ def show_league_overview():
 		st.warning("Please enter a league ID to view cached data.")
 		return
 	
-	# Get cache directory
+	# Prefer DB-backed seasons if available, fall back to JSON cache files.
+	use_db = False
+	available_seasons: list[str] = []
+	try:
+		available_seasons = db_store.get_league_available_seasons(league_id)
+		if available_seasons:
+			use_db = True
+	except Exception:
+		available_seasons = []
+	
+	# Get cache directory for fallback JSON path
 	cache_dir = get_cache_directory()
-	
-	# Find all cache files for this league (new format only)
-	all_cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
-	
-	if not all_cache_files:
-		st.info("No cached player data found. Run a bulk scrape first to populate the cache.")
-		return
-	
-	# Extract available seasons from cache files
-	available_seasons = set()
-	for cache_file in all_cache_files:
-		# Extract season from filename: player_game_log_full_{code}_{league}_{season}.json
-		parts = cache_file.stem.split('_')
-		if len(parts) >= 2:
-			season_part = '_'.join(parts[-2:])  # Get last two parts (e.g., "2025_26")
-			season = season_part.replace('_', '-')  # Convert to "2025-26"
-			available_seasons.add(season)
-	
-	available_seasons = sorted(list(available_seasons), reverse=True)  # Most recent first
+	all_cache_files = []
+	if not use_db:
+		# Find all cache files for this league (new format only)
+		all_cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
+		
+		if not all_cache_files:
+			st.info("No cached player data found. Run a bulk scrape first to populate the cache.")
+			return
+		
+		# Extract available seasons from cache files
+		season_set = set()
+		for cache_file in all_cache_files:
+			# Extract season from filename: player_game_log_full_{code}_{league}_{season}.json
+			parts = cache_file.stem.split('_')
+			if len(parts) >= 2:
+				season_part = '_'.join(parts[-2:])  # Get last two parts (e.g., "2025_26")
+				season = season_part.replace('_', '-')  # Convert to "2025-26"
+				season_set.add(season)
+		
+		available_seasons = sorted(list(season_set), reverse=True)  # Most recent first
 	
 	if not available_seasons:
 		st.warning("No valid season data found in cache files.")
@@ -84,14 +96,23 @@ def show_league_overview():
 		key="overview_season_selector"
 	)
 	
-	# Filter cache files for selected season
-	season_filename = selected_season.replace('-', '_')
-	cache_files = [f for f in all_cache_files if f.stem.endswith(season_filename)]
-	
-	st.success(f"Found {len(cache_files)} players with cached data for {selected_season}")
-	
-	# Load all cached data
-	overview_df = _load_all_cached_data(cache_files)
+	if use_db:
+		# DB-backed path: load logs directly from SQLite
+		try:
+			season_logs = db_store.get_league_season_player_logs(league_id, selected_season)
+		except Exception:
+			season_logs = []
+		st.success(f"Found {len(season_logs)} players with cached data for {selected_season}")
+		overview_df = _load_all_cached_data_from_db(season_logs)
+	else:
+		# Filter cache files for selected season
+		season_filename = selected_season.replace('-', '_')
+		cache_files = [f for f in all_cache_files if f.stem.endswith(season_filename)]
+		
+		st.success(f"Found {len(cache_files)} players with cached data for {selected_season}")
+		
+		# Load all cached data
+		overview_df = _load_all_cached_data(cache_files)
 	
 	if overview_df is None or overview_df.empty:
 		st.warning("No valid player data found in cache.")
@@ -105,6 +126,73 @@ def show_league_overview():
 	
 	# Display visualizations
 	_display_visualizations(overview_df)
+
+
+def _load_all_cached_data_from_db(season_logs):
+	"""Load and process all cached player data from DB logs.
+
+	season_logs is a list of (player_code, player_name, records[list[dict]]).
+	"""
+	all_player_stats = []
+	
+	with st.spinner("Loading cached data..."):
+		for player_code, player_name, records in season_logs:
+			if not records:
+				continue
+			
+			# Convert to DataFrame and calculate stats
+			df = pd.DataFrame(records)
+			if 'FPts' not in df.columns:
+				continue
+			
+			stats = calculate_variability_stats(df)
+			if stats:
+				stats['Player'] = player_name
+				stats['player_code'] = player_code
+				all_player_stats.append(stats)
+	
+	if not all_player_stats:
+		return None
+	
+	# Create DataFrame
+	overview_df = pd.DataFrame(all_player_stats)
+	
+	# Reorder columns
+	column_order = [
+		'Player', 'games_played', 'mean_fpts', 'median_fpts', 'std_dev',
+		'coefficient_of_variation', 'min_fpts', 'max_fpts', 'range',
+		'boom_games', 'boom_rate', 'bust_games', 'bust_rate'
+	]
+	overview_df = overview_df[[col for col in column_order if col in overview_df.columns]]
+	
+	# Rename columns for display
+	overview_df = overview_df.rename(columns={
+		'games_played': 'GP',
+		'mean_fpts': 'Mean FPts',
+		'median_fpts': 'Median FPts',
+		'std_dev': 'Std Dev',
+		'coefficient_of_variation': 'CV %',
+		'min_fpts': 'Min',
+		'max_fpts': 'Max',
+		'range': 'Range',
+		'boom_games': 'Boom Games',
+		'boom_rate': 'Boom %',
+		'bust_games': 'Bust Games',
+		'bust_rate': 'Bust %'
+	})
+	
+	# Round numeric columns
+	numeric_cols = overview_df.select_dtypes(include=['float64', 'int64']).columns
+	for col in numeric_cols:
+		if col in ['CV %', 'Boom %', 'Bust %']:
+			overview_df[col] = overview_df[col].round(1)
+		elif col != 'GP':
+			overview_df[col] = overview_df[col].round(1)
+	
+	# Sort by Mean FPts descending
+	overview_df = overview_df.sort_values('Mean FPts', ascending=False).reset_index(drop=True)
+	
+	return overview_df
 
 def _load_all_cached_data(cache_files):
 	"""Load and process all cached player data."""

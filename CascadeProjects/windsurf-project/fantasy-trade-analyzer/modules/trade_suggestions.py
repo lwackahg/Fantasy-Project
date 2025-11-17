@@ -10,17 +10,65 @@ ROSTER_SIZE = 10  # From league rules
 REPLACEMENT_PERCENTILE = 0.85  # Top 85% of rostered players
 MIN_GAMES_REQUIRED = 25  # Weekly minimum games in current configuration
 AVG_GAMES_PER_PLAYER = 3.5  # Approximate NBA games per player per fantasy week
-MAX_CANDIDATES_YOUR = 10
-MAX_CANDIDATES_THEIR = 10
-MAX_COMBINATIONS_PER_PATTERN = 2000
+# Hard caps on how many players per team enter the trade engine. These were
+# originally 10/10; tightening them reduces combinatorial explosion while still
+# considering the key pieces on each roster.
+MAX_CANDIDATES_YOUR = 8
+MAX_CANDIDATES_THEIR = 8
+# Per-pattern cap on combinations evaluated for a given team pair.
+MAX_COMBINATIONS_PER_PATTERN = 1000
 ENABLE_VALUE_FAIRNESS_GUARD = False
 MAX_OPP_WEEKLY_LOSS = 15.0  # Max weekly core FP we assume an opponent would accept losing (slightly loosened)
 EQUAL_COUNT_MAX_OPP_WEEKLY_LOSS = 10
 MAX_OPP_CORE_AVG_DROP = 1.5  # Max FP/G drop in opponent's core average (league philosophy: FP/G > total FP)
 MIN_GP_SHARE_OF_MAX = 0.25
-MAX_COMPLEXITY_OPS = 300_000  # Rough cap on estimated combination evaluations
+MAX_COMPLEXITY_OPS = 200_000  # Rough cap on estimated combination evaluations
 EQUAL_COUNT_MAX_AVG_FPTS_RATIO = 1.15
-EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO = 1.10
+EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO = 1.5
+TRADE_BALANCE_LEVEL = 5  # 1-10 scale, 5 = standard
+SHOW_COMPLEXITY_DEBUG = False  # Toggle to print per-team combination estimates
+MAX_ACCEPTED_TRADES_PER_PATTERN_TEAM = 12  # Early-exit once we have plenty of good trades for a pattern vs team
+
+
+def _apply_trade_balance_level(level: int) -> None:
+	"""Apply threshold settings for a 1-10 trade balance level.
+
+	This function now acts as a fallback static ramp. League-aware caps are
+	derived later from calculate_league_scarcity_context and the stored
+	TRADE_BALANCE_LEVEL inside find_trade_suggestions.
+	"""
+	global EQUAL_COUNT_MAX_OPP_WEEKLY_LOSS, EQUAL_COUNT_MAX_AVG_FPTS_RATIO, EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO
+	level = max(1, min(10, int(level)))
+
+	# Linear ramps between conservative (1) and aggressive (10)
+	EQUAL_COUNT_MAX_OPP_WEEKLY_LOSS = 4.0 + (level - 1) * 1.5  # 4 → 17.5
+	EQUAL_COUNT_MAX_AVG_FPTS_RATIO = 1.05 + (level - 1) * 0.025  # 1.05 → 1.275
+	EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO = 1.02 + (level - 1) * 0.02   # 1.02 → 1.20
+
+
+def set_trade_balance_preset(preset) -> None:
+	"""
+	Adjust equal-count realism thresholds.
+
+	Accepts either legacy labels ("conservative", "standard", "aggressive")
+	or a numeric balance level 1-10 (5 = standard).
+	"""
+	global TRADE_BALANCE_LEVEL
+	if isinstance(preset, (int, float)):
+		level = int(preset)
+	else:
+		key = (preset or 'standard').lower()
+		legacy_map = {
+			'very conservative': 2,
+			'conservative': 3,
+			'standard': 5,
+			'aggressive': 7,
+			'ultra aggressive': 9,
+		}
+		level = legacy_map.get(key, 5)
+
+	TRADE_BALANCE_LEVEL = max(1, min(50, int(level)))
+	_apply_trade_balance_level(TRADE_BALANCE_LEVEL)
 
 
 def _calculate_league_percentile_tiers(all_teams: Dict[str, pd.DataFrame]) -> Dict[str, float]:
@@ -105,6 +153,8 @@ def estimate_trade_search_complexity(
 		if len_t > MAX_CANDIDATES_THEIR:
 			len_t = MAX_CANDIDATES_THEIR
 
+		team_ops = 0
+
 		for pattern in trade_patterns:
 			if pattern == '1-for-1':
 				combos = len_y * len_t
@@ -147,9 +197,11 @@ def estimate_trade_search_complexity(
 				continue
 
 			combos = min(combos, MAX_COMBINATIONS_PER_PATTERN)
-			total_ops += combos
+			team_ops += combos
 
-		st.write(f"Estimated combinations for {team_name}: {total_ops}")
+		total_ops += team_ops
+		if SHOW_COMPLEXITY_DEBUG:
+			st.write(f"Estimated combinations for {team_name}: {team_ops}")
 
 	return total_ops
 
@@ -161,8 +213,9 @@ def calculate_exponential_value(fpts: float) -> float:
 	This makes a 100 FP/G player worth ~2.15x a 50 FP/G player instead of exactly 2x,
 	reflecting the strategic reality that consolidating into stars is powerful.
 	"""
-	exponent = 1.05  # Subtle superstar premium
-	scale = 1.0
+	exponent = 1.3  # Moderately stronger superstar premium
+	anchor_fpts = 50.0
+	scale = anchor_fpts / (anchor_fpts ** exponent) if anchor_fpts > 0 else 1.0
 	base_value = (fpts ** exponent) * scale
 	return base_value
 
@@ -184,7 +237,15 @@ def calculate_league_scarcity_context(all_teams_data: Dict[str, pd.DataFrame]) -
 			all_players.append(team_df)
 	
 	if not all_players:
-		return {'replacement_level': 0, 'tier_counts': {}, 'position_scarcity': {}, 'total_rostered': 0, 'league_avg_fpts': 0.0, 'league_median_fpts': 0.0}
+		return {
+			'replacement_level': 0,
+			'tier_counts': {},
+			'position_scarcity': {},
+			'total_rostered': 0,
+			'league_avg_fpts': 0.0,
+			'league_median_fpts': 0.0,
+			'league_avg_cv': None,
+		}
 	
 	league_df = pd.concat(all_players, ignore_index=True)
 	
@@ -245,7 +306,11 @@ def calculate_league_scarcity_context(all_teams_data: Dict[str, pd.DataFrame]) -
 		# Scarcity = 1 / (count / total) - rarer positions get higher multiplier
 		for pos, count in pos_counts.items():
 			position_scarcity[pos] = total_players / max(count, 1)
-	
+
+	league_avg_cv = None
+	if 'CV %' in league_df.columns:
+		league_avg_cv = float(league_df['CV %'].mean())
+
 	return {
 		'replacement_level': replacement_level,
 		'tier_counts': tier_counts,
@@ -253,15 +318,68 @@ def calculate_league_scarcity_context(all_teams_data: Dict[str, pd.DataFrame]) -
 		'total_rostered': len(league_df),
 		'league_avg_fpts': league_df['Mean FPts'].mean(),
 		'league_median_fpts': league_df['Mean FPts'].median(),
-		'percentile_lookup': percentile_lookup,  # NEW: for dynamic realism checks
+		'percentile_lookup': percentile_lookup,
+		'league_avg_cv': league_avg_cv,
 	}
+
+
+def _update_realism_caps_from_league(scarcity_context: Dict, league_tiers: Dict[str, float]) -> None:
+	"""Derive opponent-loss and ratio caps from league FP/G and CV plus balance level.
+
+	This keeps the thresholds scaled to your actual league while letting the
+	Trade Balance slider act as a simple 1–10 strictness control.
+	"""
+	global MAX_OPP_CORE_AVG_DROP, MAX_OPP_WEEKLY_LOSS, EQUAL_COUNT_MAX_OPP_WEEKLY_LOSS
+	global EQUAL_COUNT_MAX_AVG_FPTS_RATIO, EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO
+
+	if not league_tiers:
+		return
+
+	quality = float(league_tiers.get('quality', 50.0))
+	star = float(league_tiers.get('star', quality + 10.0))
+	fp_unit = max(5.0, star - quality)
+
+	# Base core FP/G drop the opponent might tolerate in a "typical" league.
+	base_core_drop = fp_unit * 0.3  # ~30% of the quality→star gap
+
+	# Volatility factor: swingier leagues allow slightly larger FP/G loss.
+	league_avg_cv = scarcity_context.get('league_avg_cv')
+	vol_factor = 1.0
+	if isinstance(league_avg_cv, (int, float)) and league_avg_cv > 0:
+		# Around 30% CV = neutral; clamp to [0.85, 1.15]
+		vol_factor = max(0.85, min(1.15, league_avg_cv / 30.0))
+
+	# Map trade balance level 1–10 into a 0.7–1.3 multiplier.
+	level = TRADE_BALANCE_LEVEL
+	strict_mult = 0.7 + (level - 1) * (0.6 / 9.0)
+
+	core_drop = base_core_drop * vol_factor * strict_mult
+
+	# Core FP/G drop cap (master guard)
+	MAX_OPP_CORE_AVG_DROP = core_drop
+
+	# Weekly loss caps derived from core drop.
+	equal_weekly = core_drop * MIN_GAMES_REQUIRED
+	EQUAL_COUNT_MAX_OPP_WEEKLY_LOSS = min(equal_weekly, 60.0)
+	MAX_OPP_WEEKLY_LOSS = min(EQUAL_COUNT_MAX_OPP_WEEKLY_LOSS * 1.5, 90.0)
+
+	# Ratio caps for equal-count trades.
+	if quality <= 0:
+		quality = 50.0
+	delta_ratio = min(0.25, core_drop / quality)  # never allow absurd ratios
+
+	EQUAL_COUNT_MAX_AVG_FPTS_RATIO = 1.05 + delta_ratio * 0.5   # ≈ [1.05, ~1.17]
+	EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO = 1.02 + delta_ratio * 0.4  # ≈ [1.02, ~1.12]
+
+	EQUAL_COUNT_MAX_AVG_FPTS_RATIO = min(EQUAL_COUNT_MAX_AVG_FPTS_RATIO, 1.30)
+	EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO = min(EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO, 1.20)
 
 
 def _get_core_size(min_games: float = MIN_GAMES_REQUIRED, g_avg: float = AVG_GAMES_PER_PLAYER) -> int:
 	"""Approximate number of core roster spots based on min games and avg games per player."""
 	if g_avg <= 0:
 		return ROSTER_SIZE
-	size = int(round(min_games / g_avg))
+	size = math.ceil(min_games / g_avg)
 	return max(1, min(size, ROSTER_SIZE))
 
 
@@ -580,6 +698,8 @@ def find_trade_suggestions(
 	
 	# Calculate percentile-based tiers from actual league data
 	league_tiers = _calculate_league_percentile_tiers(all_teams)
+	# Update realism caps (opponent loss / ratios) from league stats + balance level
+	_update_realism_caps_from_league(scarcity_context, league_tiers)
 	
 	# Calculate values for all of your players with scarcity awareness
 	your_full_team['Value'] = your_full_team.apply(
@@ -853,10 +973,14 @@ def find_trade_suggestions(
 def _find_1_for_1_trades(your_team, other_team, team_name, min_gain, your_full_team, core_size, baseline_core_value, include_players, opp_full_team, opp_baseline_core, league_tiers, target_opposing_players=None):
 	"""Find 1-for-1 trade opportunities with symmetric core evaluation."""
 	trades = []
+	accepted = 0
 	combo_counter = 0
 	
-	for _, your_player in your_team.iterrows():
-		for _, their_player in other_team.iterrows():
+	your_rows = your_team.to_dict('records')
+	their_rows = other_team.to_dict('records')
+	
+	for your_player in your_rows:
+		for their_player in their_rows:
 			combo_counter += 1
 			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
 				return trades
@@ -926,6 +1050,9 @@ def _find_1_for_1_trades(your_team, other_team, team_name, min_gain, your_full_t
 					'your_cv': [your_player['CV %']],
 					'their_cv': [their_player['CV %']]
 				})
+				accepted += 1
+				if accepted >= MAX_ACCEPTED_TRADES_PER_PATTERN_TEAM:
+					return trades
 	
 	return trades
 
@@ -933,18 +1060,22 @@ def _find_1_for_1_trades(your_team, other_team, team_name, min_gain, your_full_t
 def _find_2_for_1_trades(your_team, other_team, team_name, min_gain, your_full_team, core_size, baseline_core_value, include_players, opp_full_team, opp_baseline_core, league_tiers, target_opposing_players=None):
 	"""Find 2-for-1 trade opportunities (you give 2, get 1) with symmetric core evaluation."""
 	trades = []
+	accepted = 0
 	combo_counter = 0
 	
+	your_rows = your_team.to_dict('records')
+	their_rows = other_team.to_dict('records')
+	
 	# You give 2, get 1 elite
-	for your_combo in combinations(your_team.iterrows(), 2):
-		your_players = [p[1] for p in your_combo]
+	for your_combo in combinations(your_rows, 2):
+		your_players = list(your_combo)
 		# Must include at least one of the include_players, if specified
 		if include_players is not None and len(include_players) > 0:
 			if not any(p.get('Player') in include_players for p in your_players):
 				continue
 		your_total_value = sum(p['Value'] for p in your_players)
 		
-		for _, their_player in other_team.iterrows():
+		for their_player in their_rows:
 			combo_counter += 1
 			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
 				return trades
@@ -995,20 +1126,24 @@ def _find_2_for_1_trades(your_team, other_team, team_name, min_gain, your_full_t
 def _find_2_for_2_trades(your_team, other_team, team_name, min_gain, your_full_team, core_size, baseline_core_value, include_players, opp_full_team, opp_baseline_core, league_tiers, target_opposing_players=None):
 	"""Find 2-for-2 trade opportunities with symmetric core evaluation."""
 	trades = []
+	accepted = 0
 	combo_counter = 0
 	
-	for your_combo in combinations(your_team.iterrows(), 2):
-		your_players = [p[1] for p in your_combo]
+	your_rows = your_team.to_dict('records')
+	their_rows = other_team.to_dict('records')
+	
+	for your_combo in combinations(your_rows, 2):
+		your_players = list(your_combo)
 		if include_players is not None and len(include_players) > 0:
 			if not any(p.get('Player') in include_players for p in your_players):
 				continue
 		your_total_value = sum(p['Value'] for p in your_players)
 		
-		for their_combo in combinations(other_team.iterrows(), 2):
+		for their_combo in combinations(their_rows, 2):
 			combo_counter += 1
 			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
 				return trades
-			their_players = [p[1] for p in their_combo]
+			their_players = list(their_combo)
 			# Enforce target_opposing_players constraint: at least one of their players must be targeted
 			if target_opposing_players:
 				if not any(p.get('Player') in target_opposing_players for p in their_players):
@@ -1057,16 +1192,20 @@ def _find_2_for_2_trades(your_team, other_team, team_name, min_gain, your_full_t
 def _find_3_for_1_trades(your_team, other_team, team_name, min_gain, your_full_team, core_size, baseline_core_value, include_players, opp_full_team, opp_baseline_core, league_tiers, target_opposing_players=None):
 	"""Find 3-for-1 trade opportunities (you give 3, get 1 superstar) with symmetric core evaluation."""
 	trades = []
+	accepted = 0
 	combo_counter = 0
 	
-	for your_combo in combinations(your_team.iterrows(), 3):
-		your_players = [p[1] for p in your_combo]
+	your_rows = your_team.to_dict('records')
+	their_rows = other_team.to_dict('records')
+	
+	for your_combo in combinations(your_rows, 3):
+		your_players = list(your_combo)
 		if include_players is not None and len(include_players) > 0:
 			if not any(p.get('Player') in include_players for p in your_players):
 				continue
 		your_total_value = sum(p['Value'] for p in your_players)
 		
-		for _, their_player in other_team.iterrows():
+		for their_player in their_rows:
 			combo_counter += 1
 			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
 				return trades
@@ -1120,10 +1259,14 @@ def _find_3_for_1_trades(your_team, other_team, team_name, min_gain, your_full_t
 def _find_3_for_2_trades(your_team, other_team, team_name, min_gain, your_full_team, core_size, baseline_core_value, include_players, opp_full_team, opp_baseline_core, league_tiers, target_opposing_players=None):
 	"""Find 3-for-2 trade opportunities with symmetric core evaluation."""
 	trades = []
+	accepted = 0
 	combo_counter = 0
 	
-	for your_combo in combinations(your_team.iterrows(), 3):
-		your_players = [p[1] for p in your_combo]
+	your_rows = your_team.to_dict('records')
+	their_rows = other_team.to_dict('records')
+	
+	for your_combo in combinations(your_rows, 3):
+		your_players = list(your_combo)
 		if include_players is not None and len(include_players) > 0:
 			if not any(p.get('Player') in include_players for p in your_players):
 				continue
@@ -1135,6 +1278,9 @@ def _find_3_for_2_trades(your_team, other_team, team_name, min_gain, your_full_t
 				return trades
 			their_players = [p[1] for p in their_combo]
 			their_total_value = sum(p['Value'] for p in their_players)
+			# 3-for-2 consolidation: guard against giving up too much total FP/G
+			if not _check_3_for_2_package_ratio(your_players, their_players):
+				continue
 			
 			your_core_gain = _simulate_core_value_gain(
 				your_full_team,
@@ -1185,18 +1331,30 @@ def _find_3_for_2_trades(your_team, other_team, team_name, min_gain, your_full_t
 def _find_1_for_2_trades(your_team, other_team, team_name, min_gain, your_full_team, core_size, baseline_core_value, include_players, opp_full_team, opp_baseline_core, league_tiers, target_opposing_players=None):
 	"""Find 1-for-2 trades (you give 1, get 2) with symmetric core evaluation."""
 	trades = []
+	accepted = 0
 	combo_counter = 0
 	
-	for _, your_player in your_team.iterrows():
+	your_rows = your_team.to_dict('records')
+	their_rows = other_team.to_dict('records')
+	
+	for your_player in your_rows:
 		# Must include player if include_players specified
 		if include_players is not None and len(include_players) > 0:
 			if your_player.get('Player') not in include_players:
 				continue
-		for their_combo in combinations(other_team.iterrows(), 2):
+		for their_combo in combinations(their_rows, 2):
 			combo_counter += 1
 			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
 				return trades
-			their_players = [p[1] for p in their_combo]
+			their_players = list(their_combo)
+			# For 1-for-2 depth trades, your single player should be higher FP/G
+			# than each incoming player.
+			your_fpts = your_player['Mean FPts']
+			if any(your_fpts <= p['Mean FPts'] for p in their_players):
+				continue
+			# Tier- and slider-aware package FP/G ratio check for 1-for-2 expansions
+			if not _check_1_for_n_package_ratio(your_player, their_players, league_tiers):
+				continue
 			their_total_value = sum(p['Value'] for p in their_players)
 			
 			your_core_gain = _simulate_core_value_gain(
@@ -1240,20 +1398,32 @@ def _find_1_for_2_trades(your_team, other_team, team_name, min_gain, your_full_t
 def _find_1_for_3_trades(your_team, other_team, team_name, min_gain, your_full_team, core_size, baseline_core_value, include_players, opp_full_team, opp_baseline_core, league_tiers, target_opposing_players=None):
 	"""Find 1-for-3 trades (you give 1, get 3) with symmetric core evaluation."""
 	trades = []
+	accepted = 0
 	combo_counter = 0
 	
-	for _, your_player in your_team.iterrows():
+	your_rows = your_team.to_dict('records')
+	their_rows = other_team.to_dict('records')
+	
+	for your_player in your_rows:
 		if include_players is not None and len(include_players) > 0:
 			if your_player.get('Player') not in include_players:
 				continue
-		for their_combo in combinations(other_team.iterrows(), 3):
+		for their_combo in combinations(their_rows, 3):
 			combo_counter += 1
 			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
 				return trades
-			their_players = [p[1] for p in their_combo]
+			their_players = list(their_combo)
 			if target_opposing_players:
 				if not any(p.get('Player') in target_opposing_players for p in their_players):
 					continue
+			# For 1-for-3 depth trades, your single player should be higher FP/G
+			# than each incoming player.
+			your_fpts = your_player['Mean FPts']
+			if any(your_fpts <= p['Mean FPts'] for p in their_players):
+				continue
+			# Tier- and slider-aware package FP/G ratio check for 1-for-3 expansions
+			if not _check_1_for_n_package_ratio(your_player, their_players, league_tiers):
+				continue
 			their_total_value = sum(p['Value'] for p in their_players)
 			
 			your_core_gain = _simulate_core_value_gain(
@@ -1297,10 +1467,14 @@ def _find_1_for_3_trades(your_team, other_team, team_name, min_gain, your_full_t
 def _find_2_for_3_trades(your_team, other_team, team_name, min_gain, your_full_team, core_size, baseline_core_value, include_players, opp_full_team, opp_baseline_core, league_tiers, target_opposing_players=None):
 	"""Find 2-for-3 trades with symmetric core evaluation."""
 	trades = []
+	accepted = 0
 	combo_counter = 0
 	
-	for your_combo in combinations(your_team.iterrows(), 2):
-		your_players = [p[1] for p in your_combo]
+	your_rows = your_team.to_dict('records')
+	their_rows = other_team.to_dict('records')
+	
+	for your_combo in combinations(your_rows, 2):
+		your_players = list(your_combo)
 		if include_players is not None and len(include_players) > 0:
 			if not any(p.get('Player') in include_players for p in your_players):
 				continue
@@ -1354,10 +1528,14 @@ def _find_2_for_3_trades(your_team, other_team, team_name, min_gain, your_full_t
 def _find_3_for_3_trades(your_team, other_team, team_name, min_gain, your_full_team, core_size, baseline_core_value, include_players, opp_full_team, opp_baseline_core, league_tiers, target_opposing_players=None):
 	"""Find 3-for-3 trades with symmetric core evaluation."""
 	trades = []
+	accepted = 0
 	combo_counter = 0
 	
-	for your_combo in combinations(your_team.iterrows(), 3):
-		your_players = [p[1] for p in your_combo]
+	your_rows = your_team.to_dict('records')
+	their_rows = other_team.to_dict('records')
+	
+	for your_combo in combinations(your_rows, 3):
+		your_players = list(your_combo)
 		if include_players is not None and len(include_players) > 0:
 			if not any(p.get('Player') in include_players for p in your_players):
 				continue
@@ -1408,350 +1586,483 @@ def _find_3_for_3_trades(your_team, other_team, team_name, min_gain, your_full_t
 	
 	return trades
 
-def _is_realistic_trade(your_players, their_players, league_tiers: Dict[str, float]):
-	"""
-	Check if a trade is realistic (not too lopsided).
-	Prevents suggesting trades that no one would accept.
-	Considers both FPts and consistency (CV%).
-	
-	Now more lenient to allow:
-	- Consistency upgrades (lower CV%) even if FP/G is sideways
-	- Consolidation trades that improve core FP/G
-	
-	Uses percentile-based tiers from actual league data instead of hardcoded thresholds.
-	"""
-	your_count = len(your_players)
-	their_count = len(their_players)
-	is_consolidating = your_count > their_count  # You give more players than you receive
-	is_expanding = their_count > your_count      # You receive more players than you give
 
-	your_avg_fpts = sum(p['Mean FPts'] for p in your_players) / len(your_players)
-	their_avg_fpts = sum(p['Mean FPts'] for p in their_players) / len(their_players)
-	your_avg_cv = sum(p['CV %'] for p in your_players) / len(your_players)
-	their_avg_cv = sum(p['CV %'] for p in their_players) / len(their_players)
-	
-	# NOTE: Consistency (CV) is mostly your edge. Opponent realism is driven by FP/G.
-	# We do NOT let "consistency upgrades" justify huge FP/G gaps an opponent
-	# would never consciously accept.
-	
-	# 1) Average FP/G sanity check: don't allow trades where the average quality
-	# of pieces is wildly different.
-	fpts_ratio = max(your_avg_fpts, their_avg_fpts) / min(your_avg_fpts, their_avg_fpts) if min(your_avg_fpts, their_avg_fpts) > 0 else 999
-	
+def _check_avg_fpts_ratio(your_avg_fpts: float, their_avg_fpts: float, is_consolidating: bool, is_expanding: bool) -> bool:
+	"""Average FP/G sanity check for package quality similarity."""
+	if min(your_avg_fpts, their_avg_fpts) <= 0:
+		fpts_ratio = 999
+	else:
+		fpts_ratio = max(your_avg_fpts, their_avg_fpts) / min(your_avg_fpts, their_avg_fpts)
 	if is_consolidating:
-		# You give more pieces and get a better headline player; allow some gap,
-		# but not absurd.
 		if fpts_ratio > 1.35:
 			return False
 	elif is_expanding:
-		# You receive more pieces; average FP/G should be fairly close.
 		if fpts_ratio > 1.25:
 			return False
 	else:
-		# Equal-count trades should be relatively tight.
-		if fpts_ratio > 1.12:
+		if fpts_ratio > EQUAL_COUNT_MAX_AVG_FPTS_RATIO:
 			return False
-	
-	# 2) Total FP/G sanity check (package totals). This is lenient for
-	# consolidations into true elite players, but independent of CV.
-	your_total_fpts = sum(p['Mean FPts'] for p in your_players)
-	their_total_fpts = sum(p['Mean FPts'] for p in their_players)
-	
+	return True
+
+
+def _check_total_fpts_and_piece_quality(
+	your_players,
+	their_players,
+	your_total_fpts: float,
+	their_total_fpts: float,
+	your_count: int,
+	is_consolidating: bool,
+	is_expanding: bool,
+	league_tiers: Dict[str, float],
+) -> bool:
 	if is_consolidating:
-		# YOU are consolidating (giving more, getting fewer).
-		# Consolidations are GOOD in this league format (25-game minimum), so
-		# allow meaningful gaps since core FP/G > package totals.
-		# BUT: opponent is EXPANDING (giving fewer, getting more), so we must check
-		# that they're not getting fleeced on their star player.
-		max_ratio = 1.25  # Base: up to 25% gap allowed
+		max_ratio = 1.25
 		their_max = max(p['Mean FPts'] for p in their_players)
-		
-		# For elite / star targets, allow more since consolidation is the strategy.
-		# Use dynamic tier thresholds instead of hardcoded values
 		elite_threshold = league_tiers.get('elite', 90)
 		star_threshold = league_tiers.get('star', 70)
-		
 		if their_max >= elite_threshold:
-			max_ratio = 1.35  # Elite tier - allow meaningful gaps
+			max_ratio = 1.35
 		elif their_max >= star_threshold:
-			max_ratio = 1.30  # Star tier
-		
-		# CRITICAL: Check quality of pieces you're giving so we don't suggest
-		# trades where you get an elite for total junk.
+			max_ratio = 1.30
 		if your_count == 2:
 			your_sorted = sorted([p['Mean FPts'] for p in your_players], reverse=True)
-			# Your second-best player must be at least 45% of the target's value.
 			if your_sorted[1] < their_max * 0.45:
 				return False
-			# Your best player must be at least 60% of the target.
 			if your_sorted[0] < their_max * 0.60:
 				return False
 		elif your_count == 3:
 			your_sorted = sorted([p['Mean FPts'] for p in your_players], reverse=True)
-			# All three must be real pieces (at least 38% of target each).
 			if any(p < their_max * 0.38 for p in your_sorted):
 				return False
-			# Your best must still be reasonably strong vs the target.
 			if your_sorted[0] < their_max * 0.55:
 				return False
-		
-		# NEW: Opponent-side expansion quality check (ratio-based, not hardcoded)
-		# Opponent is EXPANDING (giving their star + maybe others, getting more pieces).
-		# Ensure all pieces they receive are legitimate starters, not junk.
-		# Use ratios relative to their star's FP/G.
 		your_min = min(p['Mean FPts'] for p in your_players)
 		your_avg = sum(p['Mean FPts'] for p in your_players) / len(your_players)
-		
-		# All pieces must be at least X% of their star's FP/G
-		# Average must be at least Y% of their star's FP/G
-		# These ratios allow meaningful consolidation while preventing junk trades
-		min_piece_ratio = 0.52   # Each piece must be at least ~52% of their star
-		avg_piece_ratio = 0.64   # Average must be at least ~64% of their star
-		
+		min_piece_ratio = 0.52
+		avg_piece_ratio = 0.64
 		if your_min < their_max * min_piece_ratio:
 			return False
 		if your_avg < their_max * avg_piece_ratio:
 			return False
-		
-		# Absolute package loss cap for opponent
-		# Opponent shouldn't lose more than X FP/G in total package
-		# Use dynamic tier thresholds
+		elite_threshold = league_tiers.get('elite', 90)
+		star_threshold = league_tiers.get('star', 70)
 		package_loss_for_them = their_total_fpts - your_total_fpts
-		if package_loss_for_them > 0:  # They're giving more total FP/G than receiving
+		if package_loss_for_them > 0:
 			if their_max >= elite_threshold:
-				max_loss = 30  # Elite: allow up to 30 FP/G package loss
+				max_loss = 30
 			elif their_max >= star_threshold:
-				max_loss = 25  # Star: allow up to 25 FP/G package loss
+				max_loss = 25
 			else:
-				max_loss = 20  # Regular: allow up to 20 FP/G package loss
-			
+				max_loss = 20
 			if package_loss_for_them > max_loss:
 				return False
-		
 	elif is_expanding:
-		# YOU are expanding (giving fewer, getting more).
-		# Opponent is consolidating, so apply similar ratio-based quality checks.
-		max_ratio = 1.25  # Allow meaningful gaps
-		
-		# If you're giving up a star, ensure opponent's pieces are quality (ratio-based)
+		max_ratio = 1.25
 		your_max = max(p['Mean FPts'] for p in your_players)
 		their_min = min(p['Mean FPts'] for p in their_players)
 		their_avg = sum(p['Mean FPts'] for p in their_players) / len(their_players)
-		
-		# Use same ratios as consolidation check
-		min_piece_ratio = 0.52   # Each piece must be at least ~52% of your star
-		avg_piece_ratio = 0.64   # Average must be at least ~64% of your star
-		
+		min_piece_ratio = 0.52
+		avg_piece_ratio = 0.64
 		if their_min < your_max * min_piece_ratio:
 			return False
 		if their_avg < your_max * avg_piece_ratio:
 			return False
 	else:
-		# Equal player counts - fairly tight.
-		max_ratio = 1.08
-	
-	total_ratio = max(your_total_fpts, their_total_fpts) / min(your_total_fpts, their_total_fpts) if min(your_total_fpts, their_total_fpts) > 0 else 999
-	
+		max_ratio = EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO
+	if min(your_total_fpts, their_total_fpts) <= 0:
+		total_ratio = 999
+	else:
+		total_ratio = max(your_total_fpts, their_total_fpts) / min(your_total_fpts, their_total_fpts)
 	if total_ratio > max_ratio:
 		return False
-	
-	# Optional additional guard on exponential value gap so that trades that are massive
-	# wins for one side (in terms of Value) are considered unrealistic from the opponent's view.
-	if ENABLE_VALUE_FAIRNESS_GUARD and 'Value' in your_players[0] and 'Value' in their_players[0]:
-		your_total_value = sum(float(p['Value']) for p in your_players)
-		their_total_value = sum(float(p['Value']) for p in their_players)
-		if your_total_value > 0 and their_total_value > 0:
-			value_ratio = max(your_total_value, their_total_value) / min(your_total_value, their_total_value)
-			if is_consolidating:
-				# You give more players than you receive. Allow a meaningful but not absurd
-				# value edge depending on how elite the incoming player is.
-				# Use dynamic tier thresholds
-				elite_threshold = league_tiers.get('elite', 90)
-				star_threshold = league_tiers.get('star', 70)
-				incoming_max_fpts = max(p['Mean FPts'] for p in their_players)
-				if incoming_max_fpts >= elite_threshold:
-					# Consolidating into a true elite: allow up to ~33% edge
-					max_value_ratio = 1.33
-				elif incoming_max_fpts >= star_threshold:
-					# Star but not top-10: slightly tighter
-					max_value_ratio = 1.30
-				else:
-					# Non-elite consolidation should be fairly even
-					max_value_ratio = 1.25
-			elif is_expanding:
-				# You receive more players than you give; still require fairly tight value.
-				max_value_ratio = 1.18
-			else:
-				# Equal-count trades should be close to even.
-				max_value_ratio = 1.12
-			if value_ratio > max_value_ratio:
-				return False
-	
-	# CV% check: Only block if trading consistency for volatility WITHOUT FP/G upgrade
-	# Now more lenient - consistency for FP/G is a valid tradeoff
-	if your_avg_cv < their_avg_cv:  # You're giving up consistency
+	return True
+
+
+def _check_value_fairness_guard(
+	your_players,
+	their_players,
+	is_consolidating: bool,
+	is_expanding: bool,
+	league_tiers: Dict[str, float],
+) -> bool:
+	if not ENABLE_VALUE_FAIRNESS_GUARD:
+		return True
+	if 'Value' not in your_players[0] or 'Value' not in their_players[0]:
+		return True
+	your_total_value = sum(float(p['Value']) for p in your_players)
+	their_total_value = sum(float(p['Value']) for p in their_players)
+	if your_total_value <= 0 or their_total_value <= 0:
+		return True
+	value_ratio = max(your_total_value, their_total_value) / min(your_total_value, their_total_value)
+	if is_consolidating:
+		elite_threshold = league_tiers.get('elite', 90)
+		star_threshold = league_tiers.get('star', 70)
+		incoming_max_fpts = max(p['Mean FPts'] for p in their_players)
+		if incoming_max_fpts >= elite_threshold:
+			max_value_ratio = 1.33
+		elif incoming_max_fpts >= star_threshold:
+			max_value_ratio = 1.30
+		else:
+			max_value_ratio = 1.25
+	elif is_expanding:
+		max_value_ratio = 1.18
+	else:
+		max_value_ratio = 1.12
+	if value_ratio > max_value_ratio:
+		return False
+	return True
+
+
+def _check_cv_tradeoff(
+	your_players,
+	their_players,
+	your_avg_cv: float,
+	their_avg_cv: float,
+	your_avg_fpts: float,
+	their_avg_fpts: float,
+	is_consolidating: bool,
+) -> bool:
+	if your_avg_cv < their_avg_cv:
 		cv_loss = their_avg_cv - your_avg_cv
 		their_max_fpts = max(p['Mean FPts'] for p in their_players)
 		your_max_fpts = max(p['Mean FPts'] for p in your_players)
-		
-		# Only require FP/G upgrade if losing significant consistency (>10 CV%)
 		if cv_loss > 10:
-			consistency_upgrade_needed = 1.05  # Need 5% FP/G boost
+			consistency_upgrade_needed = 1.05
 		elif cv_loss > 5:
-			consistency_upgrade_needed = 1.02  # Need 2% FP/G boost
+			consistency_upgrade_needed = 1.02
 		else:
-			consistency_upgrade_needed = 1.0  # Small CV loss is fine
-		
-		# Elite consolidations always offset volatility
+			consistency_upgrade_needed = 1.0
 		if is_consolidating and their_max_fpts >= your_max_fpts + 5:
 			consistency_upgrade_needed = 1.0
-		
 		if their_avg_fpts < your_avg_fpts * consistency_upgrade_needed:
 			return False
-	else:
-		your_max_fpts = max(p['Mean FPts'] for p in your_players)
-		their_max_fpts = max(p['Mean FPts'] for p in their_players)
-	
-	# Additional check: prevent trading elite players for scrubs
-	if 'your_max_fpts' not in locals():
-		your_max_fpts = max(p['Mean FPts'] for p in your_players)
-	if 'their_max_fpts' not in locals():
-		their_max_fpts = max(p['Mean FPts'] for p in their_players)
-	
-	# TIER-BASED PROTECTION: Elite players require elite return
-	# BUT: Allow 1-for-3 expansions as a valid depth strategy
-	# Now uses percentile-based tiers instead of hardcoded thresholds
-	
+	return True
+
+
+def _derive_max_fpts(your_players, their_players) -> Tuple[float, float]:
+	your_max_fpts = max(p['Mean FPts'] for p in your_players)
+	their_max_fpts = max(p['Mean FPts'] for p in their_players)
+	return your_max_fpts, their_max_fpts
+
+
+def _check_tier_protection(
+	your_players,
+	their_players,
+	your_max_fpts: float,
+	their_max_fpts: float,
+	your_count: int,
+	their_count: int,
+	is_consolidating: bool,
+	is_expanding: bool,
+	league_tiers: Dict[str, float],
+) -> bool:
 	elite_threshold = league_tiers['elite']
 	star_threshold = league_tiers['star']
 	quality_threshold = league_tiers['quality']
 	starter_threshold = league_tiers['starter']
-	
-	# Elite tier (top ~5%) - Jokic, Giannis, etc.
 	if your_max_fpts >= elite_threshold:
 		if is_expanding and their_count >= 3:
-			# 1-for-3 expansion: Allow if getting 3 quality players (top 30% each)
-			# This is a valid depth play to avoid streaming
-			if all(p['Mean FPts'] >= quality_threshold for p in their_players):
-				pass  # Allow this trade
-			else:
-				return False  # Need all 3 to be quality
+			if not all(p['Mean FPts'] >= quality_threshold for p in their_players):
+				return False
 		elif their_max_fpts < star_threshold:
-			# Not an expansion: must get back another top-tier player (top 10%)
 			return False
-		# Even with a star, need strong secondary pieces
 		if is_consolidating and their_count == 1:
-			# 2-for-1 or 3-for-1: their single player must be elite to take an elite
-			if their_max_fpts < elite_threshold * 0.90:  # Within 10% of elite threshold
+			if their_max_fpts < elite_threshold * 0.90:
 				return False
 	elif their_max_fpts >= elite_threshold:
-		# They're giving up an elite player
 		if is_consolidating and your_count >= 3:
-			# You're giving 3+ for their 1 elite: need all quality pieces
-			if all(p['Mean FPts'] >= quality_threshold for p in your_players):
-				pass  # Allow this trade
-			else:
+			if not all(p['Mean FPts'] >= quality_threshold for p in your_players):
 				return False
 		elif your_max_fpts < star_threshold:
 			return False
 		if your_count == 1 and your_max_fpts < elite_threshold * 0.90:
 			return False
-	
-	# Star tier (top ~10%) - High-end starters
 	if your_max_fpts >= star_threshold:
 		if is_expanding and their_count >= 3:
-			# 1-for-3 expansion: Allow if getting 3 starter-level players (top 60%)
-			if all(p['Mean FPts'] >= starter_threshold for p in their_players):
-				pass  # Valid depth play
-			else:
+			if not all(p['Mean FPts'] >= starter_threshold for p in their_players):
 				return False
 		elif their_max_fpts < quality_threshold:
 			return False
-	
 	if their_max_fpts >= star_threshold:
 		if is_consolidating and your_count >= 3:
-			# You're giving 3+ for their 1 star: need all starter-level pieces
-			if all(p['Mean FPts'] >= starter_threshold for p in your_players):
-				pass  # Valid consolidation
-			else:
+			if not all(p['Mean FPts'] >= starter_threshold for p in your_players):
 				return False
 		elif your_max_fpts < quality_threshold:
 			return False
-	
-	# When consolidating, ensure the incoming player meaningfully upgrades your top end
-	# Now uses percentile-based upgrade requirements
+	return True
+
+
+def _check_consolidation_upgrade(
+	is_consolidating: bool,
+	your_max_fpts: float,
+	their_max_fpts: float,
+	league_tiers: Dict[str, float],
+) -> bool:
+	if not is_consolidating:
+		return True
+	elite_threshold = league_tiers['elite']
+	star_threshold = league_tiers['star']
+	quality_threshold = league_tiers['quality']
+	if their_max_fpts >= elite_threshold:
+		if your_max_fpts < star_threshold:
+			return False
+		min_upgrade = elite_threshold * 0.15
+		if their_max_fpts < your_max_fpts + min_upgrade:
+			return False
+	elif their_max_fpts >= star_threshold:
+		min_upgrade = star_threshold * 0.12
+		if their_max_fpts < your_max_fpts + min_upgrade:
+			return False
+	elif their_max_fpts >= quality_threshold:
+		min_upgrade = quality_threshold * 0.10
+		if their_max_fpts < your_max_fpts + min_upgrade:
+			return False
+	else:
+		min_upgrade = their_max_fpts * 0.08
+		if their_max_fpts < your_max_fpts + min_upgrade:
+			return False
+	return True
+
+
+def _check_best_player_ratio(
+	is_consolidating: bool,
+	is_expanding: bool,
+	your_max_fpts: float,
+	their_max_fpts: float,
+	league_tiers: Dict[str, float],
+) -> bool:
+	if min(your_max_fpts, their_max_fpts) <= 0:
+		best_player_ratio = 999
+	else:
+		best_player_ratio = max(your_max_fpts, their_max_fpts) / min(your_max_fpts, their_max_fpts)
+	elite_threshold = league_tiers['elite']
+	star_threshold = league_tiers['star']
+	quality_threshold = league_tiers['quality']
 	if is_consolidating:
 		if their_max_fpts >= elite_threshold:
-			# Targeting elite (top 5%): your best must be at least star tier
-			if your_max_fpts < star_threshold:
-				return False
-			# And the upgrade must be significant (at least 15% of elite threshold)
-			min_upgrade = elite_threshold * 0.15
-			if their_max_fpts < your_max_fpts + min_upgrade:
-				return False
+			best_ratio_limit = 1.20
 		elif their_max_fpts >= star_threshold:
-			# Targeting star (top 10%): need at least 12% upgrade
-			min_upgrade = star_threshold * 0.12
-			if their_max_fpts < your_max_fpts + min_upgrade:
-				return False
+			best_ratio_limit = 1.22
 		elif their_max_fpts >= quality_threshold:
-			# Targeting quality (top 30%): need at least 10% upgrade
-			min_upgrade = quality_threshold * 0.10
-			if their_max_fpts < your_max_fpts + min_upgrade:
-				return False
+			best_ratio_limit = 1.25
 		else:
-			# Regular consolidation: at least 8% upgrade
-			min_upgrade = their_max_fpts * 0.08
-			if their_max_fpts < your_max_fpts + min_upgrade:
-				return False
-	
-	# Additional check: best player comparison
-	# The best player in the trade shouldn't be too much better than the other side's best
-	best_player_ratio = max(your_max_fpts, their_max_fpts) / min(your_max_fpts, their_max_fpts) if min(your_max_fpts, their_max_fpts) > 0 else 999
-	
-	if is_consolidating:
-		# Stricter limits when targeting elite players
-		if their_max_fpts >= elite_threshold:
-			best_ratio_limit = 1.20  # Elite tier: very strict
-		elif their_max_fpts >= star_threshold:
-			best_ratio_limit = 1.22  # Star tier: strict
-		elif their_max_fpts >= quality_threshold:
-			best_ratio_limit = 1.25  # Quality tier: moderate
-		else:
-			best_ratio_limit = 1.18  # Regular consolidation
+			best_ratio_limit = 1.18
 	elif is_expanding:
 		best_ratio_limit = 1.12
 	else:
 		best_ratio_limit = 1.08
-	
 	if best_player_ratio > best_ratio_limit:
 		return False
-	
-	# Check individual player matchups - each player you give should have a comparable player you get
+	return True
+
+
+def _check_individual_matchups(
+	your_players,
+	their_players,
+	is_consolidating: bool,
+	is_expanding: bool,
+	their_max_fpts: float,
+	league_tiers: Dict[str, float],
+) -> bool:
 	your_fpts_sorted = sorted([p['Mean FPts'] for p in your_players], reverse=True)
 	their_fpts_sorted = sorted([p['Mean FPts'] for p in their_players], reverse=True)
-	
-	# For each of your players, check if there's a comparable player on their side
+	elite_threshold = league_tiers['elite']
+	star_threshold = league_tiers['star']
+	quality_threshold = league_tiers['quality']
 	for i, your_fpts in enumerate(your_fpts_sorted):
 		if i < len(their_fpts_sorted):
 			their_fpts = their_fpts_sorted[i]
-			# Allow larger gaps when consolidating into a star, but stricter for elite targets
-			# Use dynamic tier thresholds
 			if is_consolidating:
 				if their_max_fpts >= elite_threshold:
-					player_ratio_limit = 1.28  # Elite: tighter individual matchups
+					player_ratio_limit = 1.28
 				elif their_max_fpts >= star_threshold:
-					player_ratio_limit = 1.32  # Star tier
+					player_ratio_limit = 1.32
 				elif their_max_fpts >= quality_threshold:
-					player_ratio_limit = 1.35  # Quality tier
+					player_ratio_limit = 1.35
 				else:
-					player_ratio_limit = 1.20  # Regular
+					player_ratio_limit = 1.20
 			elif is_expanding:
 				player_ratio_limit = 1.15
 			else:
 				player_ratio_limit = 1.10
-			player_ratio = max(your_fpts, their_fpts) / min(your_fpts, their_fpts) if min(your_fpts, their_fpts) > 0 else 999
+			if min(your_fpts, their_fpts) <= 0:
+				player_ratio = 999
+			else:
+				player_ratio = max(your_fpts, their_fpts) / min(your_fpts, their_fpts)
 			if player_ratio > player_ratio_limit:
 				return False
-	
+	return True
+
+
+def _check_1_for_n_package_ratio(
+	your_player,
+	their_players,
+	league_tiers: Dict[str, float],
+) -> bool:
+	"""Tier- and slider-aware total FP/G ratio guard specifically for 1-for-2/1-for-3.
+
+	At normal/strict settings, keep ratios fairly modest; at very loose settings,
+	allow bigger upgrades, especially when you're giving up an elite.
+	"""
+	your_fpts = float(your_player['Mean FPts'])
+	their_total_fpts = float(sum(p['Mean FPts'] for p in their_players))
+	if your_fpts <= 0 or their_total_fpts <= 0:
+		return True
+	# You are expanding: giving 1, getting >1
+	total_ratio = max(your_fpts, their_total_fpts) / min(your_fpts, their_total_fpts)
+	# Base caps by tier of your outgoing player
+	elite_threshold = league_tiers['elite']
+	star_threshold = league_tiers['star']
+	if your_fpts >= elite_threshold:
+		# Elite outgoing: allow strong but not absurd depth upgrades
+		base_cap = 1.85
+	elif your_fpts >= star_threshold:
+		# Star outgoing: consolidating into multiple solid pieces can be more dramatic
+		base_cap = 2.25
+	else:
+		base_cap = 1.8
+	# Trade-balance slider adjustment: higher looseness => higher cap
+	# TRADE_BALANCE_LEVEL ~ 1..50; map to multiplier ~ [0.9, 1.2]
+	looseness = TRADE_BALANCE_LEVEL
+	looseness_factor = 0.9 + (min(max(looseness, 1), 50) - 1) * (0.3 / 49.0)
+	max_ratio = base_cap * looseness_factor
+	return total_ratio <= max_ratio
+
+
+def _check_3_for_2_package_ratio(
+	your_players,
+	their_players,
+)	-> bool:
+	"""Slider-aware total FP/G ratio guard for 3-for-2 consolidations.
+
+	At strict settings, you should not give up much more total FP/G than you
+	receive when consolidating 3 pieces into 2. At looser settings, allow
+	slightly larger FP/G sacrifices for meaningful consolidation upgrades.
+	"""
+	your_total_fpts = float(sum(p['Mean FPts'] for p in your_players))
+	their_total_fpts = float(sum(p['Mean FPts'] for p in their_players))
+	if your_total_fpts <= 0 or their_total_fpts <= 0:
+		return True
+	# Only guard cases where you are giving more total FP/G than you get.
+	if your_total_fpts <= their_total_fpts:
+		return True
+	total_ratio = your_total_fpts / their_total_fpts
+	# Base cap: at strictest setting, allow only a very small FP/G sacrifice.
+	base_cap = 1.03
+	# TRADE_BALANCE_LEVEL ~ 1..50; map to multiplier ~ [1.0, 1.2]
+	looseness = TRADE_BALANCE_LEVEL
+	looseness_factor = 1.0 + (min(max(looseness, 1), 50) - 1) * (0.2 / 49.0)
+	max_ratio = base_cap * looseness_factor
+	return total_ratio <= max_ratio
+
+
+def _is_realistic_trade(your_players, their_players, league_tiers: Dict[str, float]):
+	"""Check if a trade is realistic (not too lopsided).
+	Prevents suggesting trades that no one would accept.
+	Considers both FPts and consistency (CV%).
+
+	Now more lenient to allow:
+	- Consistency upgrades (lower CV%) even if FP/G is sideways
+	- Consolidation trades that improve core FP/G
+
+	Uses percentile-based tiers from actual league data instead of hardcoded thresholds.
+	"""
+	your_count = len(your_players)
+	their_count = len(their_players)
+	is_consolidating = your_count > their_count
+	is_expanding = their_count > your_count
+	if TRADE_BALANCE_LEVEL >= 40 and (is_consolidating or is_expanding):
+		return True
+	your_avg_fpts = sum(p['Mean FPts'] for p in your_players) / len(your_players)
+	their_avg_fpts = sum(p['Mean FPts'] for p in their_players) / len(their_players)
+	your_avg_cv = sum(p['CV %'] for p in your_players) / len(your_players)
+	their_avg_cv = sum(p['CV %'] for p in their_players) / len(their_players)
+	# NOTE: Consistency (CV) is mostly your edge. Opponent realism is driven by FP/G.
+	# We do NOT let "consistency upgrades" justify huge FP/G gaps an opponent
+	# would never consciously accept.
+	# 1) Average FP/G sanity check: don't allow trades where the average quality
+	# of pieces is wildly different.
+	if not _check_avg_fpts_ratio(your_avg_fpts, their_avg_fpts, is_consolidating, is_expanding):
+		return False
+	# 2) Total FP/G sanity check (package totals). This is lenient for
+	# consolidations into true elite players, but independent of CV.
+	your_total_fpts = sum(p['Mean FPts'] for p in your_players)
+	their_total_fpts = sum(p['Mean FPts'] for p in their_players)
+	if not _check_total_fpts_and_piece_quality(
+		your_players,
+		their_players,
+		your_total_fpts,
+		their_total_fpts,
+		your_count,
+		is_consolidating,
+		is_expanding,
+		league_tiers,
+	):
+		return False
+	if not _check_value_fairness_guard(
+		your_players,
+		their_players,
+		is_consolidating,
+		is_expanding,
+		league_tiers,
+	):
+		return False
+	# CV% check: Only block if trading consistency for volatility WITHOUT FP/G upgrade
+	# Now more lenient - consistency for FP/G is a valid tradeoff
+	if not _check_cv_tradeoff(
+		your_players,
+		their_players,
+		your_avg_cv,
+		their_avg_cv,
+		your_avg_fpts,
+		their_avg_fpts,
+		is_consolidating,
+	):
+		return False
+	# Additional check: prevent trading elite players for scrubs
+	your_max_fpts, their_max_fpts = _derive_max_fpts(your_players, their_players)
+	# TIER-BASED PROTECTION: Elite players require elite return
+	# BUT: Allow 1-for-3 expansions as a valid depth strategy
+	# Now uses percentile-based tiers instead of hardcoded thresholds
+	if not _check_tier_protection(
+		your_players,
+		their_players,
+		your_max_fpts,
+		their_max_fpts,
+		your_count,
+		their_count,
+		is_consolidating,
+		is_expanding,
+		league_tiers,
+	):
+		return False
+	# When consolidating, ensure the incoming player meaningfully upgrades your top end
+	# Now uses percentile-based upgrade requirements
+	if not _check_consolidation_upgrade(
+		is_consolidating,
+		your_max_fpts,
+		their_max_fpts,
+		league_tiers,
+	):
+		return False
+	# Additional check: best player comparison
+	# The best player in the trade shouldn't be too much better than the other side's best
+	if not _check_best_player_ratio(
+		is_consolidating,
+		is_expanding,
+		your_max_fpts,
+		their_max_fpts,
+		league_tiers,
+	):
+		return False
+	# Check individual player matchups - each player you give should have a comparable player you get
+	if not _check_individual_matchups(
+		your_players,
+		their_players,
+		is_consolidating,
+		is_expanding,
+		their_max_fpts,
+		league_tiers,
+	):
+		return False
 	return True

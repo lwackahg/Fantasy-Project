@@ -10,6 +10,7 @@ from modules.player_game_log_scraper.logic import (
 	get_cache_directory,
 	clean_html_from_text
 )
+from modules.player_game_log_scraper import db_store
 from modules.trade_analysis.consistency_integration import (
 	CONSISTENCY_VERY_MAX_CV,
 	CONSISTENCY_MODERATE_MAX_CV,
@@ -88,7 +89,7 @@ def _cache_index_by_player_name(cache_files):
 	return index
 
 @st.cache_data(show_spinner=False)
-def _build_fantasy_team_view(league_id, cache_files):
+def _build_fantasy_team_view(league_id, cache_files, season):
 	"""Build fantasy team rosters with consistency metrics across multiple time ranges.
 
 	This is relatively expensive because it reads game logs and computes multi-range
@@ -96,7 +97,27 @@ def _build_fantasy_team_view(league_id, cache_files):
 	suggestions and team viewers can reuse the results without re-reading logs.
 	"""
 	rosters = _load_fantasy_team_rosters()
-	cache_index = _cache_index_by_player_name(cache_files)
+	# DB-first: build index from SQLite for the requested season, fallback to JSON cache_files.
+	cache_index = {}
+	use_db = False
+	try:
+		season_logs = db_store.get_league_season_player_logs(league_id, season)
+		if season_logs:
+			use_db = True
+			for player_code, player_name, records in season_logs:
+				if not records:
+					continue
+				df = pd.DataFrame(records)
+				cache_index[player_name] = {
+					'code': player_code,
+					'path': None,
+					'games': df,
+				}
+	except Exception:
+		use_db = False
+	
+	if not use_db:
+		cache_index = _cache_index_by_player_name(cache_files)
 	teams = {}
 	
 	for team, players in rosters.items():
@@ -494,9 +515,9 @@ def show_fantasy_teams_viewer(league_id, cache_files, selected_season):
 		**Consistency for Playoffs**
 		- Reliable players win championships
 		- High volatility = risky in elimination games
-		""".format(CONSISTENCY_VERY_MAX_CV, CONSISTENCY_VERY_MAX_CV, CONSISTENCY_MODERATE_MAX_CV, CONSISTENCY_MODERATE_MAX_CV))
+			""".format(CONSISTENCY_VERY_MAX_CV, CONSISTENCY_VERY_MAX_CV, CONSISTENCY_MODERATE_MAX_CV, CONSISTENCY_MODERATE_MAX_CV))
 	
-	rosters_by_team = _build_fantasy_team_view(league_id, cache_files)
+	rosters_by_team = _build_fantasy_team_view(league_id, cache_files, selected_season)
 	
 	if not rosters_by_team:
 		st.info("No fantasy team roster data found. Make sure player data is loaded with Status column.")

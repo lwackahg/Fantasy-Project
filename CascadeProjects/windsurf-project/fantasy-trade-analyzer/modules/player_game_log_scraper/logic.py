@@ -14,6 +14,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from dotenv import load_dotenv, find_dotenv
 from datetime import datetime
 import atexit
+from . import db_store
 
 # --- CONFIGURATION ---
 load_dotenv(find_dotenv('fantrax.env'))
@@ -172,7 +173,7 @@ def login_to_fantrax(driver, username, password):
 	username_box.send_keys(username)
 	password_box.send_keys(password)
 	password_box.send_keys(Keys.RETURN)
-	time.sleep(4)
+	time.sleep(3)
 	if 'login' in driver.current_url:
 		raise Exception('Login failed. Check credentials.')
 
@@ -243,6 +244,21 @@ def get_player_game_log_full(player_code, league_id, username, password, season=
 	# Cache logic:
 	# - Past seasons: Use cache unless force_refresh=True  
 	# - Current season (2025-26): Always refresh unless force_refresh=False
+	if not force_refresh:
+		try:
+			loaded = db_store.load_player_season(
+				player_code=player_code,
+				league_id=league_id,
+				season=season,
+			)
+		except Exception:
+			loaded = None
+		if loaded is not None:
+			records, status, player_name = loaded
+			if records is not None:
+				df = pd.DataFrame.from_records(records)
+				return df, True, player_name
+
 	if cache_file.exists():
 		if season != "2025-26":
 			# Past season: use cache unless forcing refresh
@@ -386,6 +402,17 @@ def get_player_game_log_full(player_code, league_id, username, password, season=
 		}
 		with open(cache_file, 'w') as f:
 			json.dump(cache_data, f, indent=4)
+		try:
+			db_store.store_player_season(
+				player_code=player_code,
+				player_name=player_name,
+				league_id=league_id,
+				season=season,
+				status='success',
+				game_log_records=df.to_dict('records'),
+			)
+		except Exception:
+			pass
 
 		return df, False, player_name
 
@@ -587,7 +614,7 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 			try:
 				player_url = f"https://www.fantrax.com/player/{player_code}/{league_id}"
 				driver.get(player_url)
-				time.sleep(2)
+				time.sleep(3)
 				
 				# Navigate to Games (Fntsy) tab once
 				try:
@@ -612,7 +639,7 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 					current_operation += 1
 					
 					# Skip remaining seasons if we've had 3 consecutive empty seasons
-					if consecutive_empty_seasons >= 3:
+					if consecutive_empty_seasons >= 2:
 						# Skip all remaining seasons for this player
 						remaining_seasons = len(seasons_to_scrape) - season_index
 						current_operation += remaining_seasons - 1  # Adjust operation count
@@ -717,6 +744,17 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 								CACHE_DIR.mkdir(parents=True, exist_ok=True)
 								with open(cache_file, 'w') as f:
 									json.dump(cache_data, f, indent=4)
+								try:
+									db_store.store_player_season(
+										player_code=player_code,
+										player_name=player_name,
+										league_id=league_id,
+										season=season,
+										status='no_games_played',
+										game_log_records=[],
+									)
+								except Exception:
+									pass
 								
 								success_count += 1  # Count as success (valid empty season)
 								consecutive_empty_seasons += 1  # Increment empty season counter
@@ -748,6 +786,17 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 						}
 						with open(cache_file, 'w') as f:
 							json.dump(cache_data, f, indent=4)
+						try:
+							db_store.store_player_season(
+								player_code=player_code,
+								player_name=player_name,
+								league_id=league_id,
+								season=season,
+								status='success',
+								game_log_records=df.to_dict('records'),
+							)
+						except Exception:
+							pass
 						
 						success_count += 1
 						consecutive_empty_seasons = 0  # Reset counter when we find games
@@ -891,6 +940,17 @@ def bulk_scrape_all_players(league_id, username, password, player_dict=None, pro
 				}
 				with open(cache_file, 'w') as f:
 					json.dump(cache_data, f, indent=4)
+				try:
+					db_store.store_player_season(
+						player_code=player_code,
+						player_name=player_name,
+						league_id=league_id,
+						season='2025-26',
+						status='success',
+						game_log_records=df.to_dict('records'),
+					)
+				except Exception:
+					pass
 				
 				success_count += 1
 				

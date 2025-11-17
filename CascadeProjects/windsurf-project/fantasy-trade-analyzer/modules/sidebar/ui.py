@@ -5,7 +5,7 @@ This module contains the global sidebar for the Fantasy Basketball Trade Analyze
 import streamlit as st
 from pathlib import Path
 from data_loader import csv_time
-from modules.data_loader_ui.ui import display_data_loader_ui
+from modules.legacy.data_loader_ui.ui import display_data_loader_ui
 
 def display_global_sidebar():
     """Displays the global sidebar with navigation and data loader."""

@@ -3,13 +3,14 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from modules.trade_suggestions import find_trade_suggestions, calculate_exponential_value
+from modules.trade_suggestions import find_trade_suggestions, calculate_exponential_value, set_trade_balance_preset
 from modules.player_game_log_scraper.logic import get_cache_directory
 from modules.player_game_log_scraper.ui_fantasy_teams import _load_fantasy_team_rosters, _build_fantasy_team_view
 from modules.trade_analysis.consistency_integration import (
 	CONSISTENCY_VERY_MAX_CV,
 	CONSISTENCY_MODERATE_MAX_CV,
 )
+from modules.player_game_log_scraper import db_store
 from pathlib import Path
 import json
 
@@ -30,7 +31,7 @@ if not league_id:
 	st.warning("Please enter a league ID to get trade suggestions.")
 	st.stop()
 
-# Load cached player data (new full-format files)
+# Load cached player data (new full-format files) as fallback
 cache_dir = get_cache_directory()
 cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
 
@@ -38,20 +39,45 @@ if not cache_files:
 	st.error(f"No cached player data found for league {league_id}. Please run Bulk Scrape in Admin Tools first.")
 	st.stop()
 
-# Build team rosters
-rosters_by_team = _build_fantasy_team_view(league_id, cache_files)
+# Choose season for analysis: prefer latest from DB, fallback to most recent cache filename
+selected_season = None
+try:
+	seasons = db_store.get_league_available_seasons(league_id)
+	if seasons:
+		selected_season = seasons[0]
+except Exception:
+	selected_season = None
+
+if not selected_season:
+	# Fallback: derive most recent season from cache filenames
+	season_set = set()
+	for cf in cache_files:
+		parts = cf.stem.split('_')
+		if len(parts) >= 2:
+			season_part = '_'.join(parts[-2:])
+			season = season_part.replace('_', '-')
+			season_set.add(season)
+	if season_set:
+		selected_season = sorted(list(season_set), reverse=True)[0]
+
+if not selected_season:
+	st.error("Could not determine a season to analyze for trade suggestions.")
+	st.stop()
+
+# Build team rosters (DB-first inside helper, per selected season)
+rosters_by_team = _build_fantasy_team_view(league_id, cache_files, selected_season)
 
 if not rosters_by_team:
 	st.error("Could not load team rosters. Make sure player data is properly formatted.")
 	st.stop()
 
-st.success(f"✅ Loaded {len(rosters_by_team)} teams with player data")
+st.success(f"✅ Loaded {len(rosters_by_team)} teams with player data for {selected_season}")
 
 # Configuration Section
 st.markdown("---")
 st.markdown("## ⚙️ Configuration")
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
 	your_team_name = st.selectbox(
@@ -76,6 +102,15 @@ with col3:
 		value=10.0,
 		step=5.0,
 		help="Minimum value improvement to suggest a trade"
+	)
+
+with col4:
+	trade_balance_level = st.slider(
+		"Trade Balance (1=super strict, 10=super loose)",
+		min_value=1,
+		max_value=50,
+		value=5,
+		help="Controls how strict equal-count realism filters are. 5 = standard."
 	)
 
 # Advanced Filters
@@ -394,10 +429,93 @@ def display_trade_suggestion(suggestion, rank):
 		
 		if not considerations:
 			st.markdown("📊 Balanced trade with marginal improvements")
+		
+		with st.expander("📋 Roster Details (Before vs. After)", expanded=False):
+			your_roster = rosters_by_team.get(your_team_name)
+			opp_roster = rosters_by_team.get(suggestion['team'])
+			if your_roster is None or your_roster.empty or opp_roster is None or opp_roster.empty:
+				st.caption("Roster data not available for before/after view.")
+			else:
+				your_before = your_roster.copy()
+				opp_before = opp_roster.copy()
+				
+				if 'Player' in your_before.columns:
+					your_after = your_before[~your_before['Player'].isin(suggestion['you_give'])].copy()
+				else:
+					your_after = your_before.copy()
+				incoming_dfs = []
+				if 'Player' in opp_before.columns:
+					for player in suggestion['you_get']:
+						src = opp_before[opp_before['Player'] == player]
+						if src.empty and 'Player' in your_before.columns:
+							src = your_before[your_before['Player'] == player]
+						if not src.empty:
+							incoming_dfs.append(src)
+				if incoming_dfs:
+					your_after = pd.concat([your_after] + incoming_dfs, ignore_index=True)
+				
+				if 'Player' in opp_before.columns:
+					opp_after = opp_before[~opp_before['Player'].isin(suggestion['you_get'])].copy()
+				else:
+					opp_after = opp_before.copy()
+				opp_incoming_dfs = []
+				if 'Player' in your_before.columns:
+					for player in suggestion['you_give']:
+						src = your_before[your_before['Player'] == player]
+						if src.empty and 'Player' in opp_before.columns:
+							src = opp_before[opp_before['Player'] == player]
+						if not src.empty:
+							opp_incoming_dfs.append(src)
+				if opp_incoming_dfs:
+					opp_after = pd.concat([opp_after] + opp_incoming_dfs, ignore_index=True)
+				
+				def _prepare_roster(df, highlight_out, highlight_in):
+					if df is None or df.empty:
+						return pd.DataFrame()
+					view = df.copy()
+					if 'Player' in view.columns:
+						def _status(p):
+							if p in highlight_out:
+								return 'OUT'
+							if p in highlight_in:
+								return 'IN'
+							return ''
+						view['Trade Status'] = view['Player'].apply(_status)
+					sort_col = None
+					for c in ['Mean FPts', 'FP/G']:
+						if c in view.columns:
+							sort_col = c
+							break
+					if sort_col is not None:
+						view = view.sort_values(sort_col, ascending=False)
+					top_n = min(len(view), 10)
+					if top_n > 0:
+						view = view.head(top_n)
+					cols = [c for c in ['Player', 'Team', 'Mean FPts', 'FP/G', 'GP', 'Trade Status'] if c in view.columns]
+					return view[cols] if cols else view
+				
+				col1, col2 = st.columns(2)
+				with col1:
+					st.markdown("**Your Team**")
+					st.caption("Top roster slots before and after this trade.")
+					st.write("Before")
+					st.dataframe(_prepare_roster(your_before, suggestion['you_give'], []), hide_index=True, use_container_width=True)
+					st.write("After")
+					st.dataframe(_prepare_roster(your_after, suggestion['you_give'], suggestion['you_get']), hide_index=True, use_container_width=True)
+				with col2:
+					st.markdown(f"**{suggestion['team']}**")
+					st.caption("Top roster slots before and after this trade.")
+					st.write("Before")
+					st.dataframe(_prepare_roster(opp_before, suggestion['you_get'], []), hide_index=True, use_container_width=True)
+					st.write("After")
+					st.dataframe(_prepare_roster(opp_after, suggestion['you_get'], suggestion['you_give']), hide_index=True, use_container_width=True)
 
 # Generate Suggestions Button
 if st.button("🔍 Find Trade Suggestions", type="primary"):
 	with st.spinner("Analyzing trade opportunities..."):
+		# Apply trade balance level before running engine
+		set_trade_balance_preset(trade_balance_level)
+
 		your_team_df = rosters_by_team[your_team_name]
 		other_teams = {k: v for k, v in rosters_by_team.items() if k != your_team_name}
 		
