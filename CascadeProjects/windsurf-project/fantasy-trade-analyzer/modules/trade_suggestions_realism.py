@@ -8,9 +8,7 @@ auxiliary tools that need to reason about trade realism.
 
 from typing import Dict, Tuple, List
 
-import pandas as pd
-
-from modules.trade_suggestions import (
+from modules.trade_suggestions_config import (
 	EQUAL_COUNT_MAX_AVG_FPTS_RATIO,
 	EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO,
 	ENABLE_VALUE_FAIRNESS_GUARD,
