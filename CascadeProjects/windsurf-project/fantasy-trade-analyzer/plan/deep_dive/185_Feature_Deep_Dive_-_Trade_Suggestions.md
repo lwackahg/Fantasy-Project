@@ -1,8 +1,13 @@
 # Deep Dive: Trade Suggestions Engine
 
-**Files:**
-- `modules/trade_suggestions.py`
-- `pages/5_Trade_Suggestions.py`
+**Core files (current):**
+- `modules/trade_suggestions.py` – main orchestrator (value model, league context, public API).
+- `modules/trade_suggestions_config.py` – constants, trade-balance presets.
+- `modules/trade_suggestions_core.py` – core value / floor impact / realism caps.
+- `modules/trade_suggestions_realism.py` – realism and fairness checks.
+- `modules/trade_suggestions_search.py` – pattern-specific search helpers.
+- `modules/trade_suggestions_ui_tab.py` – embedded UI tab.
+- `pages/5_Trade_Suggestions.py` – legacy full-page UI (still functional, may be simplified to host the tab).
 
 ---
 
@@ -12,104 +17,107 @@ The Trade Suggestions engine scans league rosters to surface realistic trade ide
 
 ---
 
-## 2. Architecture Overview
+## 2. Architecture Overview (post-refactor)
 
 ```mermaid
 graph TD
-    A[pages/5_Trade_Suggestions.py] -->|UI actions| B[find_trade_suggestions]
-    B --> C[_find_* trade pattern helpers]
-    C --> D[_is_realistic_trade]
-    B --> E[calculate_player_value]
-    D --> F[Trade Heuristics]
-    A --> G[display_trade_suggestion]
+    UI[Trade Suggestions UI (page/tab)] -->|config, click| FS[find_trade_suggestions]
+    FS --> VC[calculate_league_scarcity_context]
+    VC --> CT[trade_suggestions_core._update_realism_caps_from_league]
+    FS --> PV[calculate_player_value]
+    FS --> PS[_find_* pattern helpers (trade_suggestions_search)]
+    PS --> RL[_is_realistic_trade & ratio guards]
+    FS --> OUT[(suggestion dicts)]
 ```
 
-- **UI Page (`pages/5_Trade_Suggestions.py`)** – Handles team selection, pattern filters, and renders each suggestion with charts, metrics, and a deep dive expander.
-- **Engine (`modules/trade_suggestions.py`)** – Calculates exponential value per player, enumerates trade patterns (1-for-1 through 3-for-3), and filters proposals through `_is_realistic_trade` before ranking by value gain.
+- **UI layer**
+  - `modules.trade_suggestions_ui_tab.display_trade_suggestions_tab` (embedded tab) and `pages/5_Trade_Suggestions.py` (page) drive configuration and rendering.
+  - They call `find_trade_suggestions(...)` and then apply a **UI-level opponent FP-loss filter** plus presentation logic.
+
+- **Engine orchestrator (`modules.trade_suggestions.py`)**
+  - Computes league scarcity context and percentile-based tiers.
+  - Calls `_update_realism_caps_from_league(...)` to derive opponent-loss caps from league stats and Trade Balance.
+  - Computes player values using `calculate_player_value`.
+  - Delegates to `_find_*` pattern helpers in `trade_suggestions_search`.
+  - Sorts, deduplicates, and buckets suggestions before returning them.
+
+- **Realism and core helpers**
+  - `trade_suggestions_core` handles:
+    - Core-size/value calculation.
+    - Simulating core FP changes for both sides.
+    - Floor impact.
+    - League-driven caps (`MAX_OPP_CORE_AVG_DROP`, `MAX_OPP_WEEKLY_LOSS`, equal-count caps).
+  - `trade_suggestions_realism` encapsulates `_is_realistic_trade` and supporting checks (FP/G ratios, tier protection, CV trade-off, etc.).
+  - `trade_suggestions_search` owns the pattern-specific combinatorics and calls into both core and realism helpers.
 
 ---
 
-## 3. League-Aware Value Model with Trend Analysis
+## 3. League-Aware Value Model (current behavior)
 
-`calculate_player_value()` combines **six** components using actual league context and recent performance:
+`calculate_player_value()` is intentionally **FP/G-centric** with modest adjustments so numbers stay interpretable and consistent with the league constitution docs (901/902).
 
-1. **Production** – `(FPts ^ 1.8) * 0.35` creates strong exponential scaling for elite players.
-2. **Elite Tier Bonuses (Scarcity Premium)** –
-   - 90+ FPts (Top 5): +30% bonus (Jokic, Giannis tier)
-   - 80-90 FPts (Top 10): +15% bonus
-   - 70-80 FPts (Top 20): +8% bonus
-3. **Consistency Modifier** –
-   - CV% < 20 → +15%
-   - 20 ≤ CV% ≤ 30 → neutral
-   - CV% > 30 → scaled penalty down to -15%
-4. **Sample Size Penalty** –
-   - GP < 10 → 0.7x
-   - 10 ≤ GP < 20 → 0.85x
-   - GP ≥ 20 → 1.0x
-5. **League Scarcity Context** –
-   - **Replacement Level**: Calculated from top 85% of rostered players (16 teams × 10 spots × 0.85)
-   - **VORP Bonus**: Players above replacement get up to +30% based on distance above replacement
-   - **Position Scarcity**: Rare positions (fewer rostered) get up to +10% bonus
-   - **Tier Distribution**: Analyzes actual tier counts across league (Tier 1-6 based on FP/G)
-6. **Trend Analysis** (NEW) –
-   - Weighted recent performance: L7 (50%), L15 (30%), L30 (20%)
-   - **Strong uptrend** (>10% better than YTD): +8% value
-   - **Moderate uptrend** (5-10% better): +4% value
-   - **Stable** (within 5%): no adjustment
-   - **Moderate downtrend** (5-10% worse): -4% value
-   - **Strong downtrend** (>10% worse): -8% value
+1. **Production (base curve)**
+   - `calculate_exponential_value(fpts)` applies a mild exponential curve with exponent ≈ **1.3** and a scaling factor anchored around 50 FP/G.
+   - This makes stars worth more than a simple linear FP/G model (superstar premium) without blowing up values.
 
-**Example Values (context-dependent):**
-- 45 FP/G player ≈ 200-240 value (depends on replacement level and position)
-- 70 FP/G player ≈ 550-700 value (2.75x-3.5x more valuable)
-- 95 FP/G player ≈ 1200-1560 value (6x-7.8x more valuable than 45 FP/G)
+2. **Consistency modifier (CV%)**
+   - Players with **very high volatility** (CV% > ~35) get a small penalty (down to about −10%).
+   - Stable players are not explicitly rewarded; the philosophy is “FP/G first, consistency as a tiebreaker.”
 
-This produces a **league-aware** scalar value that reflects actual scarcity in your specific 16-team, 10-roster league.
+3. **League scarcity context (percentile- and position-based)**
+   - `calculate_league_scarcity_context` computes:
+     - Replacement level (top ~85% of rostered players).
+     - Percentile-based **tiers**: elite, star, quality, starter, streamer.
+     - Position scarcity based on how many players at each position are rostered.
+   - `calculate_player_value` then applies light multipliers:
+     - Top-percentile players get a small boost; deep-bench players a small trim.
+     - Scarce positions get a slight bump; over-supplied ones a slight reduction.
+   - Multipliers are intentionally narrow (around ±5–10%) so FP/G remains the primary driver.
+
+There is **no separate trend-analysis layer** in the current implementation; any future trend-based boosts will need to be added explicitly if we decide they’re useful.
 
 ---
 
-## 4. Realism Filter (Nov 2025 - Significantly Tightened)
+## 4. Realism System (league-driven & slider-aware)
 
-`_is_realistic_trade()` enforces multiple sequential gates to avoid lopsided suggestions:
+`_is_realistic_trade()` and its helpers enforce several layers of realism so suggested trades stay plausible for real managers.
 
-1. **Average Quality Gap** – Stricter limits on mean FPts ratio:
-   - Consolidation: Max 1.60x (your avg must be ≥62.5% of theirs)
-   - Expansion: Max 1.25x
-   - Equal counts: Max 1.15x
-2. **Total Production Ratio** – Tight but flexible caps:
-   - Consolidation targeting 80+ FP/G: Max 1.35x (35% gap)
-   - Consolidation targeting 70-80 FP/G: Max 1.30x (30% gap)
-   - Consolidation (other): Max 1.22x (22% gap)
-   - Expansion: Max 1.15x
-   - Equal counts: Max 1.08x
-3. **Piece Quality Requirements** – Prevent "one good + scrubs" packages:
-   - **2-for-1**: Your best must be ≥72% of target, second-best must be ≥55% of target
-   - **3-for-1**: Your best must be ≥68% of target, all three must be ≥48% of target
-3. **CV% Consistency Trade-off** – If giving up more consistent players, must receive at least 5% higher FPts (or 3% for consolidations with +8 FPts upgrade).
-4. **Elite Tier Protection** – Strict requirements for top-tier players:
-   - **Top 5 (90+ FP/G)**: Must receive 75+ FP/G back, or 80+ for 2-for-1/3-for-1
-   - **Top 10-20 (70-90 FP/G)**: Must receive at least 50+ FP/G back
-5. **Consolidation Upgrade Requirements** – Incoming player must meaningfully upgrade your top end:
-   - Targeting 90+ FP/G: Your best must be 70+, upgrade must be +12 FP/G minimum
-   - Targeting 80-90 FP/G: +10 FP/G upgrade minimum
-   - Targeting 70-80 FP/G: +8 FP/G upgrade minimum
-   - Regular consolidation: +5 FP/G minimum
-6. **Best Player Gap** – Max ratio between best players on each side:
-   - Consolidation targeting 90+: 1.20 (very strict)
-   - Consolidation targeting 80-90: 1.22
-   - Consolidation targeting 70-80: 1.25
-   - Regular consolidation: 1.18
-   - Expansion: 1.12
-   - Equal: 1.08
-7. **Individual Matchups** – Each player you give must have a comparable player you receive:
-   - Consolidation targeting 90+: 1.28 ratio limit
-   - Consolidation targeting 80-90: 1.32 ratio limit
-   - Consolidation targeting 70-80: 1.35 ratio limit
-   - Regular consolidation: 1.20
-   - Expansion: 1.15
-   - Equal: 1.10
+### 4.1 League-driven caps (opponent protection)
 
-Only trades that pass all layers are surfaced. This directly addressed user complaints about proposals that sent away superior, steadier players for riskier returns.
+- `trade_suggestions_core._update_realism_caps_from_league` uses:
+  - League tiers (`elite`, `star`, `quality`, `starter`, `streamer`).
+  - League-wide average CV%.
+  - `TRADE_BALANCE_LEVEL` (1–50 slider) from UI.
+- From these it derives:
+  - `MAX_OPP_CORE_AVG_DROP` – maximum allowed drop in an opponent’s core FP/G average.
+  - `EQUAL_COUNT_MAX_OPP_WEEKLY_LOSS` / `MAX_OPP_WEEKLY_LOSS` – weekly core FP loss caps.
+- Pattern helpers in `trade_suggestions_search` enforce:
+  - `opp_core_gain >= -MAX_OPP_WEEKLY_LOSS` for all trades.
+  - `opp_core_avg_drop <= MAX_OPP_CORE_AVG_DROP` for certain heavier consolidations (e.g., 3‑for‑1, 3‑for‑2).
+
+### 4.2 Decomposed realism checks
+
+`trade_suggestions_realism` breaks realism into focused helpers, including:
+
+- **FP/G ratio checks** – average and total FP/G comparisons tuned for consolidations, expansions, and equal-count patterns.
+- **Package quality checks** – ensure you’re not offering “one good piece plus scrubs” for a star, or accepting wildly inferior pieces.
+- **Tier protection** – tier-aware rules so elite and star players only move for appropriately strong returns.
+- **Consistency (CV%) trade-off** – prevents trading steadier production for volatility without adequate FP/G compensation.
+- **Best-player and matchup checks** – compare top players on each side and per-slot matchups so each piece has a roughly comparable counterpart.
+
+At the top level, `_is_realistic_trade` orchestrates these checks and returns a single boolean. Trade Balance and league tiers influence the internal thresholds, but the details are encapsulated in the helpers rather than hard-coded here.
+
+### 4.3 Trade Balance slider behavior
+
+- The UI exposes **Trade Balance (1 = super strict, 50 = very loose)**.
+- `set_trade_balance_preset(level)` stores `TRADE_BALANCE_LEVEL` and adjusts equal-count caps.
+- `_update_realism_caps_from_league` then scales opponent-loss and ratio caps using this level.
+- Inside `_is_realistic_trade`, extremely loose settings (e.g. `TRADE_BALANCE_LEVEL >= 40` and non‑equal patterns) can bypass some of the strictest realism gates, turning the engine into an exploratory “idea generator” while still respecting opponent-loss caps.
+
+In practice:
+
+- Lower levels (~1–5) behave conservatively and surface trades that look fair in a human league.
+- Higher levels (up to 50) allow more lopsided consolidations and depth plays, especially when combined with a loose UI filter for opponent core FP change.
 
 ---
 
@@ -130,16 +138,26 @@ This context helps managers understand why the engine recommends a trade and whe
 
 ---
 
-## 6. Workflow Summary
+## 6. Workflow Summary (engine + UI)
 
-1. Load rosters from the selected league CSV.
-2. Compute exponential value and consistency-adjusted scores for every player.
-3. Iterate through trade patterns and team combinations.
-4. For each candidate trade:
-   - Calculate value gain.
-   - Pass through `_is_realistic_trade` filters.
-5. Rank surviving trades by value gain and limit to `max_suggestions`.
-6. Render results with interactive insights on the Streamlit page.
+1. **Load league data and rosters** from cached game logs / DB.
+2. **UI collects configuration:**
+   - Your team, trade patterns, Min Value Gain.
+   - Trade Balance level (1–50).
+   - Optional target/excluded teams and players.
+   - Opponent min weekly core FP change (UI-level filter).
+3. **Engine call – `find_trade_suggestions(...)`:**
+   - Filters rosters by games played (GP share of league max).
+   - Computes league scarcity context and percentile-based tiers.
+   - Updates realism caps from league stats and Trade Balance.
+   - Computes player values (FP/G-centric with light scarcity/CV adjustments).
+   - Estimates search complexity and prunes the heaviest patterns if necessary.
+   - Computes your and opponents’ core values.
+   - Calls `_find_*` pattern helpers to enumerate candidate trades, applying early realism checks and opponent-loss caps.
+   - Sorts, deduplicates, buckets by team/pattern, and returns top `max_suggestions`.
+4. **UI post-filter:**
+   - Filters suggestions by `opp_core_gain >= realism_min_opp_core` (e.g., −150 FP/week for very loose exploration).
+   - Displays metrics, rationale, and roster snapshots for each suggestion.
 
 ---
 

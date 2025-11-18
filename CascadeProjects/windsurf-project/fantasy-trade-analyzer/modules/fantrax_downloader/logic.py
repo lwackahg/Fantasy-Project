@@ -34,7 +34,7 @@ def get_chrome_driver(download_dir):
         "profile.default_content_setting_values.automatic_downloads": 1
     }
     chrome_options.add_experimental_option('prefs', prefs)
-    #chrome_options.add_argument('--headless')
+    chrome_options.add_argument('--headless')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
     driver = webdriver.Chrome(options=chrome_options)
@@ -122,7 +122,14 @@ def download_players_csv(driver, start_date=None, end_date=None, league_id=None)
         session.cookies.set(cookie['name'], cookie['value'])
 
     print(f'Downloading CSV for {start_date} to {end_date}...')
-    resp = session.get(csv_url)
+    try:
+        # Add a timeout so we never hang indefinitely on a stalled request
+        resp = session.get(csv_url, timeout=60)
+    except requests.exceptions.RequestException as e:
+        msg = f'Error: Exception while downloading CSV: {e}'
+        print(msg)
+        return False, msg, "", 0
+
     if resp.status_code == 200 and resp.content:
         with open(download_path, 'wb') as f:
             f.write(resp.content)
@@ -130,8 +137,9 @@ def download_players_csv(driver, start_date=None, end_date=None, league_id=None)
         # Return path and actual day count (int or 'NA') for callers that need it
         return True, f'Success: Downloaded {csv_filename}', download_path, days if isinstance(days, int) else 0
     else:
-        print(f'Error: Failed to download CSV (HTTP {resp.status_code})')
-        return False, f'Error: Failed to download CSV (HTTP {resp.status_code})', "", 0
+        msg = f'Error: Failed to download CSV (HTTP {resp.status_code})'
+        print(msg)
+        return False, msg, "", 0
 
 def download_all_ranges(league_id: str, progress_callback=None):
     """Downloads player stats for all standard time ranges."""
@@ -198,7 +206,7 @@ def download_all_ranges(league_id: str, progress_callback=None):
                         messages.append(f"Filled {requested_days}-day file using most complete range so far ({best_non_ytd_days} days)")
                     except Exception as e:
                         messages.append(f"Failed to create fallback file for {requested_days} days: {e}")
-            time.sleep(2)  # Add a delay to avoid overwhelming the server
+            time.sleep(1)  # Add a delay to avoid overwhelming the server
         
         if progress_callback:
             progress_callback(1.0, "All downloads complete!")

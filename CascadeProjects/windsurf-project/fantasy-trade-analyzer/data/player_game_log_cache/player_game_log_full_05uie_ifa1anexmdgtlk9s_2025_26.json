@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 17",
+            "Team": "TOR",
+            "Opp": "CHA",
+            "Score": "W 110-108",
+            "FPts": 55,
+            "FG-": "8.0",
+            "3PTM": 0,
+            "FT-": "0",
+            "PTS": 16,
+            "OREB": "3",
+            "REB": 6,
+            "AST": 6,
+            "ST": 1,
+            "BLK": 2,
+            "TO": 1,
+            "TF": "1",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 15",
             "Team": "TOR",
             "Opp": "@IND",

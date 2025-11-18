@@ -10,6 +10,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
+from selenium.common.exceptions import WebDriverException
 from webdriver_manager.chrome import ChromeDriverManager
 from dotenv import load_dotenv, find_dotenv
 from datetime import datetime
@@ -283,8 +284,20 @@ def get_player_game_log_full(player_code, league_id, username, password, season=
 
 	try:
 		player_url = f"https://www.fantrax.com/player/{player_code}/{league_id}"
-		driver.get(player_url)
-		time.sleep(1.5)  # Short wait for initial load
+		# Retry navigation to the player page a few times in case Fantrax is flaky
+		max_attempts = 3
+		last_error = None
+		for attempt in range(1, max_attempts + 1):
+			try:
+				driver.get(player_url)
+				time.sleep(1.5)  # Short wait for initial load
+				break
+			except WebDriverException as e:
+				last_error = e
+				if attempt == max_attempts:
+					raise Exception(f"Failed to load player page after {max_attempts} attempts: {e}")
+				# Brief backoff before retrying
+				time.sleep(2.0)
 
 		page_source = driver.page_source
 		soup = BeautifulSoup(page_source, 'html.parser')

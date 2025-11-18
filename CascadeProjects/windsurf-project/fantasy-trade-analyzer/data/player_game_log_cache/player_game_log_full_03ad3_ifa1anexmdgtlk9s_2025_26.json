@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 17",
+            "Team": "NY",
+            "Opp": "@MIA",
+            "Score": "L 113-115",
+            "FPts": 63,
+            "FG-": "12.0",
+            "3PTM": 1,
+            "FT-": "0",
+            "PTS": 22,
+            "OREB": "4",
+            "REB": 15,
+            "AST": 2,
+            "ST": 0,
+            "BLK": 1,
+            "TO": 4,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "1"
+        },
+        {
             "Date": "Nov 14",
             "Team": "NY",
             "Opp": "MIA",

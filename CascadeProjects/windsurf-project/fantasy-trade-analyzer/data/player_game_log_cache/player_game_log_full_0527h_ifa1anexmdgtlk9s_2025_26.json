@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 17",
+            "Team": "MIN",
+            "Opp": "DAL",
+            "Score": "W 120-96",
+            "FPts": 72,
+            "FG-": "5.0",
+            "3PTM": 3,
+            "FT-": "0",
+            "PTS": 22,
+            "OREB": "1",
+            "REB": 12,
+            "AST": 2,
+            "ST": 0,
+            "BLK": 0,
+            "TO": 3,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "1"
+        },
+        {
             "Date": "Nov 15",
             "Team": "MIN",
             "Opp": "DEN",

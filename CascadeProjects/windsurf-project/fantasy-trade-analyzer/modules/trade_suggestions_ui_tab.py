@@ -326,7 +326,7 @@ def display_trade_suggestions_tab():
             "Min Value Gain",
             min_value=0.0,
             max_value=50.0,
-            value=10.0,
+            value=0.0,
             step=5.0,
             help="Minimum value improvement to suggest a trade",
             key="tab_min_value_gain",
@@ -337,8 +337,8 @@ def display_trade_suggestions_tab():
             "Trade Balance (1=super strict, 10=super loose)",
             min_value=1,
             max_value=50,
-            value=5,
-            help="Controls how strict equal-count realism filters are. 5 = standard.",
+            value=50,
+            help="Controls how strict equal-count realism filters are. 5 = standard, 50 = very loose.",
             key="tab_trade_balance_level",
         )
 
@@ -365,7 +365,7 @@ def display_trade_suggestions_tab():
                 "Max Suggestions (engine)",
                 min_value=5,
                 max_value=25,
-                value=20,
+                value=15,
                 step=5,
                 key="tab_max_suggestions",
             )
@@ -374,7 +374,7 @@ def display_trade_suggestions_tab():
                 "Suggestions to display",
                 min_value=5,
                 max_value=25,
-                value=5,
+                value=15,
                 step=5,
                 key="tab_display_count",
             )
@@ -416,9 +416,9 @@ def display_trade_suggestions_tab():
 
             realism_min_opp_core = st.number_input(
                 "Opponent min weekly core FP change",
-                min_value=-50.0,
-                max_value=20.0,
-                value=-15.0,
+                min_value=-150.0,
+                max_value=150.0,
+                value=-150.0,
                 step=1.0,
                 help=(
                     "Filter out trades where the opponent loses more than this in weekly core FP. "
