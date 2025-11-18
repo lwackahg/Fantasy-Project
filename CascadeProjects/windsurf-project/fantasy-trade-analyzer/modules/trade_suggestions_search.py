@@ -16,6 +16,7 @@ from modules.trade_suggestions_config import (
 	MAX_ACCEPTED_TRADES_PER_PATTERN_TEAM,
 	MAX_OPP_WEEKLY_LOSS,
 	MAX_OPP_CORE_AVG_DROP,
+	TRADE_BALANCE_LEVEL,
 )
 from modules.trade_suggestions_core import (
 	_simulate_core_value_gain,
@@ -29,6 +30,23 @@ from modules.trade_suggestions_realism import (
 	_check_1_for_n_package_ratio,
 	_check_3_for_2_package_ratio,
 )
+
+
+def _get_expansion_min_core_gain(base_min_gain: float) -> float:
+	"""Adjust the minimum core gain requirement for expansion patterns.
+
+	At strict/normal Trade Balance levels, require non-negative core gain as usual.
+	At very loose settings, allow a small core downgrade to surface more depth trades.
+	"""
+	# At the absolute loosest setting, effectively remove your_core_gain as a gate
+	# for expansion patterns by allowing a very large negative threshold.
+	if TRADE_BALANCE_LEVEL >= 50:
+		return base_min_gain - 9999.0
+	elif TRADE_BALANCE_LEVEL >= 45:
+		return base_min_gain - 5.0
+	elif TRADE_BALANCE_LEVEL >= 35:
+		return base_min_gain - 2.5
+	return base_min_gain
 
 
 def _find_1_for_1_trades(
@@ -192,16 +210,19 @@ def _find_2_for_1_trades(
 				opp_baseline_core,
 			)
 
+			opp_after_team = opp_full_team.copy()
+			opp_after_team = opp_after_team[~opp_after_team["Player"].isin([their_player["Player"]])]
+			opp_after_team = pd.concat([opp_after_team, pd.DataFrame(your_players)], ignore_index=True)
+			opp_core_after = _calculate_core_value(opp_after_team, core_size)
+			opp_core_avg_before = opp_baseline_core / core_size if core_size > 0 else 0
+			opp_core_avg_after = opp_core_after / core_size if core_size > 0 else 0
+			opp_core_avg_drop = opp_core_avg_before - opp_core_avg_after
+
+			passes_your_gain = your_core_gain >= min_gain or TRADE_BALANCE_LEVEL >= 50
 			if (
-				your_core_gain >= min_gain
+				passes_your_gain
 				and opp_core_gain >= -MAX_OPP_WEEKLY_LOSS
-				and _check_opponent_core_avg_drop(
-					opp_full_team,
-					opp_baseline_core,
-					[their_player],
-					your_players,
-					core_size,
-				)
+				and opp_core_avg_drop <= MAX_OPP_CORE_AVG_DROP
 			):
 				floor_delta = _calculate_floor_impact(your_full_team, your_players, [their_player])
 				reasoning = _determine_trade_reasoning(your_core_gain, floor_delta)
@@ -286,7 +307,7 @@ def _find_2_for_2_trades(
 			)
 
 			if (
-				your_core_gain >= min_gain
+				your_core_gain >= expansion_min_gain
 				and opp_core_gain >= -MAX_OPP_WEEKLY_LOSS
 			):
 				floor_delta = _calculate_floor_impact(your_full_team, your_players, their_players)
@@ -374,8 +395,9 @@ def _find_3_for_1_trades(
 			opp_core_avg_after = opp_core_after / core_size if core_size > 0 else 0
 			opp_core_avg_drop = opp_core_avg_before - opp_core_avg_after
 
+			passes_your_gain = your_core_gain >= min_gain or TRADE_BALANCE_LEVEL >= 50
 			if (
-				your_core_gain >= min_gain
+				passes_your_gain
 				and opp_core_gain >= -MAX_OPP_WEEKLY_LOSS
 				and opp_core_avg_drop <= MAX_OPP_CORE_AVG_DROP
 			):
@@ -518,6 +540,7 @@ def _find_1_for_2_trades(
 
 	your_rows = your_team.to_dict("records")
 	their_rows = other_team.to_dict("records")
+	expansion_min_gain = _get_expansion_min_core_gain(min_gain)
 
 	for your_player in your_rows:
 		if include_players is not None and len(include_players) > 0:
@@ -530,10 +553,13 @@ def _find_1_for_2_trades(
 			their_players = list(their_combo)
 			# your single player should be higher FP/G than each incoming player
 			your_fpts = your_player["Mean FPts"]
-			if any(your_fpts <= p["Mean FPts"] for p in their_players):
-				continue
-			if not _check_1_for_n_package_ratio(your_player, their_players, league_tiers):
-				continue
+			if TRADE_BALANCE_LEVEL < 45:
+				if any(your_fpts <= p["Mean FPts"] for p in their_players):
+					continue
+			# At Trade Balance 50, treat as idea generator and skip the 1-for-n ratio guard
+			if TRADE_BALANCE_LEVEL < 50:
+				if not _check_1_for_n_package_ratio(your_player, their_players, league_tiers):
+					continue
 			# Cheap realism check before heavy core simulations
 			if not _is_realistic_trade([your_player], their_players, league_tiers):
 				continue
@@ -604,6 +630,7 @@ def _find_1_for_3_trades(
 
 	your_rows = your_team.to_dict("records")
 	their_rows = other_team.to_dict("records")
+	expansion_min_gain = _get_expansion_min_core_gain(min_gain)
 
 	for your_player in your_rows:
 		if include_players is not None and len(include_players) > 0:
@@ -618,10 +645,13 @@ def _find_1_for_3_trades(
 				if not any(p.get("Player") in target_opposing_players for p in their_players):
 					continue
 			your_fpts = your_player["Mean FPts"]
-			if any(your_fpts <= p["Mean FPts"] for p in their_players):
-				continue
-			if not _check_1_for_n_package_ratio(your_player, their_players, league_tiers):
-				continue
+			if TRADE_BALANCE_LEVEL < 45:
+				if any(your_fpts <= p["Mean FPts"] for p in their_players):
+					continue
+			# At Trade Balance 50, treat as idea generator and skip the 1-for-n ratio guard
+			if TRADE_BALANCE_LEVEL < 50:
+				if not _check_1_for_n_package_ratio(your_player, their_players, league_tiers):
+					continue
 			# Cheap realism check before heavy core simulations
 			if not _is_realistic_trade([your_player], their_players, league_tiers):
 				continue
@@ -644,7 +674,7 @@ def _find_1_for_3_trades(
 			)
 
 			if (
-				your_core_gain >= min_gain
+				your_core_gain >= expansion_min_gain
 				and opp_core_gain >= -MAX_OPP_WEEKLY_LOSS
 				and _is_realistic_trade([your_player], their_players, league_tiers)
 			):
@@ -701,6 +731,7 @@ def _find_2_for_3_trades(
 				continue
 		your_total_value = sum(p["Value"] for p in your_players)
 
+		expansion_min_gain = _get_expansion_min_core_gain(min_gain)
 		for their_combo in combinations(other_team.iterrows(), 3):
 			combo_counter += 1
 			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
@@ -728,7 +759,7 @@ def _find_2_for_3_trades(
 			)
 
 			if (
-				your_core_gain >= min_gain
+				your_core_gain >= expansion_min_gain
 				and opp_core_gain >= -MAX_OPP_WEEKLY_LOSS
 				and _is_realistic_trade(your_players, their_players, league_tiers)
 			):
