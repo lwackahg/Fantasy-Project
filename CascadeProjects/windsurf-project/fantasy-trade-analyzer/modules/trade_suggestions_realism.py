@@ -8,13 +8,7 @@ auxiliary tools that need to reason about trade realism.
 
 from typing import Dict, Tuple, List
 
-from modules.trade_suggestions_config import (
-	EQUAL_COUNT_MAX_AVG_FPTS_RATIO,
-	EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO,
-	ENABLE_VALUE_FAIRNESS_GUARD,
-	MAX_OPP_WEEKLY_LOSS,
-	TRADE_BALANCE_LEVEL,
-)
+import modules.trade_suggestions_config as cfg
 
 
 def _check_avg_fpts_ratio(your_avg_fpts: float, their_avg_fpts: float, is_consolidating: bool, is_expanding: bool) -> bool:
@@ -30,7 +24,7 @@ def _check_avg_fpts_ratio(your_avg_fpts: float, their_avg_fpts: float, is_consol
 		if fpts_ratio > 1.25:
 			return False
 	else:
-		if fpts_ratio > EQUAL_COUNT_MAX_AVG_FPTS_RATIO:
+		if fpts_ratio > cfg.EQUAL_COUNT_MAX_AVG_FPTS_RATIO:
 			return False
 	return True
 
@@ -98,7 +92,7 @@ your_count: int,
 		if their_avg < your_max * avg_piece_ratio:
 			return False
 	else:
-		max_ratio = EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO
+		max_ratio = cfg.EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO
 	if min(your_total_fpts, their_total_fpts) <= 0:
 		total_ratio = 999
 	else:
@@ -115,7 +109,7 @@ def _check_value_fairness_guard(
 	is_expanding: bool,
 	league_tiers: Dict[str, float],
 ) -> bool:
-	if not ENABLE_VALUE_FAIRNESS_GUARD:
+	if not cfg.ENABLE_VALUE_FAIRNESS_GUARD:
 		return True
 	if 'Value' not in your_players[0] or 'Value' not in their_players[0]:
 		return True
@@ -353,7 +347,7 @@ def _check_1_for_n_package_ratio(
 		base_cap = 1.8
 	# Trade-balance slider adjustment: higher looseness => higher cap
 	# TRADE_BALANCE_LEVEL ~ 1..50; map to multiplier ~ [0.9, 1.2]
-	looseness = TRADE_BALANCE_LEVEL
+	looseness = cfg.TRADE_BALANCE_LEVEL
 	looseness_factor = 0.9 + (min(max(looseness, 1), 50) - 1) * (0.3 / 49.0)
 	max_ratio = base_cap * looseness_factor
 	return total_ratio <= max_ratio
@@ -380,7 +374,7 @@ def _check_3_for_2_package_ratio(
 	# Base cap: at strictest setting, allow only a very small FP/G sacrifice.
 	base_cap = 1.03
 	# TRADE_BALANCE_LEVEL ~ 1..50; map to multiplier ~ [1.0, 1.2]
-	looseness = TRADE_BALANCE_LEVEL
+	looseness = cfg.TRADE_BALANCE_LEVEL
 	looseness_factor = 1.0 + (min(max(looseness, 1), 50) - 1) * (0.2 / 49.0)
 	max_ratio = base_cap * looseness_factor
 	return total_ratio <= max_ratio
@@ -401,7 +395,7 @@ def _is_realistic_trade(your_players, their_players, league_tiers: Dict[str, flo
 	their_count = len(their_players)
 	is_consolidating = your_count > their_count
 	is_expanding = their_count > your_count
-	if TRADE_BALANCE_LEVEL >= 40 and (is_consolidating or is_expanding):
+	if cfg.TRADE_BALANCE_LEVEL >= 40 and (is_consolidating or is_expanding):
 		return True
 	your_avg_fpts = sum(p['Mean FPts'] for p in your_players) / len(your_players)
 	their_avg_fpts = sum(p['Mean FPts'] for p in their_players) / len(their_players)

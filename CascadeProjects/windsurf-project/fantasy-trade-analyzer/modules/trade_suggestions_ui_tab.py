@@ -415,14 +415,14 @@ def display_trade_suggestions_tab():
             )
 
             realism_min_opp_core = st.number_input(
-                "Opponent min weekly core FP change",
+                "Opponent min package FP/G advantage",
                 min_value=-150.0,
                 max_value=150.0,
                 value=-150.0,
                 step=1.0,
                 help=(
-                    "Filter out trades where the opponent loses more than this in weekly core FP. "
-                    "For example, -10 means opponents can't lose more than 10 FP/week."
+                    "Filter out trades where you are not giving the opponent at least this many FP/G in the package. "
+                    "For example, 0 means they must at least break even in FP/G; 3 means you give them ~3 FP/G more than you get."
                 ),
                 key="tab_min_opp_core_change",
             )
@@ -452,13 +452,15 @@ def display_trade_suggestions_tab():
                 st.warning("No beneficial trades found with current filters. Try adjusting your criteria.")
                 return
 
-            # Apply realism filter based on opponent core FP change
-            filtered_suggestions = [
-                s
-                for s in suggestions
-                if s.get("opp_core_gain") is None
-                or s.get("opp_core_gain") >= realism_min_opp_core
-            ]
+            # Apply realism filter based on opponent package FP/G optics
+            filtered_suggestions = []
+            for s in suggestions:
+                your_avg_fpts = sum(s["your_fpts"]) / max(len(s["your_fpts"]), 1)
+                their_avg_fpts = sum(s["their_fpts"]) / max(len(s["their_fpts"]), 1)
+                # From opponent optics: positive = you give them more FP/G than you get
+                opp_pkg_fp_advantage = your_avg_fpts - their_avg_fpts
+                if opp_pkg_fp_advantage >= realism_min_opp_core:
+                    filtered_suggestions.append(s)
 
             if not filtered_suggestions:
                 st.warning(
@@ -492,13 +494,15 @@ def display_trade_suggestions_tab():
             display_n = max(1, min(int(display_count), len(filtered_suggestions)))
 
             for i, suggestion in enumerate(filtered_suggestions[:display_n], 1):
-                opp_gain = suggestion.get("opp_core_gain", 0.0)
-                if opp_gain >= 0:
-                    fairness_tag = "Win–Win"
-                elif opp_gain >= realism_min_opp_core:
+                your_avg_fpts = sum(suggestion["your_fpts"]) / max(len(suggestion["your_fpts"]), 1)
+                their_avg_fpts = sum(suggestion["their_fpts"]) / max(len(suggestion["their_fpts"]), 1)
+                opp_pkg_fp_advantage = your_avg_fpts - their_avg_fpts
+                if opp_pkg_fp_advantage < 0:
                     fairness_tag = "You Favored"
+                elif opp_pkg_fp_advantage >= realism_min_opp_core:
+                    fairness_tag = "Opponent Favored"
                 else:
-                    fairness_tag = "Hard Sell"
+                    fairness_tag = "Balanced"
 
                 label = (
                     f"#{i} - {suggestion['pattern']} with {suggestion['team']} "

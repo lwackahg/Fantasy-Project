@@ -11,13 +11,7 @@ from typing import List, Dict, Optional
 import pandas as pd
 from itertools import combinations
 
-from modules.trade_suggestions_config import (
-	MAX_COMBINATIONS_PER_PATTERN,
-	MAX_ACCEPTED_TRADES_PER_PATTERN_TEAM,
-	MAX_OPP_WEEKLY_LOSS,
-	MAX_OPP_CORE_AVG_DROP,
-	TRADE_BALANCE_LEVEL,
-)
+import modules.trade_suggestions_config as cfg
 from modules.trade_suggestions_core import (
 	_simulate_core_value_gain,
 	_calculate_core_value,
@@ -40,11 +34,12 @@ def _get_expansion_min_core_gain(base_min_gain: float) -> float:
 	"""
 	# At the absolute loosest setting, effectively remove your_core_gain as a gate
 	# for expansion patterns by allowing a very large negative threshold.
-	if TRADE_BALANCE_LEVEL >= 50:
+	level = cfg.TRADE_BALANCE_LEVEL
+	if level >= 50:
 		return base_min_gain - 9999.0
-	elif TRADE_BALANCE_LEVEL >= 45:
+	elif level >= 45:
 		return base_min_gain - 5.0
-	elif TRADE_BALANCE_LEVEL >= 35:
+	elif level >= 35:
 		return base_min_gain - 2.5
 	return base_min_gain
 
@@ -74,7 +69,7 @@ def _find_1_for_1_trades(
 	for your_player in your_rows:
 		for their_player in their_rows:
 			combo_counter += 1
-			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
+			if combo_counter > cfg.MAX_COMBINATIONS_PER_PATTERN:
 				return trades
 			# Enforce target_opposing_players constraint (their side)
 			if target_opposing_players:
@@ -122,8 +117,8 @@ def _find_1_for_1_trades(
 			# Filter: you must gain enough, opponent can't lose too much (weekly OR avg FP/G)
 			if (
 				your_core_gain >= min_gain
-				and opp_core_gain >= -MAX_OPP_WEEKLY_LOSS
-				and opp_core_avg_drop <= MAX_OPP_CORE_AVG_DROP
+				and opp_core_gain >= -cfg.MAX_OPP_WEEKLY_LOSS
+				and opp_core_avg_drop <= cfg.MAX_OPP_CORE_AVG_DROP
 			):
 				floor_delta = _calculate_floor_impact(
 					your_full_team,
@@ -150,7 +145,7 @@ def _find_1_for_1_trades(
 					}
 				)
 				accepted += 1
-				if accepted >= MAX_ACCEPTED_TRADES_PER_PATTERN_TEAM:
+				if accepted >= cfg.MAX_ACCEPTED_TRADES_PER_PATTERN_TEAM:
 					return trades
 
 	return trades
@@ -188,7 +183,7 @@ def _find_2_for_1_trades(
 
 		for their_player in their_rows:
 			combo_counter += 1
-			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
+			if combo_counter > cfg.MAX_COMBINATIONS_PER_PATTERN:
 				return trades
 			# Cheap realism check before heavy core simulations
 			if not _is_realistic_trade(your_players, [their_player], league_tiers):
@@ -218,11 +213,18 @@ def _find_2_for_1_trades(
 			opp_core_avg_after = opp_core_after / core_size if core_size > 0 else 0
 			opp_core_avg_drop = opp_core_avg_before - opp_core_avg_after
 
-			passes_your_gain = your_core_gain >= min_gain or TRADE_BALANCE_LEVEL >= 50
+			passes_your_gain = your_core_gain >= min_gain or cfg.TRADE_BALANCE_LEVEL >= 50
+			if cfg.TRADE_BALANCE_LEVEL >= 50:
+				passes_opp_loss = True
+				passes_opp_core_drop = True
+			else:
+				passes_opp_loss = opp_core_gain >= -cfg.MAX_OPP_WEEKLY_LOSS
+				passes_opp_core_drop = opp_core_avg_drop <= cfg.MAX_OPP_CORE_AVG_DROP
+
 			if (
 				passes_your_gain
-				and opp_core_gain >= -MAX_OPP_WEEKLY_LOSS
-				and opp_core_avg_drop <= MAX_OPP_CORE_AVG_DROP
+				and passes_opp_loss
+				and passes_opp_core_drop
 			):
 				floor_delta = _calculate_floor_impact(your_full_team, your_players, [their_player])
 				reasoning = _determine_trade_reasoning(your_core_gain, floor_delta)
@@ -279,7 +281,7 @@ def _find_2_for_2_trades(
 
 		for their_combo in combinations(their_rows, 2):
 			combo_counter += 1
-			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
+			if combo_counter > cfg.MAX_COMBINATIONS_PER_PATTERN:
 				return trades
 			their_players = list(their_combo)
 			if target_opposing_players:
@@ -307,8 +309,8 @@ def _find_2_for_2_trades(
 			)
 
 			if (
-				your_core_gain >= expansion_min_gain
-				and opp_core_gain >= -MAX_OPP_WEEKLY_LOSS
+				your_core_gain >= min_gain
+				and opp_core_gain >= -cfg.MAX_OPP_WEEKLY_LOSS
 			):
 				floor_delta = _calculate_floor_impact(your_full_team, your_players, their_players)
 				reasoning = _determine_trade_reasoning(your_core_gain, floor_delta)
@@ -365,7 +367,7 @@ def _find_3_for_1_trades(
 
 		for their_player in their_rows:
 			combo_counter += 1
-			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
+			if combo_counter > cfg.MAX_COMBINATIONS_PER_PATTERN:
 				return trades
 			# Cheap realism check before heavy core simulations
 			if not _is_realistic_trade(your_players, [their_player], league_tiers):
@@ -395,11 +397,18 @@ def _find_3_for_1_trades(
 			opp_core_avg_after = opp_core_after / core_size if core_size > 0 else 0
 			opp_core_avg_drop = opp_core_avg_before - opp_core_avg_after
 
-			passes_your_gain = your_core_gain >= min_gain or TRADE_BALANCE_LEVEL >= 50
+			passes_your_gain = your_core_gain >= min_gain or cfg.TRADE_BALANCE_LEVEL >= 50
+			if cfg.TRADE_BALANCE_LEVEL >= 50:
+				passes_opp_loss = True
+				passes_opp_core_drop = True
+			else:
+				passes_opp_loss = opp_core_gain >= -cfg.MAX_OPP_WEEKLY_LOSS
+				passes_opp_core_drop = opp_core_avg_drop <= cfg.MAX_OPP_CORE_AVG_DROP
+
 			if (
 				passes_your_gain
-				and opp_core_gain >= -MAX_OPP_WEEKLY_LOSS
-				and opp_core_avg_drop <= MAX_OPP_CORE_AVG_DROP
+				and passes_opp_loss
+				and passes_opp_core_drop
 			):
 				floor_delta = _calculate_floor_impact(your_full_team, your_players, [their_player])
 				reasoning = _determine_trade_reasoning(your_core_gain, floor_delta)
@@ -456,12 +465,10 @@ def _find_3_for_2_trades(
 
 		for their_combo in combinations(other_team.iterrows(), 2):
 			combo_counter += 1
-			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
+			if combo_counter > cfg.MAX_COMBINATIONS_PER_PATTERN:
 				return trades
 			their_players = [p[1] for p in their_combo]
 			their_total_value = sum(p["Value"] for p in their_players)
-			if not _check_3_for_2_package_ratio(your_players, their_players):
-				continue
 			# Cheap realism check before heavy core simulations
 			if not _is_realistic_trade(your_players, their_players, league_tiers):
 				continue
@@ -490,10 +497,17 @@ def _find_3_for_2_trades(
 			opp_core_avg_after = opp_core_after / core_size if core_size > 0 else 0
 			opp_core_avg_drop = opp_core_avg_before - opp_core_avg_after
 
+			if cfg.TRADE_BALANCE_LEVEL >= 50:
+				passes_opp_loss = True
+				passes_opp_core_drop = True
+			else:
+				passes_opp_loss = opp_core_gain >= -cfg.MAX_OPP_WEEKLY_LOSS
+				passes_opp_core_drop = opp_core_avg_drop <= cfg.MAX_OPP_CORE_AVG_DROP
+
 			if (
 				your_core_gain >= min_gain
-				and opp_core_gain >= -MAX_OPP_WEEKLY_LOSS
-				and opp_core_avg_drop <= MAX_OPP_CORE_AVG_DROP
+				and passes_opp_loss
+				and passes_opp_core_drop
 			):
 				floor_delta = _calculate_floor_impact(your_full_team, your_players, their_players)
 				reasoning = _determine_trade_reasoning(your_core_gain, floor_delta)
@@ -548,16 +562,16 @@ def _find_1_for_2_trades(
 				continue
 		for their_combo in combinations(their_rows, 2):
 			combo_counter += 1
-			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
+			if combo_counter > cfg.MAX_COMBINATIONS_PER_PATTERN:
 				return trades
 			their_players = list(their_combo)
 			# your single player should be higher FP/G than each incoming player
 			your_fpts = your_player["Mean FPts"]
-			if TRADE_BALANCE_LEVEL < 45:
+			if cfg.TRADE_BALANCE_LEVEL < 45:
 				if any(your_fpts <= p["Mean FPts"] for p in their_players):
 					continue
 			# At Trade Balance 50, treat as idea generator and skip the 1-for-n ratio guard
-			if TRADE_BALANCE_LEVEL < 50:
+			if cfg.TRADE_BALANCE_LEVEL < 50:
 				if not _check_1_for_n_package_ratio(your_player, their_players, league_tiers):
 					continue
 			# Cheap realism check before heavy core simulations
@@ -581,10 +595,13 @@ def _find_1_for_2_trades(
 				opp_baseline_core,
 			)
 
-			if (
-				your_core_gain >= min_gain
-				and opp_core_gain >= -MAX_OPP_WEEKLY_LOSS
-			):
+			passes_your_gain = your_core_gain >= expansion_min_gain
+			if cfg.TRADE_BALANCE_LEVEL >= 50:
+				passes_opp_loss = True
+			else:
+				passes_opp_loss = opp_core_gain >= -cfg.MAX_OPP_WEEKLY_LOSS
+
+			if passes_your_gain and passes_opp_loss:
 				floor_delta = _calculate_floor_impact(your_full_team, [your_player], their_players)
 				reasoning = _determine_trade_reasoning(your_core_gain, floor_delta)
 				trades.append(
@@ -638,18 +655,18 @@ def _find_1_for_3_trades(
 				continue
 		for their_combo in combinations(their_rows, 3):
 			combo_counter += 1
-			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
+			if combo_counter > cfg.MAX_COMBINATIONS_PER_PATTERN:
 				return trades
 			their_players = list(their_combo)
 			if target_opposing_players:
 				if not any(p.get("Player") in target_opposing_players for p in their_players):
 					continue
 			your_fpts = your_player["Mean FPts"]
-			if TRADE_BALANCE_LEVEL < 45:
+			if cfg.TRADE_BALANCE_LEVEL < 45:
 				if any(your_fpts <= p["Mean FPts"] for p in their_players):
 					continue
 			# At Trade Balance 50, treat as idea generator and skip the 1-for-n ratio guard
-			if TRADE_BALANCE_LEVEL < 50:
+			if cfg.TRADE_BALANCE_LEVEL < 50:
 				if not _check_1_for_n_package_ratio(your_player, their_players, league_tiers):
 					continue
 			# Cheap realism check before heavy core simulations
@@ -673,9 +690,14 @@ def _find_1_for_3_trades(
 				opp_baseline_core,
 			)
 
+			if cfg.TRADE_BALANCE_LEVEL >= 50:
+				passes_opp_loss = True
+			else:
+				passes_opp_loss = opp_core_gain >= -cfg.MAX_OPP_WEEKLY_LOSS
+
 			if (
 				your_core_gain >= expansion_min_gain
-				and opp_core_gain >= -MAX_OPP_WEEKLY_LOSS
+				and passes_opp_loss
 				and _is_realistic_trade([your_player], their_players, league_tiers)
 			):
 				floor_delta = _calculate_floor_impact(your_full_team, [your_player], their_players)
@@ -734,7 +756,7 @@ def _find_2_for_3_trades(
 		expansion_min_gain = _get_expansion_min_core_gain(min_gain)
 		for their_combo in combinations(other_team.iterrows(), 3):
 			combo_counter += 1
-			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
+			if combo_counter > cfg.MAX_COMBINATIONS_PER_PATTERN:
 				return trades
 			their_players = [p[1] for p in their_combo]
 			their_total_value = sum(p["Value"] for p in their_players)
@@ -760,7 +782,7 @@ def _find_2_for_3_trades(
 
 			if (
 				your_core_gain >= expansion_min_gain
-				and opp_core_gain >= -MAX_OPP_WEEKLY_LOSS
+				and opp_core_gain >= -cfg.MAX_OPP_WEEKLY_LOSS
 				and _is_realistic_trade(your_players, their_players, league_tiers)
 			):
 				floor_delta = _calculate_floor_impact(your_full_team, your_players, their_players)
@@ -818,7 +840,7 @@ def _find_3_for_3_trades(
 
 		for their_combo in combinations(other_team.iterrows(), 3):
 			combo_counter += 1
-			if combo_counter > MAX_COMBINATIONS_PER_PATTERN:
+			if combo_counter > cfg.MAX_COMBINATIONS_PER_PATTERN:
 				return trades
 			their_players = [p[1] for p in their_combo]
 			their_total_value = sum(p["Value"] for p in their_players)
@@ -841,7 +863,7 @@ def _find_3_for_3_trades(
 
 			if (
 				your_core_gain >= min_gain
-				and opp_core_gain >= -MAX_OPP_WEEKLY_LOSS
+				and opp_core_gain >= -cfg.MAX_OPP_WEEKLY_LOSS
 				and _is_realistic_trade(your_players, their_players, league_tiers)
 			):
 				floor_delta = _calculate_floor_impact(your_full_team, your_players, their_players)
