@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 18",
+            "Team": "BKN",
+            "Opp": "BOS",
+            "Score": "L 99-113",
+            "FPts": 82,
+            "FG-": "8.0",
+            "3PTM": 4,
+            "FT-": "0",
+            "PTS": 25,
+            "OREB": "2",
+            "REB": 6,
+            "AST": 2,
+            "ST": 3,
+            "BLK": 0,
+            "TO": 1,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 16",
             "Team": "BKN",
             "Opp": "@WAS",
@@ -256,6 +277,5 @@
             "3D": "0",
             "2D": "0"
         }
-    ],
-    "status": "success"
+    ]
 }

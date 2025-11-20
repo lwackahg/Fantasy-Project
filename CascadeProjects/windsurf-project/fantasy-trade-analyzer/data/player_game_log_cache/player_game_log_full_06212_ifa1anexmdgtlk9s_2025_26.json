@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 19",
+            "Team": "HOU",
+            "Opp": "@CLE",
+            "Score": "W 114-104",
+            "FPts": 42,
+            "FG-": "7.0",
+            "3PTM": 3,
+            "FT-": "1",
+            "PTS": 14,
+            "OREB": "2",
+            "REB": 9,
+            "AST": 2,
+            "ST": 0,
+            "BLK": 0,
+            "TO": 0,
+            "TF": "1",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 16",
             "Team": "HOU",
             "Opp": "ORL",
@@ -235,6 +256,5 @@
             "3D": "0",
             "2D": "0"
         }
-    ],
-    "status": "success"
+    ]
 }

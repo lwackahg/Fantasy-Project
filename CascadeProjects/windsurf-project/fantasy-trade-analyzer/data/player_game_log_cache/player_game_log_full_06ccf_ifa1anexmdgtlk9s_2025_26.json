@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 18",
+            "Team": "DET",
+            "Opp": "@ATL",
+            "Score": "W 120-112",
+            "FPts": 30,
+            "FG-": "2.0",
+            "3PTM": 0,
+            "FT-": "0",
+            "PTS": 6,
+            "OREB": "0",
+            "REB": 2,
+            "AST": 0,
+            "ST": 1,
+            "BLK": 3,
+            "TO": 0,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 9",
             "Team": "DET",
             "Opp": "@PHI",
@@ -214,6 +235,5 @@
             "3D": "0",
             "2D": "0"
         }
-    ],
-    "status": "success"
+    ]
 }

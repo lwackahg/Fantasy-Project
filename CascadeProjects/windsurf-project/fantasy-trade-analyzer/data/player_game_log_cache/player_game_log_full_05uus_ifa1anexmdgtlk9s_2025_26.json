@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 18",
+            "Team": "LAL",
+            "Opp": "UTA",
+            "Score": "W 140-126",
+            "FPts": 58,
+            "FG-": "4.0",
+            "3PTM": 1,
+            "FT-": "1",
+            "PTS": 26,
+            "OREB": "1",
+            "REB": 5,
+            "AST": 1,
+            "ST": 1,
+            "BLK": 0,
+            "TO": 4,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 15",
             "Team": "LAL",
             "Opp": "@MIL",
@@ -235,6 +256,5 @@
             "3D": "0",
             "2D": "0"
         }
-    ],
-    "status": "success"
+    ]
 }

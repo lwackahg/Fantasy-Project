@@ -18,7 +18,7 @@ CODE_BY_MANAGER = {v: k for k, v in TEAM_MAPPINGS.items()}
 
 def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name):
     """Display a single trade suggestion with detailed impact metrics."""
-    core_size_approx = 7.14
+    core_size_approx = 8.0
     min_games = 25
     weekly_core_fp_change = suggestion["value_gain"]
     core_ppg_change = weekly_core_fp_change / min_games
@@ -312,7 +312,7 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name)
             ):
                 results = run_trade_analysis(
                     trade_teams=trade_teams,
-                    num_players=10,
+                    num_players=8,
                     trade_label=label,
                 )
                 if not results:
@@ -321,7 +321,74 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name)
                     display_trade_results(results)
 
 
-def _score_trade_fp_vs_cv(suggestion, risk_preference: int) -> float:
+def _estimate_ytd_fp_change_for_suggestion(
+    suggestion,
+    rosters_by_team,
+    your_team_name: str,
+    top_n: int = 8,
+) -> float:
+    your_roster = rosters_by_team.get(your_team_name)
+    opp_roster = rosters_by_team.get(suggestion.get("team"))
+    if your_roster is None or your_roster.empty or opp_roster is None or opp_roster.empty:
+        return 0.0
+    if "Player" not in your_roster.columns:
+        return 0.0
+
+    your_before = your_roster.copy()
+    opp_before = opp_roster.copy()
+
+    you_give = suggestion.get("you_give") or []
+    you_get = suggestion.get("you_get") or []
+
+    your_after = your_before
+    if you_give:
+        your_after = your_after[~your_after["Player"].isin(you_give)].copy()
+
+    incoming_dfs = []
+    for player in you_get:
+        src = opp_before[opp_before["Player"] == player]
+        if src.empty:
+            for df in rosters_by_team.values():
+                if df is None or df.empty or "Player" not in df.columns:
+                    continue
+                match = df[df["Player"] == player]
+                if not match.empty:
+                    src = match
+                    break
+        if not src.empty:
+            incoming_dfs.append(src)
+    if incoming_dfs:
+        your_after = pd.concat([your_after] + incoming_dfs, ignore_index=True)
+
+    def _avg_top(df):
+        if df is None or df.empty:
+            return 0.0
+        sort_col = None
+        if "Mean FPts" in df.columns:
+            sort_col = "Mean FPts"
+        elif "FP/G" in df.columns:
+            sort_col = "FP/G"
+        if sort_col is None:
+            return 0.0
+        top = df.sort_values(sort_col, ascending=False).head(top_n)
+        val_col = "FP/G" if "FP/G" in top.columns else sort_col
+        vals = top[val_col].dropna()
+        if vals.empty:
+            return 0.0
+        return float(vals.mean())
+
+    before = _avg_top(your_before)
+    after = _avg_top(your_after)
+    return after - before
+
+
+def _score_trade_fp_vs_cv(
+	suggestion,
+	risk_preference: int,
+	rosters_by_team=None,
+	your_team_name: str = "",
+	min_ytd_fp_change: float = -2.0,
+) -> float:
     """Compute a composite score for sorting trades by FP/G vs consistency preference.
 
     The slider provides a 0-100 weighting between weekly core FP gain and
@@ -352,7 +419,30 @@ def _score_trade_fp_vs_cv(suggestion, risk_preference: int) -> float:
     weight_consistency = pref / 100.0
     weight_fp = 1.0 - weight_consistency
 
-    return weight_fp * core_gain + weight_consistency * consistency_gain
+    base_score = weight_fp * core_gain + weight_consistency * consistency_gain
+
+    if rosters_by_team is not None and your_team_name:
+        try:
+            ytd_fp_change = _estimate_ytd_fp_change_for_suggestion(
+                suggestion,
+                rosters_by_team,
+                your_team_name,
+                top_n=8,
+            )
+        except Exception:
+            ytd_fp_change = 0.0
+
+        try:
+            threshold = float(min_ytd_fp_change)
+        except Exception:
+            threshold = -2.0
+
+        if ytd_fp_change < threshold:
+            base_score -= 1000.0
+        else:
+            base_score += ytd_fp_change * 5.0
+
+    return base_score
 
 
 def display_trade_suggestions_tab():
@@ -465,6 +555,8 @@ def display_trade_suggestions_tab():
             key="tab_trade_balance_level",
         )
 
+    min_ytd_fp_change = -2.0
+
     with st.expander("🔧 Advanced Filters", expanded=False):
         col1, col2 = st.columns(2)
 
@@ -565,6 +657,19 @@ def display_trade_suggestions_tab():
                 key="tab_min_opp_core_change",
             )
 
+            min_ytd_fp_change = st.number_input(
+                "Min YTD FP/G change (approx top 8)",
+                min_value=-15.0,
+                max_value=5.0,
+                value=-2.0,
+                step=0.5,
+                help=(
+                    "Approximate FP/G tax across your top ~8 you are willing to pay. "
+                    "Negative values allow some FP/G loss for consolidation; 0 shows only FP/G-neutral/positive trades."
+                ),
+                key="tab_min_ytd_fp_change",
+            )
+
             risk_preference = st.slider(
                 "Consistency vs FP/G emphasis",
                 min_value=0,
@@ -624,10 +729,17 @@ def display_trade_suggestions_tab():
         )
     else:
         # Sort suggestions according to the current FP/G vs CV preference slider
+        # and an approximate YTD top-10 FP/G change derived from current rosters.
         try:
             sorted_suggestions = sorted(
                 filtered_suggestions,
-                key=lambda s: _score_trade_fp_vs_cv(s, risk_preference),
+                key=lambda s: _score_trade_fp_vs_cv(
+                    s,
+                    risk_preference,
+                    rosters_by_team=rosters_by_team,
+                    your_team_name=your_team_name,
+                    min_ytd_fp_change=min_ytd_fp_change,
+                ),
                 reverse=True,
             )
         except Exception:

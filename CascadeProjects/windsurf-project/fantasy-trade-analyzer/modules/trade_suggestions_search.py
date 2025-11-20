@@ -65,6 +65,8 @@ def _passes_score_guards(
 ):
 	if not your_players or not their_players:
 		return False
+	if min_gain > 0 and your_weekly_gain < min_gain:
+		return False
 	your_avg_fpts = sum(float(p["Mean FPts"]) for p in your_players) / len(your_players)
 	their_avg_fpts = sum(float(p["Mean FPts"]) for p in their_players) / len(their_players)
 	your_avg_cv = sum(float(p["CV %"]) for p in your_players) / len(your_players)

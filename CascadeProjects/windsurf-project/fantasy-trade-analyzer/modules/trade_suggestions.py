@@ -346,7 +346,8 @@ def calculate_player_value(player_data: pd.Series, include_consistency: bool = T
 	# Optional scarcity adjustment based on league-wide context
 	scarcity_mult = 1.0
 	if scarcity_context:
-		# Percentile-based adjustment: top players get a small boost, deep bench a small downgrade.
+		# Percentile-based adjustment: top players get a modest boost, deep bench a small downgrade.
+		# Multipliers are kept moderate to prevent over-valuing superstars in consolidation trades.
 		percentile_lookup = scarcity_context.get('percentile_lookup') or {}
 		player_name = player_data.get('Player')
 		if percentile_lookup and player_name in percentile_lookup:
@@ -356,19 +357,20 @@ def calculate_player_value(player_data: pd.Series, include_consistency: bool = T
 			except (TypeError, ValueError):
 				pct = 1.0
 			pct = max(0.0, min(1.0, pct))
-			# Stronger superstar premium: top ~1-3% get a large multiplier, tapering by tier.
+			# Moderate superstar premium: top tier gets ~20-30% boost, tapering gradually.
+			# This keeps consolidation valuable without making single stars worth absurd multiples.
 			if pct <= 0.01:
-				tier_mult = 2.5
+				tier_mult = 1.30
 			elif pct <= 0.03:
-				tier_mult = 2.0
+				tier_mult = 1.25
 			elif pct <= 0.08:
-				tier_mult = 1.7
+				tier_mult = 1.18
 			elif pct <= 0.15:
-				tier_mult = 1.4
+				tier_mult = 1.12
 			elif pct <= 0.30:
-				tier_mult = 1.2
+				tier_mult = 1.06
 			elif pct <= 0.60:
-				tier_mult = 1.05
+				tier_mult = 1.02
 			else:
 				tier_mult = 1.0
 			scarcity_mult *= tier_mult
