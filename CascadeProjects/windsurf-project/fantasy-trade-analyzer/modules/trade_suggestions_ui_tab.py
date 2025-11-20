@@ -10,7 +10,11 @@ from modules.trade_analysis.consistency_integration import (
     CONSISTENCY_MODERATE_MAX_CV,
 )
 from modules.player_game_log_scraper import db_store
+from modules.trade_analysis.logic import run_trade_analysis
+from modules.trade_analysis.ui import display_trade_results
+from modules.team_mappings import TEAM_MAPPINGS
 
+CODE_BY_MANAGER = {v: k for k, v in TEAM_MAPPINGS.items()}
 
 def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name):
     """Display a single trade suggestion with detailed impact metrics."""
@@ -160,6 +164,55 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name)
             their_risk = "High"
         st.caption(f"Your risk level: {your_risk} • Their risk level: {their_risk}")
 
+    with st.expander("📆 Recent Form (YTD vs Last 7/15/30)", expanded=False):
+        player_index = {}
+        for team_df in rosters_by_team.values():
+            if team_df is None or team_df.empty or "Player" not in team_df.columns:
+                continue
+            for _, row in team_df.iterrows():
+                name = row.get("Player")
+                if name and name not in player_index:
+                    player_index[name] = row
+
+        def _build_trend_line(player_name, is_outgoing):
+            row = player_index.get(player_name)
+            if row is None:
+                return None
+            base = row.get("Mean FPts")
+            if base is None or pd.isna(base):
+                return None
+            spans = [
+                ("Last 7", "L7 FPts"),
+                ("Last 15", "L15 FPts"),
+                ("Last 30", "L30 FPts"),
+            ]
+            for label, col in spans:
+                if col in row.index:
+                    val = row.get(col)
+                    if val is None or pd.isna(val):
+                        continue
+                    delta = float(val) - float(base)
+                    if abs(delta) >= 3.0:
+                        direction = "📈" if delta > 0 else "📉"
+                        side = "you give" if is_outgoing else "you get"
+                        return f"{direction} {player_name} ({side}) — {label}: {val:.1f} vs YTD {base:.1f} ({delta:+.1f} FP/G)"
+            return None
+
+        lines = []
+        for name in suggestion["you_give"]:
+            text = _build_trend_line(name, is_outgoing=True)
+            if text:
+                lines.append(text)
+        for name in suggestion["you_get"]:
+            text = _build_trend_line(name, is_outgoing=False)
+            if text:
+                lines.append(text)
+        if lines:
+            for line in lines:
+                st.markdown(line)
+        else:
+            st.caption("No significant recent FP/G swings (±3 FP/G) vs YTD for players in this trade.")
+
     with st.expander("📋 Roster Snapshot (top 10)", expanded=False):
         your_roster = rosters_by_team.get(your_team_name)
         opp_roster = rosters_by_team.get(suggestion["team"])
@@ -221,7 +274,6 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name)
             cols = [c for c in ["Player", "Team", "Mean FPts", "FP/G", "GP", "Trade Status"] if c in view.columns]
             return view[cols] if cols else view
 
-            
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("**Your Team**")
@@ -237,6 +289,70 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name)
             st.dataframe(_prepare_roster(opp_before, suggestion["you_get"], []), hide_index=True, use_container_width=True)
             st.write("After")
             st.dataframe(_prepare_roster(opp_after, suggestion["you_get"], suggestion["you_give"]), hide_index=True, use_container_width=True)
+
+    with st.expander("📉 Full Trend & Risk Analysis (Trade Analysis tool)", expanded=False):
+        has_analyzer = bool(st.session_state.get("trade_analyzer")) and st.session_state.get("combined_data") is not None
+        if not has_analyzer:
+            st.info(
+                "To run full 7/14/30/60d analysis, first load a league dataset in the Trade Analysis tool "
+                "from the main menu. Then reopen this tab."
+            )
+        else:
+            your_code = CODE_BY_MANAGER.get(your_team_name, your_team_name)
+            opp_name = suggestion["team"]
+            opp_code = CODE_BY_MANAGER.get(opp_name, opp_name)
+            trade_teams = {
+                your_code: {p: opp_code for p in suggestion["you_give"]},
+                opp_code: {p: your_code for p in suggestion["you_get"]},
+            }
+            label = f"{your_team_name} vs {opp_name} - {suggestion.get('pattern', '')} (Suggestion #{rank})"
+            if st.button(
+                "Run Full Trade Analysis for this suggestion",
+                key=f"run_full_trade_analysis_{rank}_{opp_name}",
+            ):
+                results = run_trade_analysis(
+                    trade_teams=trade_teams,
+                    num_players=10,
+                    trade_label=label,
+                )
+                if not results:
+                    st.warning("No analysis results were produced. Check that trade data is loaded for this league.")
+                else:
+                    display_trade_results(results)
+
+
+def _score_trade_fp_vs_cv(suggestion, risk_preference: int) -> float:
+    """Compute a composite score for sorting trades by FP/G vs consistency preference.
+
+    The slider provides a 0-100 weighting between weekly core FP gain and
+    package-level CV% improvement (lower CV = more consistent). This helper
+    remains UI-only and does not affect realism guards inside the engine.
+    """
+    try:
+        core_gain = float(suggestion.get("value_gain", 0.0))
+    except Exception:
+        core_gain = 0.0
+
+    your_cv_list = suggestion.get("your_cv") or []
+    their_cv_list = suggestion.get("their_cv") or []
+
+    def _avg(seq):
+        return (sum(seq) / max(len(seq), 1)) if seq else 0.0
+
+    your_avg_cv = _avg(your_cv_list)
+    their_avg_cv = _avg(their_cv_list)
+    # Positive consistency_gain means your side becomes more consistent
+    consistency_gain = -(their_avg_cv - your_avg_cv)
+
+    try:
+        pref = int(risk_preference)
+    except Exception:
+        pref = 0
+    pref = max(0, min(100, pref))
+    weight_consistency = pref / 100.0
+    weight_fp = 1.0 - weight_consistency
+
+    return weight_fp * core_gain + weight_consistency * consistency_gain
 
 
 def display_trade_suggestions_tab():
@@ -328,17 +444,24 @@ def display_trade_suggestions_tab():
             max_value=50.0,
             value=0.0,
             step=5.0,
-            help="Minimum value improvement to suggest a trade",
+            help=(
+                "Minimum weekly core FP gain the engine will accept on your side. "
+                "As a rough guide, 25 ≈ +1 FP/G across your core; 50 ≈ +2 FP/G."
+            ),
             key="tab_min_value_gain",
         )
 
     with col4:
         trade_balance_level = st.slider(
-            "Trade Balance (1=super strict, 10=super loose)",
+            "Trade Balance (1=super strict, 50=super loose)",
             min_value=1,
             max_value=50,
             value=50,
-            help="Controls how strict equal-count realism filters are. 5 = standard, 50 = very loose.",
+            help=(
+                "Controls how forgiving the engine is to the opponent. Lower = they must clearly benefit "
+                "in FP/G+CV and package optics (fewer but more realistic trades). Higher = allows more "
+                "lopsided/speculative ideas and relaxes some FP/G ratio guards."
+            ),
             key="tab_trade_balance_level",
         )
 
@@ -377,6 +500,19 @@ def display_trade_suggestions_tab():
                 value=15,
                 step=5,
                 key="tab_display_count",
+            )
+
+            max_per_opponent_display = st.number_input(
+                "Max suggestions per opponent (display-only)",
+                min_value=0,
+                max_value=10,
+                value=0,
+                step=1,
+                help=(
+                    "0 = no limit. >0 caps how many suggestions a single opponent can occupy "
+                    "in the displayed list so one manager cannot dominate the top N slots."
+                ),
+                key="tab_max_per_opponent_display",
             )
 
         with col2:
@@ -421,12 +557,28 @@ def display_trade_suggestions_tab():
                 value=-150.0,
                 step=1.0,
                 help=(
-                    "Filter out trades where you are not giving the opponent at least this many FP/G in the package. "
-                    "For example, 0 means they must at least break even in FP/G; 3 means you give them ~3 FP/G more than you get."
+                    "UI-level optics filter applied after the engine. For each trade we compare the average FP/G of "
+                    "the players you give vs. the players you get. Positive values mean the opponent's package looks "
+                    "better in raw FP/G. 0 means they must at least break even; 3 means you give them ~3 FP/G more "
+                    "than you receive in the package."
                 ),
                 key="tab_min_opp_core_change",
             )
 
+            risk_preference = st.slider(
+                "Consistency vs FP/G emphasis",
+                min_value=0,
+                max_value=100,
+                value=40,
+                step=5,
+                help=(
+                    "Controls how suggestions are sorted: 0 = prioritize weekly core FP gain only; "
+                    "100 = heavily favor trades that improve your consistency (lower CV%) even if FP gain is smaller."
+                ),
+                key="tab_fp_cv_preference",
+            )
+
+    suggestions_session_key = "tab_trade_suggestions_results"
     if st.button("🔍 Find Trade Suggestions (Tab)", type="primary", key="tab_find_trade_suggestions"):
         with st.spinner("Analyzing trade opportunities..."):
             set_trade_balance_preset(trade_balance_level)
@@ -449,51 +601,92 @@ def display_trade_suggestions_tab():
             )
 
             if not suggestions:
-                st.warning("No beneficial trades found with current filters. Try adjusting your criteria.")
-                return
+                st.session_state[suggestions_session_key] = []
+            else:
+                filtered_suggestions = []
+                for s in suggestions:
+                    your_avg_fpts = sum(s["your_fpts"]) / max(len(s["your_fpts"]), 1)
+                    their_avg_fpts = sum(s["their_fpts"]) / max(len(s["their_fpts"]), 1)
+                    # From opponent optics: positive = you give them more FP/G than you get
+                    opp_pkg_fp_advantage = your_avg_fpts - their_avg_fpts
+                    if opp_pkg_fp_advantage >= realism_min_opp_core:
+                        filtered_suggestions.append(s)
+                st.session_state[suggestions_session_key] = filtered_suggestions
 
-            # Apply realism filter based on opponent package FP/G optics
-            filtered_suggestions = []
-            for s in suggestions:
-                your_avg_fpts = sum(s["your_fpts"]) / max(len(s["your_fpts"]), 1)
-                their_avg_fpts = sum(s["their_fpts"]) / max(len(s["their_fpts"]), 1)
-                # From opponent optics: positive = you give them more FP/G than you get
-                opp_pkg_fp_advantage = your_avg_fpts - their_avg_fpts
-                if opp_pkg_fp_advantage >= realism_min_opp_core:
-                    filtered_suggestions.append(s)
+    filtered_suggestions = st.session_state.get(suggestions_session_key)
+    if filtered_suggestions is None:
+        # No search has been run yet
+        pass
+    elif not filtered_suggestions:
+        st.warning(
+            "No beneficial trades found with current filters, or all trades were filtered out by the "
+            "opponent FP change threshold. Try loosening your criteria."
+        )
+    else:
+        # Sort suggestions according to the current FP/G vs CV preference slider
+        try:
+            sorted_suggestions = sorted(
+                filtered_suggestions,
+                key=lambda s: _score_trade_fp_vs_cv(s, risk_preference),
+                reverse=True,
+            )
+        except Exception:
+            sorted_suggestions = filtered_suggestions
 
-            if not filtered_suggestions:
-                st.warning(
-                    "All trades were filtered out by the opponent FP change threshold. "
-                    "Try loosening the realism filter."
-                )
-                return
+        st.success(f"✅ Found {len(sorted_suggestions)} trade suggestions after realism filter.")
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Suggestions", len(sorted_suggestions))
+        with col2:
+            best_gain = sorted_suggestions[0]["value_gain"]
+            st.metric("Best Value Gain", f"{best_gain:.1f}")
+        with col3:
+            avg_gain = sum(s["value_gain"] for s in sorted_suggestions) / len(sorted_suggestions)
+            st.metric("Avg Value Gain", f"{avg_gain:.1f}")
+        with col4:
+            pattern_counts = {}
+            for s in sorted_suggestions:
+                pattern_counts[s["pattern"]] = pattern_counts.get(s["pattern"], 0) + 1
+            most_common = max(pattern_counts, key=pattern_counts.get)
+            st.metric("Most Common Pattern", most_common)
 
-            st.success(f"✅ Found {len(filtered_suggestions)} trade suggestions after realism filter.")
+        st.markdown("---")
+        st.markdown("### 📊 Trade Suggestions")
 
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.metric("Total Suggestions", len(filtered_suggestions))
-            with col2:
-                best_gain = filtered_suggestions[0]["value_gain"]
-                st.metric("Best Value Gain", f"{best_gain:.1f}")
-            with col3:
-                avg_gain = sum(s["value_gain"] for s in filtered_suggestions) / len(filtered_suggestions)
-                st.metric("Avg Value Gain", f"{avg_gain:.1f}")
-            with col4:
-                pattern_counts = {}
-                for s in filtered_suggestions:
-                    pattern_counts[s["pattern"]] = pattern_counts.get(s["pattern"], 0) + 1
-                most_common = max(pattern_counts, key=pattern_counts.get)
-                st.metric("Most Common Pattern", most_common)
+        # Clamp display count to the number of available suggestions
+        display_n = max(1, min(int(display_count), len(sorted_suggestions)))
 
-            st.markdown("---")
-            st.markdown("### 📊 Trade Suggestions")
+        # Build an indexed list so we can preserve global rank while grouping by opponent
+        indexed_suggestions = list(enumerate(sorted_suggestions, 1))
 
-            # Clamp display count to the number of available suggestions
-            display_n = max(1, min(int(display_count), len(filtered_suggestions)))
+        # Optionally cap how many suggestions any single opponent can occupy
+        max_per_opp = int(max_per_opponent_display or 0)
+        if max_per_opp > 0:
+            team_counts = {}
+            pruned = []
+            for rank, s in indexed_suggestions:
+                team_name = s.get("team", "?")
+                current = team_counts.get(team_name, 0)
+                if current >= max_per_opp:
+                    continue
+                team_counts[team_name] = current + 1
+                pruned.append((rank, s))
+            indexed_suggestions = pruned
 
-            for i, suggestion in enumerate(filtered_suggestions[:display_n], 1):
+        # Trim to the overall display limit
+        indexed_suggestions = indexed_suggestions[:display_n]
+
+        # Group by opponent team while preserving the global ranking order
+        suggestions_by_team = {}
+        for rank, s in indexed_suggestions:
+            team_name = s.get("team", "?")
+            if team_name not in suggestions_by_team:
+                suggestions_by_team[team_name] = []
+            suggestions_by_team[team_name].append((rank, s))
+
+        for team_name, items in suggestions_by_team.items():
+            st.markdown(f"#### Trades with {team_name}")
+            for rank, suggestion in items:
                 your_avg_fpts = sum(suggestion["your_fpts"]) / max(len(suggestion["your_fpts"]), 1)
                 their_avg_fpts = sum(suggestion["their_fpts"]) / max(len(suggestion["their_fpts"]), 1)
                 opp_pkg_fp_advantage = your_avg_fpts - their_avg_fpts
@@ -505,12 +698,12 @@ def display_trade_suggestions_tab():
                     fairness_tag = "Balanced"
 
                 label = (
-                    f"#{i} - {suggestion['pattern']} with {suggestion['team']} "
+                    f"#{rank} - {suggestion['pattern']} with {suggestion['team']} "
                     f"(Value Gain: +{suggestion['value_gain']:.1f}) "
                     f"[{fairness_tag}]"
                 )
-                with st.expander(label, expanded=(i <= 3)):
-                    _display_trade_suggestion(suggestion, i, rosters_by_team, your_team_name)
+                with st.expander(label, expanded=(rank <= 3)):
+                    _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name)
 
     with st.expander("📈 Exponential Value Curve", expanded=False):
         fpts_range = list(range(20, 101, 5))

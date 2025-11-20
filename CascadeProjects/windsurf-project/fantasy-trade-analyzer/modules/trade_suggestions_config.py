@@ -9,6 +9,7 @@ ROSTER_SIZE = 10  # From league rules
 REPLACEMENT_PERCENTILE = 0.85  # Top 85% of rostered players
 MIN_GAMES_REQUIRED = 25  # Weekly minimum games in current configuration
 AVG_GAMES_PER_PLAYER = 3.5  # Approximate NBA games per player per fantasy week
+MIN_TRADE_FP_G = 40.0  # Players below this FP/G are treated as drop-tier and excluded from trade search
 
 # Hard caps on how many players per team enter the trade engine. These were
 # originally 10/10; tightening them reduces combinatorial explosion while still

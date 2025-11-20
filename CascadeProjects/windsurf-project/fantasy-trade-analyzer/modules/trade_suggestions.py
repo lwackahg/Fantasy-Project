@@ -19,6 +19,7 @@ from modules.trade_suggestions_config import (
 	EQUAL_COUNT_MAX_OPP_WEEKLY_LOSS,
 	MAX_OPP_CORE_AVG_DROP,
 	MIN_GP_SHARE_OF_MAX,
+	MIN_TRADE_FP_G,
 	MAX_COMPLEXITY_OPS,
 	EQUAL_COUNT_MAX_AVG_FPTS_RATIO,
 	EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO,
@@ -293,7 +294,7 @@ def calculate_league_scarcity_context(all_teams_data: Dict[str, pd.DataFrame]) -
 	league_avg_cv = None
 	if 'CV %' in league_df.columns:
 		league_avg_cv = float(league_df['CV %'].mean())
-
+	
 	return {
 		'replacement_level': replacement_level,
 		'tier_counts': tier_counts,
@@ -306,11 +307,9 @@ def calculate_league_scarcity_context(all_teams_data: Dict[str, pd.DataFrame]) -
 	}
 
 
-
-
 def calculate_player_value(player_data: pd.Series, include_consistency: bool = True, 
-				   scarcity_context: Optional[Dict] = None) -> float:
-	"""
+			   scarcity_context: Optional[Dict] = None) -> float:
+	"""\
 	Calculate player value as FP/G with minimal adjustments.
 	
 	Value ≈ FP/G with small penalties for:
@@ -327,12 +326,12 @@ def calculate_player_value(player_data: pd.Series, include_consistency: bool = T
 	Returns:
 		Player value ≈ effective FP/G
 	"""
-	fpts = player_data.get('Mean FPts', 0)
-	cv = player_data.get('CV %', 30)
+	fpts = float(player_data.get('Mean FPts', 0) or 0.0)
+	cv = float(player_data.get('CV %', 30) or 30.0)
 	gp = player_data.get('GP', 0)
 	
 	# Base value = FP/G
-	base_value = calculate_exponential_value(fpts)
+	base_value = fpts
 	
 	if not include_consistency:
 		return base_value
@@ -350,10 +349,28 @@ def calculate_player_value(player_data: pd.Series, include_consistency: bool = T
 		# Percentile-based adjustment: top players get a small boost, deep bench a small downgrade.
 		percentile_lookup = scarcity_context.get('percentile_lookup') or {}
 		player_name = player_data.get('Player')
-		if player_name in percentile_lookup:
-			pct = float(percentile_lookup[player_name])  # 0.0 = best, 1.0 = worst
-			# Map percentile into ~[0.95, 1.05] range so impact stays modest.
-			tier_mult = 1.05 - 0.10 * max(0.0, min(1.0, pct))
+		if percentile_lookup and player_name in percentile_lookup:
+			pct_raw = percentile_lookup[player_name]
+			try:
+				pct = float(pct_raw)  # 0.0 = best, 1.0 = worst
+			except (TypeError, ValueError):
+				pct = 1.0
+			pct = max(0.0, min(1.0, pct))
+			# Stronger superstar premium: top ~1-3% get a large multiplier, tapering by tier.
+			if pct <= 0.01:
+				tier_mult = 2.5
+			elif pct <= 0.03:
+				tier_mult = 2.0
+			elif pct <= 0.08:
+				tier_mult = 1.7
+			elif pct <= 0.15:
+				tier_mult = 1.4
+			elif pct <= 0.30:
+				tier_mult = 1.2
+			elif pct <= 0.60:
+				tier_mult = 1.05
+			else:
+				tier_mult = 1.0
 			scarcity_mult *= tier_mult
 		
 		# Position scarcity: rarer positions get a slight bump, common ones a slight trim.
@@ -454,6 +471,11 @@ def find_trade_suggestions(
 		your_trade_team = your_full_team[~your_full_team['Player'].isin(exclude_players)].copy()
 	else:
 		your_trade_team = your_full_team.copy()
+	# Drop clearly replacement-level pieces from the trade candidate pool
+	if 'Mean FPts' in your_trade_team.columns:
+		eligible = your_trade_team[your_trade_team['Mean FPts'] >= MIN_TRADE_FP_G]
+		if not eligible.empty:
+			your_trade_team = eligible.copy()
 	if len(your_trade_team) > MAX_CANDIDATES_YOUR:
 		your_trade_team = your_trade_team.nlargest(MAX_CANDIDATES_YOUR, 'Value').copy()
 	
@@ -525,6 +547,11 @@ def find_trade_suggestions(
 		# Apply opposing player exclusion early to reduce search space
 		if exclude_opposing_players and 'Player' in team_df.columns:
 			team_df = team_df[~team_df['Player'].isin(exclude_opposing_players)].copy()
+		# Exclude obvious drop-tier pieces from the opponent candidate pool
+		if 'Mean FPts' in team_df.columns:
+			eligible_opp = team_df[team_df['Mean FPts'] >= MIN_TRADE_FP_G]
+			if not eligible_opp.empty:
+				team_df = eligible_opp.copy()
 		if len(team_df) > MAX_CANDIDATES_THEIR:
 			team_df = team_df.nlargest(MAX_CANDIDATES_THEIR, 'Value').copy()
 		
