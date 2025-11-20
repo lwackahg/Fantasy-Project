@@ -596,10 +596,25 @@ def _display_trade_insights(results: Dict[str, Any], time_ranges: List[str]):
         
         with col3:
             st.markdown("**Risk**")
-            st.metric("Std Dev Δ", f"{std_change:+.1f}", delta_color="inverse")
+            st.metric(
+                "Core FP/G Spread",
+                f"{std_change:+.1f}",
+                delta_color="inverse",
+                help="Std dev of FP/G across your top players; higher = a more top-heavy core.",
+            )
             if cv_change != 0:
-                st.metric("CV% Δ", f"{cv_change:+.1f}%", delta_color="inverse")
-            st.metric("Sharpe Δ", f"{sharpe_change:+.2f}")
+                st.metric(
+                    "Avg Player CV%",
+                    f"{cv_change:+.1f}%",
+                    delta_color="inverse",
+                    help="Average game-to-game CV% across your top players; lower = more stable scoring.",
+                )
+            st.metric("Sharpe", f"{sharpe_change:+.2f}")
+            if std_change != 0 and cv_change != 0:
+                st.caption(
+                    "Std Dev measures absolute swing in points; CV% measures volatility relative to your average. "
+                    "It's possible for Std Dev to increase while CV% improves if your new core scores more but stays relatively stable."
+                )
     
     # Time range trend analysis - collapsible
     with st.expander("📉 Trend Analysis Across Time Ranges", expanded=False):
@@ -612,7 +627,7 @@ def _display_trade_insights(results: Dict[str, Any], time_ranges: List[str]):
                     'Time Range': time_range,
                     'FP/G Change': post['mean_fpg'] - pre['mean_fpg'],
                     'Total FPts Change': post['total_fpts'] - pre['total_fpts'],
-                    'Std Dev Change': post['std_dev'] - pre['std_dev']
+                    'Core Spread Change': post['std_dev'] - pre['std_dev']
                 })
         
         if trend_data:
@@ -624,7 +639,7 @@ def _display_trade_insights(results: Dict[str, Any], time_ranges: List[str]):
             
             fig_trend = make_subplots(
                 rows=2, cols=1,
-                subplot_titles=("Production Change", "Risk Change (Std Dev)"),
+                subplot_titles=("Production Change", "Risk Change (Core Spread)"),
                 vertical_spacing=0.15
             )
             
@@ -647,9 +662,9 @@ def _display_trade_insights(results: Dict[str, Any], time_ranges: List[str]):
             fig_trend.add_trace(
                 go.Scatter(
                     x=trend_df['Time Range'],
-                    y=trend_df['Std Dev Change'],
+                    y=trend_df['Core Spread Change'],
                     mode='lines+markers',
-                    name='Std Dev Change',
+                    name='Core Spread Change',
                     line=dict(color='#ff7f0e', width=3),
                     marker=dict(size=10),
                     fill='tozeroy',
@@ -663,7 +678,7 @@ def _display_trade_insights(results: Dict[str, Any], time_ranges: List[str]):
             
             fig_trend.update_xaxes(title_text="Time Range", row=2, col=1)
             fig_trend.update_yaxes(title_text="FP/G Change", row=1, col=1)
-            fig_trend.update_yaxes(title_text="Std Dev Change", row=2, col=1)
+            fig_trend.update_yaxes(title_text="Core Spread Change (Std Dev across players)", row=2, col=1)
             
             fig_trend.update_layout(height=500, showlegend=False)
             

@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import os
+import re
 from modules.trade_suggestions import find_trade_suggestions, calculate_exponential_value, set_trade_balance_preset
 from modules.player_game_log_scraper.logic import get_cache_directory
 from modules.player_game_log_scraper.ui_fantasy_teams import _build_fantasy_team_view
@@ -13,10 +15,11 @@ from modules.player_game_log_scraper import db_store
 from modules.trade_analysis.logic import run_trade_analysis
 from modules.trade_analysis.ui import display_trade_results
 from modules.team_mappings import TEAM_MAPPINGS
+from modules.historical_ytd_downloader.logic import load_and_compare_seasons, get_available_seasons
 
 CODE_BY_MANAGER = {v: k for k, v in TEAM_MAPPINGS.items()}
 
-def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name):
+def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name, yoy_index=None):
     """Display a single trade suggestion with detailed impact metrics."""
     core_size_approx = 8.0
     min_games = 25
@@ -213,6 +216,89 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name)
         else:
             st.caption("No significant recent FP/G swings (±3 FP/G) vs YTD for players in this trade.")
 
+    st.markdown("#### 🗣️ Talking points for your opponent")
+    pitch_points = []
+    if opp_weekly_core_fp_change > 0:
+        pitch_points.append(
+            f"Emphasize that this actually **increases their weekly core FP** by ~{opp_weekly_core_fp_change:.1f}."
+        )
+    elif opp_weekly_core_fp_change > -10:
+        pitch_points.append(
+            f"Frame it as mostly a **fit / consolidation move** – their weekly core FP only changes by ~{opp_weekly_core_fp_change:.1f}."
+        )
+    opp_pkg_fp_advantage = your_avg_fpts - their_avg_fpts
+    if opp_pkg_fp_advantage > 2:
+        pitch_points.append(
+            f"From their side the package looks good: they gain about {opp_pkg_fp_advantage:.1f} FP/G in what they receive."
+        )
+    opp_cv_change = your_avg_cv - their_avg_cv
+    if opp_cv_change < -3:
+        pitch_points.append("Highlight that their roster becomes **more consistent overall** (lower Avg Player CV%).")
+    elif opp_cv_change > 3:
+        pitch_points.append("Pitch it as them taking on **more upside / boom-bust profiles** if they like variance.")
+    if pattern in ("1-for-2", "1-for-3"):
+        pitch_points.append("Sell it as a **depth play** for them: they turn one slot into multiple playable pieces.")
+    elif pattern in ("2-for-1", "3-for-1"):
+        pitch_points.append("Sell it as **consolidation**: they turn several pieces into one clear core starter and a free roster spot.")
+    if any("📈" in line and "(you give)" in line for line in lines):
+        pitch_points.append("Point out any 📈 lines under **You Give** – those show players you're sending who are on recent heaters vs YTD.")
+    if any("📉" in line and "(you get)" in line for line in lines):
+        pitch_points.append("Mention 📉 lines under **You Get** – those are their players who have been underperforming YTD that you're willing to buy low on.")
+    if yoy_index:
+        # YoY sell-high candidates you are sending (they receive)
+        yoy_sell_high = []
+        for name in suggestion.get("you_give", []):
+            info = yoy_index.get(name)
+            if not info:
+                continue
+            delta = info.get("delta")
+            if delta is None or pd.isna(delta) or delta < 5.0:
+                continue
+            prev_fp = info.get("prev")
+            curr_fp = info.get("curr")
+            if prev_fp is None or curr_fp is None or pd.isna(prev_fp) or pd.isna(curr_fp):
+                continue
+            yoy_sell_high.append((name, prev_fp, curr_fp, delta))
+        if yoy_sell_high:
+            label_parts = [
+                f"{n} ({prev:.1f}→{curr:.1f} FP/G)"
+                for n, prev, curr, d in yoy_sell_high
+            ]
+            pitch_points.append(
+                "You're offering them players in clear YoY upswing: "
+                + ", ".join(label_parts)
+                + ". Frame it as them adding established improvers while you reset around different pieces."
+            )
+        # YoY buy-low candidates you are receiving (their players)
+        yoy_buy_low = []
+        for name in suggestion.get("you_get", []):
+            info = yoy_index.get(name)
+            if not info:
+                continue
+            delta = info.get("delta")
+            if delta is None or pd.isna(delta) or delta > -5.0:
+                continue
+            prev_fp = info.get("prev")
+            curr_fp = info.get("curr")
+            if prev_fp is None or curr_fp is None or pd.isna(prev_fp) or pd.isna(curr_fp):
+                continue
+            yoy_buy_low.append((name, prev_fp, curr_fp, delta))
+        if yoy_buy_low:
+            label_parts = [
+                f"{n} ({prev:.1f}→{curr:.1f} FP/G)"
+                for n, prev, curr, d in yoy_buy_low
+            ]
+            pitch_points.append(
+                "You can present this as moving off potential regression risk: "
+                + ", ".join(label_parts)
+                + ". You're willing to take on the bounce-back gamble so they don't have to."
+            )
+    if pitch_points:
+        for text in pitch_points:
+            st.markdown(f"- {text}")
+    else:
+        st.caption("No obvious selling angles detected beyond core value; lean on team fit and positional needs.")
+
     with st.expander("📋 Roster Snapshot (top 10)", expanded=False):
         your_roster = rosters_by_team.get(your_team_name)
         opp_roster = rosters_by_team.get(suggestion["team"])
@@ -383,11 +469,11 @@ def _estimate_ytd_fp_change_for_suggestion(
 
 
 def _score_trade_fp_vs_cv(
-	suggestion,
-	risk_preference: int,
-	rosters_by_team=None,
-	your_team_name: str = "",
-	min_ytd_fp_change: float = -2.0,
+    suggestion,
+    risk_preference: int,
+    rosters_by_team=None,
+    your_team_name: str = "",
+    min_ytd_fp_change: float = -2.0,
 ) -> float:
     """Compute a composite score for sorting trades by FP/G vs consistency preference.
 
@@ -495,6 +581,47 @@ def display_trade_suggestions_tab():
         return
 
     st.success(f"✅ Loaded {len(rosters_by_team)} teams with player data for {selected_season}")
+
+    yoy_index = None
+    try:
+        league_ids_env = os.environ.get("FANTRAX_LEAGUE_IDS", "")
+        league_names_env = os.environ.get("FANTRAX_LEAGUE_NAMES", "")
+        ids = [i.strip() for i in league_ids_env.split(",") if i.strip()]
+        names = [n.strip() for n in league_names_env.split(",") if n.strip()]
+        mapping = dict(zip(ids, names))
+        raw_name = mapping.get(league_id, "")
+        if raw_name:
+            league_name = re.sub(r"[^A-Za-z0-9_]+", "_", raw_name.strip().replace(" ", "_"))
+            seasons_all = get_available_seasons()
+            previous_seasons = [s for s in seasons_all if s != selected_season]
+            if previous_seasons:
+                recent_season = selected_season
+                prev_season = previous_seasons[0]
+                comparison_df = load_and_compare_seasons(league_name, [recent_season, prev_season])
+                if comparison_df is not None:
+                    curr_col = f"FP/G_{recent_season}"
+                    prev_col = f"FP/G_{prev_season}"
+                    change_col = f"YoY_Change_{recent_season}_vs_{prev_season}"
+                    if curr_col in comparison_df.columns and prev_col in comparison_df.columns:
+                        yoy_index = {}
+                        for _, row in comparison_df.iterrows():
+                            name = row.get("Player")
+                            if not name:
+                                continue
+                            curr = row.get(curr_col)
+                            prev_fp = row.get(prev_col)
+                            if pd.isna(curr) or pd.isna(prev_fp):
+                                continue
+                            delta = row.get(change_col) if change_col in comparison_df.columns else None
+                            if delta is None or pd.isna(delta):
+                                delta = curr - prev_fp
+                            yoy_index[str(name)] = {
+                                "curr": float(curr),
+                                "prev": float(prev_fp),
+                                "delta": float(delta),
+                            }
+    except Exception:
+        yoy_index = None
 
     st.markdown("---")
     st.markdown("## ⚙️ Configuration")
@@ -815,7 +942,7 @@ def display_trade_suggestions_tab():
                     f"[{fairness_tag}]"
                 )
                 with st.expander(label, expanded=(rank <= 3)):
-                    _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name)
+                    _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name, yoy_index=yoy_index)
 
     with st.expander("📈 Exponential Value Curve", expanded=False):
         fpts_range = list(range(20, 101, 5))
