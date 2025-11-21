@@ -319,7 +319,8 @@ def build_player_value_profiles(
 	# Derive normalized scores
 	df["ProductionScore"] = _normalize_series_to_0_100(df["AvgMeanFPts"], higher_is_better=True)
 	df["ConsistencyScore"] = _normalize_series_to_0_100(df["AvgCV%"], higher_is_better=False)
-	df["AvailabilityScore"] = (df["AvailabilityRatio"] * 100).clip(0, 100)
+	ratio = df["AvailabilityRatio"].clip(0, 1)
+	df["AvailabilityScore"] = (ratio.pow(1.5) * 100).clip(0, 100)
 
 	# For now, use AvailabilityScore as a proxy for playoff reliability as well
 	df["PlayoffReliabilityScore"] = df["AvailabilityScore"]
@@ -331,6 +332,57 @@ def build_player_value_profiles(
 		+ 0.20 * df["AvailabilityScore"]
 		+ 0.15 * df["PlayoffReliabilityScore"]
 	)
+
+	# Apply tier-based scarcity premium
+	def _assign_tier(fpg: float) -> str:
+		if fpg >= 110:
+			return "Elite (110+)"
+		elif fpg >= 95:
+			return "Star (95-110)"
+		elif fpg >= 80:
+			return "High-End (80-95)"
+		elif fpg >= 65:
+			return "Solid (65-80)"
+		elif fpg >= 50:
+			return "Rotation (50-65)"
+		else:
+			return "Depth (< 50)"
+	
+	df["ProductionTier"] = df["AvgMeanFPts"].apply(_assign_tier)
+	tier_counts = df["ProductionTier"].value_counts().to_dict()
+	
+	def _scarcity_multiplier(tier: str, count: int) -> float:
+		if count == 0:
+			return 1.0
+		if tier == "Elite (110+)":
+			if count == 1:
+				return 1.20
+			elif count <= 3:
+				return 1.15
+			else:
+				return 1.10
+		elif tier == "Star (95-110)":
+			if count <= 3:
+				return 1.10
+			elif count <= 7:
+				return 1.05
+			else:
+				return 1.02
+		elif tier == "High-End (80-95)":
+			if count <= 5:
+				return 1.05
+			elif count <= 12:
+				return 1.02
+			else:
+				return 1.0
+		else:
+			return 1.0
+	
+	df["ScarcityMultiplier"] = df.apply(
+		lambda row: _scarcity_multiplier(row["ProductionTier"], tier_counts.get(row["ProductionTier"], 0)),
+		axis=1
+	)
+	df["ValueScore"] = df["ValueScore"] * df["ScarcityMultiplier"]
 
 	# Durability tiers based on AvailabilityRatio
 	def _durability_tier(ratio: float) -> str:

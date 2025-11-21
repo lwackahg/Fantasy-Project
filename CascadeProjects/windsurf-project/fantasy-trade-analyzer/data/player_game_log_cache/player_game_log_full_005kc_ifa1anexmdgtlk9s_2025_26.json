@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 20",
+            "Team": "SAC",
+            "Opp": "@MEM",
+            "Score": "L 96-137",
+            "FPts": 28,
+            "FG-": "6.0",
+            "3PTM": 2,
+            "FT-": "1",
+            "PTS": 11,
+            "OREB": "1",
+            "REB": 7,
+            "AST": 4,
+            "ST": 0,
+            "BLK": 0,
+            "TO": 4,
+            "TF": "1",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 19",
             "Team": "SAC",
             "Opp": "@OKC",
@@ -319,5 +340,6 @@
             "3D": "0",
             "2D": "0"
         }
-    ]
+    ],
+    "status": "success"
 }

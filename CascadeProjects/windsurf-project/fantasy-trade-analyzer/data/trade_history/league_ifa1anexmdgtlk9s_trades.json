@@ -45,5 +45,53 @@
       ]
     },
     "league_id": "ifa1anexmdgtlk9s"
+  },
+  {
+    "trade_teams": {
+      "ASS": {
+        "Luka Doncic": "GOD"
+      },
+      "GOD": {
+        "Amen Thompson": "ASS",
+        "Ausar Thompson": "ASS",
+        "Jalen Johnson": "ASS",
+        "Jaren Jackson": "ASS"
+      }
+    },
+    "summary": "ASS (YTD):\n  Giving: Luka Doncic\n  Getting: Amen Thompson, Ausar Thompson, Jalen Johnson, Jaren Jackson\n  Impact: -0.2 FP/G, +124 Total FPts\n\nASS (60 Days):\n  Giving: Luka Doncic\n  Getting: Amen Thompson, Ausar Thompson, Jalen Johnson, Jaren Jackson\n  Impact: -0.2 FP/G, +124 Total FPts\n\nASS (30 Days):\n  Giving: Luka Doncic\n  Getting: Amen Thompson, Ausar Thompson, Jalen Johnson, Jaren Jackson\n  Impact: -0.2 FP/G, +124 Total FPts\n\nASS (14 Days):\n  Giving: Luka Doncic\n  Getting: Amen Thompson, Ausar Thompson, Jalen Johnson, Jaren Jackson\n  Impact: +2.8 FP/G, +116 Total FPts\n\nASS (7 Days):\n  Giving: Luka Doncic\n  Getting: Amen Thompson, Ausar Thompson, Jalen Johnson, Jaren Jackson\n  Impact: +6.8 FP/G, +48 Total FPts\n\nGOD (YTD):\n  Giving: Amen Thompson, Ausar Thompson, Jalen Johnson, Jaren Jackson\n  Getting: Luka Doncic\n  Impact: +1.4 FP/G, -408 Total FPts\n\nGOD (60 Days):\n  Giving: Amen Thompson, Ausar Thompson, Jalen Johnson, Jaren Jackson\n  Getting: Luka Doncic\n  Impact: +1.4 FP/G, -408 Total FPts\n\nGOD (30 Days):\n  Giving: Amen Thompson, Ausar Thompson, Jalen Johnson, Jaren Jackson\n  Getting: Luka Doncic\n  Impact: +1.4 FP/G, -408 Total FPts\n\nGOD (14 Days):\n  Giving: Amen Thompson, Ausar Thompson, Jalen Johnson, Jaren Jackson\n  Getting: Luka Doncic\n  Impact: -2.7 FP/G, -360 Total FPts\n\nGOD (7 Days):\n  Giving: Amen Thompson, Ausar Thompson, Jalen Johnson, Jaren Jackson\n  Getting: Luka Doncic\n  Impact: -3.6 FP/G, -62 Total FPts\n",
+    "label": "Doncic",
+    "date": "2025-11-12",
+    "num_players": 8,
+    "source": "historical",
+    "season": "2025-26",
+    "rosters_by_team": {
+      "ASS": [
+        "Luka Doncic",
+        "James Harden",
+        "Ryan Rollins",
+        "Ajay Mitchell",
+        "Wendall Carter",
+        "Moussa Diabate",
+        "Joel Embiid",
+        "Cason Wallace",
+        "Ryan Dunn",
+        "Cameron Johnson"
+      ],
+      "GOD": [
+        "Trey Murphy",
+        "Payton Pritchard",
+        "Deni Avdija",
+        "Amen Thompson",
+        "Jalen Johnson",
+        "Jusuf Nurkic",
+        "Donovan Clingan",
+        "Matas Buzelis",
+        "Jaren Jackson",
+        "Austin Reaves",
+        "Luke Kornet",
+        "Ausar Thompson"
+      ]
+    },
+    "league_id": "ifa1anexmdgtlk9s"
   }
 ]

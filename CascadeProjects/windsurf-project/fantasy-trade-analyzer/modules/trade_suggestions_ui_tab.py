@@ -299,6 +299,79 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
     else:
         st.caption("No obvious selling angles detected beyond core value; lean on team fit and positional needs.")
 
+    with st.expander("🎯 Trade Framework Analysis", expanded=False):
+        st.markdown("### Understanding this trade from multiple angles")
+        
+        st.markdown("#### 📦 Package-level comparison")
+        pkg_bullets = []
+        if fpts_diff > 5:
+            pkg_bullets.append(f"**Package FP/G advantage**: You're receiving players averaging **{fpts_diff:.1f} FP/G more** than what you're sending. On paper, the incoming package looks clearly stronger per roster slot.")
+        elif fpts_diff < -5:
+            pkg_bullets.append(f"**Package FP/G disadvantage**: You're giving up players averaging **{abs(fpts_diff):.1f} FP/G more** than what you're receiving. This is a consolidation/fit play where you're paying a package tax.")
+        else:
+            pkg_bullets.append(f"**Package FP/G roughly balanced**: The players you're sending and receiving are similar in per-slot production (~{abs(fpts_diff):.1f} FP/G difference).")
+        
+        if cv_change < -5:
+            pkg_bullets.append(f"**Consistency upgrade**: The incoming package is noticeably **more consistent** (CV% drops by {abs(cv_change):.1f}%). You're trading volatility for reliability.")
+        elif cv_change > 5:
+            pkg_bullets.append(f"**Consistency downgrade**: The incoming package is **more volatile** (CV% rises by {cv_change:.1f}%). You're adding boom-bust upside but a shakier floor.")
+        
+        for bullet in pkg_bullets:
+            st.markdown(f"- {bullet}")
+        
+        st.markdown("#### 🏗️ Roster construction impact")
+        roster_bullets = []
+        if weekly_core_fp_change > 20:
+            roster_bullets.append(f"**Major core upgrade**: Your top ~{int(core_size_approx)} players gain **+{weekly_core_fp_change:.1f} weekly core FP** (~+{core_ppg_change:.2f} FP/G per core slot). This significantly raises your team's ceiling.")
+        elif weekly_core_fp_change > 10:
+            roster_bullets.append(f"**Solid core upgrade**: Your core gains **+{weekly_core_fp_change:.1f} weekly FP** (~+{core_ppg_change:.2f} FP/G). Meaningful improvement to your starting lineup strength.")
+        elif weekly_core_fp_change > 0:
+            roster_bullets.append(f"**Modest core upgrade**: Your core gains **+{weekly_core_fp_change:.1f} weekly FP** (~+{core_ppg_change:.2f} FP/G). Small but positive improvement to your rotation.")
+        
+        if pattern in ("2-for-1", "3-for-1"):
+            roster_bullets.append(f"**Consolidation trade**: You're turning {pattern.split('-')[0]} rotation pieces into 1 stronger player. This raises your per-game ceiling but reduces depth. You'll need to fill the open roster spot(s) via waivers or trades.")
+        elif pattern in ("1-for-2", "1-for-3"):
+            roster_bullets.append(f"**Depth play**: You're turning 1 player into {pattern.split('-')[2]} pieces. This lowers your per-slot ceiling but gives you more bodies for streaming, injury insurance, and total season games.")
+        
+        for bullet in roster_bullets:
+            st.markdown(f"- {bullet}")
+        
+        st.markdown("#### ⚖️ Strategic trade-offs")
+        strategy_bullets = []
+        
+        if your_avg_fpts > 70 and their_avg_fpts < 65:
+            strategy_bullets.append("**Star-for-depth bet**: You're acquiring high-end talent at the cost of depth. This can win playoff weeks if your star performs, but leaves you vulnerable if they slump or get injured.")
+        elif your_avg_fpts < 65 and their_avg_fpts > 70:
+            strategy_bullets.append("**Depth-for-star bet**: You're giving up a high-end piece for multiple rotation players. This can stabilize your floor and total season production, but you lose the ceiling of a true difference-maker.")
+        
+        if abs(cv_change) > 5:
+            if cv_change < 0:
+                strategy_bullets.append(f"**Risk profile shift**: You're becoming **more consistent** (CV% drops {abs(cv_change):.1f}%). Better for risk-averse managers who want a stable floor, but you may sacrifice some explosive upside weeks.")
+            else:
+                strategy_bullets.append(f"**Risk profile shift**: You're becoming **more volatile** (CV% rises {cv_change:.1f}%). Better for managers chasing upside and willing to absorb boom-bust swings.")
+        
+        if opp_weekly_core_fp_change < -10:
+            strategy_bullets.append(f"**Opponent sacrifice**: Your opponent loses **{abs(opp_weekly_core_fp_change):.1f} weekly core FP**. They're making a strategic gamble (maybe betting on fit, schedule, or different roster construction philosophy). This makes the trade harder to sell but potentially more valuable if they accept.")
+        elif opp_weekly_core_fp_change > 5:
+            strategy_bullets.append(f"**Win-win structure**: Your opponent also gains **+{opp_weekly_core_fp_change:.1f} weekly core FP**. Both sides improve in different ways, making this easier to negotiate.")
+        
+        if strategy_bullets:
+            for bullet in strategy_bullets:
+                st.markdown(f"- {bullet}")
+        else:
+            st.caption("This trade is primarily about fit and positional needs rather than major strategic shifts.")
+        
+        st.markdown("---")
+        st.markdown("#### 💡 Bottom line")
+        if weekly_core_fp_change > 15 and fpts_diff > 3:
+            st.success("**Strong trade for you**: You gain both core value and package FP/G. The math clearly favors your side.")
+        elif weekly_core_fp_change > 10 and fpts_diff < -3:
+            st.info("**Strategic overpay**: You're paying a package FP/G tax, but your core still strengthens. This is a bet on fit and roster construction over raw per-slot value.")
+        elif weekly_core_fp_change > 5:
+            st.info("**Modest upgrade**: You gain some core value. Whether it's worth it depends on your team needs, schedule, and risk tolerance.")
+        else:
+            st.info("**Marginal trade**: Small core gain. This is more about fit, positional needs, or strategic roster reshaping than a clear value win.")
+
     with st.expander("📋 Roster Snapshot (top 10)", expanded=False):
         your_roster = rosters_by_team.get(your_team_name)
         opp_roster = rosters_by_team.get(suggestion["team"])

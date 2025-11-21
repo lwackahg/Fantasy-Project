@@ -9,6 +9,50 @@ import datetime
 from typing import Dict, Any, List
 from modules.trade_analysis.logic import TradeAnalyzer, get_team_name, run_trade_analysis, get_all_teams
 
+
+def _friend_dollar_value(fpg):
+	if fpg is None:
+		return 0.0
+	try:
+		v = float(fpg)
+	except Exception:
+		return 0.0
+	if v >= 125:
+		return 22.0
+	elif v >= 120:
+		return 20.0
+	elif v >= 115:
+		return 18.0
+	elif v >= 110:
+		return 16.0
+	elif v >= 105:
+		return 15.0
+	elif v >= 100:
+		return 14.0
+	elif v >= 95:
+		return 12.0
+	elif v >= 90:
+		return 10.0
+	elif v >= 85:
+		return 9.0
+	elif v >= 80:
+		return 8.0
+	elif v >= 75:
+		return 6.0
+	elif v >= 70:
+		return 4.0
+	elif v >= 65:
+		return 3.0
+	elif v >= 60:
+		return 2.0
+	elif v >= 55:
+		return 1.0
+	elif v >= 50:
+		return 0.5
+	elif v >= 40:
+		return 0.0
+	return 0.0
+
 def display_trade_analysis_page():
     """Display the trade analysis page."""
     # Add custom CSS for trade analysis
@@ -569,6 +613,8 @@ def _display_trade_insights(results: Dict[str, Any], time_ranges: List[str]):
             
             st.markdown(assessment_text)
             
+            _render_friend_value_lens(results)
+            
             # Trade recommendation
             small_production = abs(fpg_change) < 1.0 and abs(percent_change) < 5.0
             small_consistency = abs(cv_change) < 3.0
@@ -721,6 +767,122 @@ def _display_trade_insights(results: Dict[str, Any], time_ranges: List[str]):
             _display_player_comparison(outgoing, incoming, results)
         else:
             st.info("No player comparison data available")
+
+
+def _render_friend_value_lens(results: Dict[str, Any]) -> None:
+    pre_rosters = results.get("pre_trade_rosters", {}) or {}
+    post_rosters = results.get("post_trade_rosters", {}) or {}
+    ytd_pre = pre_rosters.get("YTD") or []
+    ytd_post = post_rosters.get("YTD") or []
+    if not ytd_pre and not ytd_post:
+        return
+
+    pre_map: Dict[str, float] = {}
+    for row in ytd_pre:
+        name = row.get("Player")
+        if not name:
+            continue
+        fpg = row.get("FP/G")
+        if fpg is None:
+            continue
+        pre_map[str(name)] = fpg
+
+    post_map: Dict[str, float] = {}
+    for row in ytd_post:
+        name = row.get("Player")
+        if not name:
+            continue
+        fpg = row.get("FP/G")
+        if fpg is None:
+            continue
+        post_map[str(name)] = fpg
+
+    outgoing = results.get("outgoing_players", []) or []
+    incoming = results.get("incoming_players", []) or []
+
+    def _collect(names, primary, secondary):
+        items = []
+        total = 0.0
+        for n in names:
+            fp = primary.get(n)
+            if fp is None:
+                fp = secondary.get(n)
+            if fp is None:
+                continue
+            dollars = _friend_dollar_value(fp)
+            items.append((n, dollars))
+            total += dollars
+        return items, total
+
+    outgoing_items, outgoing_total = _collect(outgoing, pre_map, post_map)
+    incoming_items, incoming_total = _collect(incoming, post_map, pre_map)
+    if not outgoing_items and not incoming_items:
+        return
+
+    star_player = None
+    star_side = None
+    star_dollar = 0.0
+
+    for name, dollars in outgoing_items:
+        if dollars > star_dollar:
+            star_dollar = dollars
+            star_player = name
+            star_side = "outgoing"
+
+    for name, dollars in incoming_items:
+        if dollars > star_dollar:
+            star_dollar = dollars
+            star_player = name
+            star_side = "incoming"
+
+    ratio = None
+    ratio_text = ""
+    if star_player and star_dollar > 0:
+        if star_side == "outgoing" and incoming_total > 0:
+            ratio = incoming_total / star_dollar
+            ratio_text = f"Incoming package comes to **{ratio*100:.0f}%** of `{star_player}`'s $ value on this scale."
+        elif star_side == "incoming" and outgoing_total > 0:
+            ratio = outgoing_total / star_dollar
+            ratio_text = f"Outgoing package comes to **{ratio*100:.0f}%** of `{star_player}`'s $ value on this scale."
+
+    verdict_text = ""
+    if ratio is not None:
+        veto_floor = None
+        floor_label = "star trade"
+        if star_dollar >= 20:
+            veto_floor = 0.60
+            floor_label = "apex-star (Jokic-tier) trade"
+        elif star_dollar >= 14:
+            veto_floor = 0.50
+            floor_label = "top-star trade"
+        if veto_floor is not None:
+            if ratio < veto_floor:
+                verdict_text = (
+                    f"On this lens the package is **below** the {int(veto_floor*100)}% floor "
+                    f"for a {floor_label} → **veto-leaning**."
+                )
+            else:
+                verdict_text = (
+                    f"On this lens the package is **above** the {int(veto_floor*100)}% floor "
+                    f"for a {floor_label} → **not auto-veto** by that rule."
+                )
+
+    lines = []
+    lines.append("**Friend dollar-value lens (YTD):**")
+    if outgoing_items:
+        parts = ", ".join(f"`{name}` (${dollars:.1f})" for name, dollars in outgoing_items)
+        lines.append(f"Outgoing package: {parts} → **total ${outgoing_total:.1f}**")
+    if incoming_items:
+        parts = ", ".join(f"`{name}` (${dollars:.1f})" for name, dollars in incoming_items)
+        lines.append(f"Incoming package: {parts} → **total ${incoming_total:.1f}**")
+    if ratio_text:
+        lines.append(ratio_text)
+    if verdict_text:
+        lines.append(verdict_text)
+
+    text = "\n\n".join(lines)
+    st.markdown(text)
+
 
 def _display_statistical_analysis(results, time_ranges, ytd_pre, ytd_post):
     """Display statistical significance testing and advanced metrics."""
