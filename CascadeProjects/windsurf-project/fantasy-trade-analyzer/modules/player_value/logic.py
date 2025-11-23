@@ -24,7 +24,7 @@ def _compute_season_profile(game_log: List[Dict[str, Any]]) -> Optional[Dict[str
 		return None
 
 	multi_range = calculate_multi_range_stats(df.copy()) or {}
-	last15 = multi_range.get("Last 15", {})
+	last14 = multi_range.get("Last 14", {})
 
 	profile = {
 		"games_played": stats.get("games_played", 0),
@@ -36,7 +36,7 @@ def _compute_season_profile(game_log: List[Dict[str, Any]]) -> Optional[Dict[str
 		"bust_rate": stats.get("bust_rate", 0.0),
 		"min_fpts": stats.get("min_fpts", 0.0),
 		"max_fpts": stats.get("max_fpts", 0.0),
-		"last15_mean_fpts": last15.get("mean_fpts", None),
+		"last14_mean_fpts": last14.get("mean_fpts", None),
 	}
 	return profile
 

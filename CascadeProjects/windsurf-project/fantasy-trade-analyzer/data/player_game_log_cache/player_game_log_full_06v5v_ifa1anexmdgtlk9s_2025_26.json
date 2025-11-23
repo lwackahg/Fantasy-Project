@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 22",
+            "Team": "MEM",
+            "Opp": "@DAL",
+            "Score": "W 102-96",
+            "FPts": 8,
+            "FG-": "8.0",
+            "3PTM": 0,
+            "FT-": "2",
+            "PTS": 9,
+            "OREB": "1",
+            "REB": 2,
+            "AST": 1,
+            "ST": 0,
+            "BLK": 0,
+            "TO": 0,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 20",
             "Team": "MEM",
             "Opp": "SAC",
@@ -340,6 +361,5 @@
             "3D": "0",
             "2D": "0"
         }
-    ],
-    "status": "success"
+    ]
 }

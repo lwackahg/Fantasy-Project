@@ -474,51 +474,137 @@ def calculate_variability_stats(game_log_df):
 
 
 def calculate_multi_range_stats(game_log_df):
-	"""Calculate stats for multiple time ranges: Last 7, Last 15, Last 30, YTD."""
+	"""Calculate stats for multiple time ranges: Last 7/14/30 days and YTD.
+
+	This function prefers true day-based windows (last 7/14/30 calendar days
+	relative to the most recent game) when a parsable Date column is present.
+	If dates cannot be parsed, it falls back to using the last 7/14/30 games.
+	"""
 	if game_log_df.empty or 'FPts' not in game_log_df.columns:
 		return None
 	
+	# Work on a copy so callers' DataFrames are not mutated unexpectedly
+	df = game_log_df.copy()
+	
 	# Clean HTML from all string columns
-	for col in game_log_df.columns:
-		if game_log_df[col].dtype == 'object':
-			game_log_df[col] = game_log_df[col].apply(clean_html_from_text)
+	for col in df.columns:
+		if df[col].dtype == 'object':
+			df[col] = df[col].apply(clean_html_from_text)
 	
 	# Convert FPts to numeric
-	game_log_df['FPts'] = pd.to_numeric(game_log_df['FPts'], errors='coerce')
-	game_log_df = game_log_df.dropna(subset=['FPts'])
+	df['FPts'] = pd.to_numeric(df['FPts'], errors='coerce')
+	df = df.dropna(subset=['FPts'])
 	
-	if game_log_df.empty:
+	if df.empty:
 		return None
 	
-	# Calculate stats for each time range
-	time_ranges = {
-		'Last 7': 7,
-		'Last 15': 15,
-		'Last 30': 30,
-		'YTD': len(game_log_df)
-	}
+	# Attempt to infer real dates for each game from the Date column so we can
+	# compute true day-based windows (last 7/14/30 days).
+	has_valid_dates = False
+	if 'Date' in df.columns:
+		parsed_dates = []
+		current_year = datetime.utcnow().year
+		prev_dt = None
+		
+		for raw in df['Date'].astype(str):
+			s = raw.strip()
+			dt = None
+			
+			# Try a couple of common month/day formats used by Fantrax
+			for fmt in ("%b %d", "%m/%d", "%b %d, %Y", "%m/%d/%Y"):
+				try:
+					base = datetime.strptime(s, fmt)
+					dt = datetime(current_year, base.month, base.day)
+					break
+				except ValueError:
+					continue
+			
+			if dt is None:
+				parsed_dates.append(pd.NaT)
+				continue
+			
+			# Game logs are ordered from most recent to oldest; if the newly
+			# parsed month/day looks later in the calendar than the previous
+			# row, we've crossed into the prior NBA season year.
+			if prev_dt is not None and dt > prev_dt:
+				current_year -= 1
+				dt = dt.replace(year=current_year)
+			
+			parsed_dates.append(dt)
+			prev_dt = dt
+		
+		date_series = pd.Series(parsed_dates, index=df.index)
+		if date_series.notna().any():
+			df['_parsed_date'] = date_series
+			has_valid_dates = True
 	
 	results = {}
-	for range_name, num_games in time_ranges.items():
-		# Take the most recent N games
-		range_df = game_log_df.head(min(num_games, len(game_log_df)))
-		fpts = range_df['FPts']
-		
-		if len(fpts) == 0:
-			continue
-		
-		mean_fpts = fpts.mean()
-		std_fpts = fpts.std()
-		
-		results[range_name] = {
-			'games_played': len(fpts),
-			'mean_fpts': mean_fpts,
-			'median_fpts': fpts.median(),
-			'std_dev': std_fpts,
-			'coefficient_of_variation': (std_fpts / mean_fpts * 100) if mean_fpts > 0 else 0,
-			'min_fpts': fpts.min(),
-			'max_fpts': fpts.max()
+	
+	# Always include a YTD view over all available games
+	fpts_all = df['FPts']
+	if len(fpts_all) > 0:
+		mean_all = fpts_all.mean()
+		std_all = fpts_all.std()
+		results['YTD'] = {
+			'games_played': len(fpts_all),
+			'mean_fpts': mean_all,
+			'median_fpts': fpts_all.median(),
+			'std_dev': std_all,
+			'coefficient_of_variation': (std_all / mean_all * 100) if mean_all > 0 else 0,
+			'min_fpts': fpts_all.min(),
+			'max_fpts': fpts_all.max()
 		}
+	
+	# Day-based recent windows: last 7/14/30 calendar days if we have dates,
+	# otherwise fall back to last 7/14/30 games.
+	range_days = {
+		'Last 7': 7,
+		'Last 14': 14,
+		'Last 30': 30,
+	}
+	
+	if has_valid_dates:
+		latest_date = df['_parsed_date'].max()
+		for range_name, num_days in range_days.items():
+			cutoff = latest_date - pd.Timedelta(days=num_days)
+			range_df = df[df['_parsed_date'] >= cutoff]
+			
+			fpts = range_df['FPts']
+			if len(fpts) == 0:
+				continue
+			
+			mean_fpts = fpts.mean()
+			std_fpts = fpts.std()
+			
+			results[range_name] = {
+				'games_played': len(fpts),
+				'mean_fpts': mean_fpts,
+				'median_fpts': fpts.median(),
+				'std_dev': std_fpts,
+				'coefficient_of_variation': (std_fpts / mean_fpts * 100) if mean_fpts > 0 else 0,
+				'min_fpts': fpts.min(),
+				'max_fpts': fpts.max()
+			}
+	else:
+		for range_name, num_games in range_days.items():
+			range_df = df.head(min(num_games, len(df)))
+			fpts = range_df['FPts']
+			
+			if len(fpts) == 0:
+				continue
+			
+			mean_fpts = fpts.mean()
+			std_fpts = fpts.std()
+			
+			results[range_name] = {
+				'games_played': len(fpts),
+				'mean_fpts': mean_fpts,
+				'median_fpts': fpts.median(),
+				'std_dev': std_fpts,
+				'coefficient_of_variation': (std_fpts / mean_fpts * 100) if mean_fpts > 0 else 0,
+				'min_fpts': fpts.min(),
+				'max_fpts': fpts.max()
+			}
 	
 	return results
 

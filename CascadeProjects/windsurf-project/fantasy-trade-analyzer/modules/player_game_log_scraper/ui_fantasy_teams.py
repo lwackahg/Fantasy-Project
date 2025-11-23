@@ -146,9 +146,9 @@ def _build_fantasy_team_view(league_id, cache_files, season):
 			if 'Last 7' in multi_stats:
 				row['L7 FPts'] = round(multi_stats['Last 7']['mean_fpts'], 1)
 				row['L7 CV%'] = round(multi_stats['Last 7']['coefficient_of_variation'], 1)
-			if 'Last 15' in multi_stats:
-				row['L15 FPts'] = round(multi_stats['Last 15']['mean_fpts'], 1)
-				row['L15 CV%'] = round(multi_stats['Last 15']['coefficient_of_variation'], 1)
+			if 'Last 14' in multi_stats:
+				row['L14 FPts'] = round(multi_stats['Last 14']['mean_fpts'], 1)
+				row['L14 CV%'] = round(multi_stats['Last 14']['coefficient_of_variation'], 1)
 			if 'Last 30' in multi_stats:
 				row['L30 FPts'] = round(multi_stats['Last 30']['mean_fpts'], 1)
 				row['L30 CV%'] = round(multi_stats['Last 30']['coefficient_of_variation'], 1)

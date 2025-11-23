@@ -167,7 +167,7 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
             their_risk = "High"
         st.caption(f"Your risk level: {your_risk} • Their risk level: {their_risk}")
 
-    with st.expander("📆 Recent Form (YTD vs Last 7/15/30)", expanded=False):
+    with st.expander("📆 Recent Form (YTD vs Last 7/14/30)", expanded=False):
         player_index = {}
         for team_df in rosters_by_team.values():
             if team_df is None or team_df.empty or "Player" not in team_df.columns:
@@ -186,7 +186,7 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
                 return None
             spans = [
                 ("Last 7", "L7 FPts"),
-                ("Last 15", "L15 FPts"),
+                ("Last 14", "L14 FPts"),
                 ("Last 30", "L30 FPts"),
             ]
             for label, col in spans:

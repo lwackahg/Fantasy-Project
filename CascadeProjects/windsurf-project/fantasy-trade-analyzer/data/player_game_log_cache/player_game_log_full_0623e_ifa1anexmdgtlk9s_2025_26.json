@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 21",
+            "Team": "PHO",
+            "Opp": "MIN",
+            "Score": "W 114-113",
+            "FPts": 74,
+            "FG-": "5.0",
+            "3PTM": 4,
+            "FT-": "0",
+            "PTS": 20,
+            "OREB": "0",
+            "REB": 7,
+            "AST": 4,
+            "ST": 2,
+            "BLK": 0,
+            "TO": 3,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 18",
             "Team": "PHO",
             "Opp": "@POR",
@@ -319,6 +340,5 @@
             "3D": "0",
             "2D": "0"
         }
-    ],
-    "status": "success"
+    ]
 }

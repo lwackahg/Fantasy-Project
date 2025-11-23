@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 21",
+            "Team": "OKC",
+            "Opp": "@UTA",
+            "Score": "W 144-112",
+            "FPts": 45,
+            "FG-": "6.0",
+            "3PTM": 2,
+            "FT-": "0",
+            "PTS": 12,
+            "OREB": "1",
+            "REB": 4,
+            "AST": 4,
+            "ST": 2,
+            "BLK": 1,
+            "TO": 2,
+            "TF": "1",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 19",
             "Team": "OKC",
             "Opp": "SAC",
@@ -340,6 +361,5 @@
             "3D": "0",
             "2D": "0"
         }
-    ],
-    "status": "success"
+    ]
 }

@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 22",
+            "Team": "CHI",
+            "Opp": "WAS",
+            "Score": "W 121-120",
+            "FPts": 43,
+            "FG-": "10.0",
+            "3PTM": 3,
+            "FT-": "2",
+            "PTS": 20,
+            "OREB": "0",
+            "REB": 3,
+            "AST": 6,
+            "ST": 0,
+            "BLK": 0,
+            "TO": 4,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 19",
             "Team": "CHI",
             "Opp": "@POR",
@@ -46,6 +67,5 @@
             "3D": "0",
             "2D": "0"
         }
-    ],
-    "status": "success"
+    ]
 }

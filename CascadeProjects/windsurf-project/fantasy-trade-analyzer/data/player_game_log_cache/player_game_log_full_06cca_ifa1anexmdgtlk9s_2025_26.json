@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 22",
+            "Team": "CHA",
+            "Opp": "LAC",
+            "Score": "L 116-131",
+            "FPts": 49,
+            "FG-": "10.0",
+            "3PTM": 2,
+            "FT-": "0",
+            "PTS": 21,
+            "OREB": "0",
+            "REB": 1,
+            "AST": 3,
+            "ST": 1,
+            "BLK": 1,
+            "TO": 0,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Oct 25",
             "Team": "CHA",
             "Opp": "@PHI",
@@ -46,6 +67,5 @@
             "3D": "0",
             "2D": "0"
         }
-    ],
-    "status": "success"
+    ]
 }
