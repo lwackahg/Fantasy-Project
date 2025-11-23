@@ -545,10 +545,7 @@ def show_player_game_log_scraper():
 										with st.expander(f"⚠️ {result['fail_count']} players failed"):
 											for player_name, error in result['failed_players']:
 												st.write(f"- **{player_name}**: {error}")
-								
-									st.session_state['show_bulk_scrape'] = False
-									st.rerun()
-						
+							
 							except Exception as e:
 								st.error(f"Bulk scrape failed: {e}")
 								st.exception(e)
@@ -556,8 +553,7 @@ def show_player_game_log_scraper():
 				with col2:
 					if st.button("❌ Cancel"):
 						st.session_state['show_bulk_scrape'] = False
-						st.rerun()
-		
+	
 		# Enhanced Bulk Scraper Section
 		if st.session_state.get('show_bulk_scrape_full', False):
 			st.markdown("---")
@@ -633,9 +629,6 @@ def show_player_game_log_scraper():
 												for player_name, season, error in result['failed_items']:
 													st.write(f"- **{player_name}** ({season}): {error}")
 									
-									st.session_state['show_bulk_scrape_full'] = False
-									st.rerun()
-								
 								except Exception as e:
 									st.error(f"An error occurred during bulk scraping: {e}")
 									st.exception(e)
