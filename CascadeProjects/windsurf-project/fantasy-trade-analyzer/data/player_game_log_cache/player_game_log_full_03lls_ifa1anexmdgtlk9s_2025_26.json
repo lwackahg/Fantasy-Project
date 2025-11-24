@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 23",
+            "Team": "BOS",
+            "Opp": "ORL",
+            "Score": "W 138-129",
+            "FPts": 81,
+            "FG-": "12.0",
+            "3PTM": 2,
+            "FT-": "2",
+            "PTS": 35,
+            "OREB": "1",
+            "REB": 4,
+            "AST": 8,
+            "ST": 1,
+            "BLK": 0,
+            "TO": 1,
+            "TF": "1",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 21",
             "Team": "BOS",
             "Opp": "BKN",

@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 23",
+            "Team": "LAC",
+            "Opp": "@CLE",
+            "Score": "L 105-120",
+            "FPts": 57,
+            "FG-": "7.0",
+            "3PTM": 3,
+            "FT-": "0",
+            "PTS": 20,
+            "OREB": "0",
+            "REB": 3,
+            "AST": 2,
+            "ST": 3,
+            "BLK": 0,
+            "TO": 4,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 3",
             "Team": "LAC",
             "Opp": "MIA",

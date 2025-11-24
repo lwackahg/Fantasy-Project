@@ -1,6 +1,7 @@
 import os
 import time
 import requests
+import subprocess
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -20,6 +21,20 @@ DOWNLOAD_DIR = os.getenv('FANTRAX_DOWNLOAD_DIR', os.getcwd())
 FANTRAX_LOGIN_URL = 'https://www.fantrax.com/login'
 DEFAULT_START = "2025-10-21"  # Season start
 DEFAULT_END = "2026-03-29"    # Regular season end
+
+def kill_chromedriver_processes(also_chrome: bool = False) -> None:
+	"""Best-effort kill of stray chromedriver (and optionally chrome) processes."""
+	try:
+		if os.name == 'nt':
+			subprocess.run(['taskkill', '/F', '/IM', 'chromedriver.exe', '/T'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+			if also_chrome:
+				subprocess.run(['taskkill', '/F', '/IM', 'chrome.exe', '/T'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		else:
+			subprocess.run(['pkill', '-f', 'chromedriver'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+			if also_chrome:
+				subprocess.run(['pkill', '-f', 'chrome'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+	except Exception:
+		pass
 
 def get_chrome_driver(download_dir):
     """Initializes and returns a headless Chrome WebDriver."""
@@ -142,78 +157,80 @@ def download_players_csv(driver, start_date=None, end_date=None, league_id=None)
         return False, msg, "", 0
 
 def download_all_ranges(league_id: str, progress_callback=None):
-    """Downloads player stats for all standard time ranges."""
-    if not FANTRAX_USERNAME or not FANTRAX_PASSWORD:
-        return ["Set FANTRAX_USERNAME and FANTRAX_PASSWORD in fantrax.env"]
-    
-    messages = []
-    driver = get_chrome_driver(DOWNLOAD_DIR)
-    try:
-        login_to_fantrax(driver, FANTRAX_USERNAME, FANTRAX_PASSWORD)
-        today = datetime.now().date()
-        season_start = datetime.strptime(DEFAULT_START, "%Y-%m-%d").date()
-        end_date = today.strftime("%Y-%m-%d") if today < datetime.strptime(DEFAULT_END, "%Y-%m-%d").date() else DEFAULT_END
+	"""Downloads player stats for all standard time ranges."""
+	if not FANTRAX_USERNAME or not FANTRAX_PASSWORD:
+		return ["Set FANTRAX_USERNAME and FANTRAX_PASSWORD in fantrax.env"]
+	
+	kill_chromedriver_processes(also_chrome=True)
+	messages = []
+	driver = get_chrome_driver(DOWNLOAD_DIR)
+	try:
+		login_to_fantrax(driver, FANTRAX_USERNAME, FANTRAX_PASSWORD)
+		today = datetime.now().date()
+		season_start = datetime.strptime(DEFAULT_START, "%Y-%m-%d").date()
+		end_date = today.strftime("%Y-%m-%d") if today < datetime.strptime(DEFAULT_END, "%Y-%m-%d").date() else DEFAULT_END
 
-        # Calculate start dates, but never go before season start
-        def get_start_date(days_back: int) -> str:
-            calculated_start = datetime.strptime(end_date, "%Y-%m-%d") - timedelta(days=days_back - 1)
-            return max(calculated_start.date(), season_start).strftime("%Y-%m-%d")
+		# Calculate start dates, but never go before season start
+		def get_start_date(days_back: int) -> str:
+			calculated_start = datetime.strptime(end_date, "%Y-%m-%d") - timedelta(days=days_back - 1)
+			return max(calculated_start.date(), season_start).strftime("%Y-%m-%d")
 
-        ranges = [
-            ('YTD', (DEFAULT_START, DEFAULT_END, 0)),
-            ('60 days', (get_start_date(60), end_date, 60)),
-            ('30 days', (get_start_date(30), end_date, 30)),
-            ('14 days', (get_start_date(14), end_date, 14)),
-            ('7 days',  (get_start_date(7),  end_date, 7)),
-        ]
+		ranges = [
+			('YTD', (DEFAULT_START, DEFAULT_END, 0)),
+			('60 days', (get_start_date(60), end_date, 60)),
+			('30 days', (get_start_date(30), end_date, 30)),
+			('14 days', (get_start_date(14), end_date, 14)),
+			('7 days', (get_start_date(7), end_date, 7)),
+		]
 
-        # Helper to compute league name for constructing fallback filenames
-        def get_league_name_map():
-            ids = os.environ.get("FANTRAX_LEAGUE_IDS", "")
-            names = os.environ.get("FANTRAX_LEAGUE_NAMES", "")
-            return dict(zip([i.strip() for i in ids.split(",") if i.strip()], [n.strip() for n in names.split(",") if n.strip()]))
+		# Helper to compute league name for constructing fallback filenames
+		def get_league_name_map():
+			ids = os.environ.get("FANTRAX_LEAGUE_IDS", "")
+			names = os.environ.get("FANTRAX_LEAGUE_NAMES", "")
+			return dict(zip([i.strip() for i in ids.split(",") if i.strip()], [n.strip() for n in names.split(",") if n.strip()]))
 
-        def sanitize_name(name: str) -> str:
-            import re
-            return re.sub(r"[^A-Za-z0-9_]+", "_", name.strip().replace(" ", "_"))
+		def sanitize_name(name: str) -> str:
+			import re
+			return re.sub(r"[^A-Za-z0-9_]+", "_", name.strip().replace(" ", "_"))
 
-        league_name = sanitize_name(get_league_name_map().get(league_id, league_id))
+		league_name = sanitize_name(get_league_name_map().get(league_id, league_id))
 
-        import shutil
-        best_non_ytd_days = 0
-        best_non_ytd_path = ""
+		import shutil
+		best_non_ytd_days = 0
+		best_non_ytd_path = ""
 
-        total_ranges = len(ranges)
-        for i, (name, (start, end, requested_days)) in enumerate(ranges):
-            if progress_callback:
-                progress_callback(i / total_ranges, f"Downloading {name}...")
-            success, msg, path, actual_days = download_players_csv(driver, start, end, league_id)
-            messages.append(msg)
-            # Track best non-YTD window we have actually downloaded
-            if name != 'YTD' and success and actual_days > best_non_ytd_days:
-                best_non_ytd_days = actual_days
-                best_non_ytd_path = path
+		total_ranges = len(ranges)
+		for i, (name, (start, end, requested_days)) in enumerate(ranges):
+			if progress_callback:
+				progress_callback(i / total_ranges, f"Downloading {name}...")
+			success, msg, path, actual_days = download_players_csv(driver, start, end, league_id)
+			messages.append(msg)
+			# Track best non-YTD window we have actually downloaded
+			if name != 'YTD' and success and actual_days > best_non_ytd_days:
+				best_non_ytd_days = actual_days
+				best_non_ytd_path = path
 
-            # If the requested window (60/30) couldn't be fully met (start capped),
-            # duplicate the most complete non-YTD file so far under the expected name
-            if name in ('60 days', '30 days', '14 days', '7 days') and success and isinstance(actual_days, int) and actual_days < requested_days:
-                if best_non_ytd_path:
-                    # Build fallback filename with requested_days suffix
-                    fallback_filename = f"Fantrax-Players-{league_name}-({requested_days}).csv"
-                    fallback_path = os.path.join(DOWNLOAD_DIR, fallback_filename)
-                    try:
-                        shutil.copyfile(best_non_ytd_path, fallback_path)
-                        messages.append(f"Filled {requested_days}-day file using most complete range so far ({best_non_ytd_days} days)")
-                    except Exception as e:
-                        messages.append(f"Failed to create fallback file for {requested_days} days: {e}")
-            time.sleep(1)  # Add a delay to avoid overwhelming the server
-        
-        if progress_callback:
-            progress_callback(1.0, "All downloads complete!")
+			# If the requested window (60/30) couldn't be fully met (start capped),
+			# duplicate the most complete non-YTD file so far under the expected name
+			if name in ('60 days', '30 days', '14 days', '7 days') and success and isinstance(actual_days, int) and actual_days < requested_days:
+				if best_non_ytd_path:
+					# Build fallback filename with requested_days suffix
+					fallback_filename = f"Fantrax-Players-{league_name}-({requested_days}).csv"
+					fallback_path = os.path.join(DOWNLOAD_DIR, fallback_filename)
+					try:
+						shutil.copyfile(best_non_ytd_path, fallback_path)
+						messages.append(f"Filled {requested_days}-day file using most complete range so far ({best_non_ytd_days} days)")
+					except Exception as e:
+						messages.append(f"Failed to create fallback file for {requested_days} days: {e}")
+			time.sleep(1)  # Add a delay to avoid overwhelming the server
+		
+		if progress_callback:
+			progress_callback(1.0, "All downloads complete!")
 
-    except Exception as e:
-        messages.append(f'Error: {e}')
-    finally:
-        driver.quit()
-    
-    return messages
+	except Exception as e:
+		messages.append(f'Error: {e}')
+	finally:
+		driver.quit()
+		kill_chromedriver_processes(also_chrome=True)
+	
+	return messages

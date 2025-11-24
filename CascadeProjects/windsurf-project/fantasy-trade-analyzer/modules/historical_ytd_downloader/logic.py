@@ -8,7 +8,7 @@ import time
 import requests
 from datetime import datetime, timedelta
 from pathlib import Path
-from modules.fantrax_downloader.logic import get_chrome_driver, login_to_fantrax
+from modules.fantrax_downloader.logic import get_chrome_driver, login_to_fantrax, kill_chromedriver_processes
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -55,6 +55,7 @@ def download_historical_ytd(league_id: str, season_label: str, season_code: str,
 	# Create driver if not provided
 	close_driver = False
 	if driver is None:
+		kill_chromedriver_processes(also_chrome=True)
 		driver = get_chrome_driver(str(DOWNLOAD_DIR))
 		login_to_fantrax(driver, FANTRAX_USERNAME, FANTRAX_PASSWORD)
 		close_driver = True
@@ -107,6 +108,7 @@ def download_historical_ytd(league_id: str, season_label: str, season_code: str,
 	finally:
 		if close_driver:
 			driver.quit()
+			kill_chromedriver_processes(also_chrome=True)
 
 
 def download_all_historical_seasons(league_id: str, seasons_to_download: list = None, progress_callback=None):
@@ -125,6 +127,7 @@ def download_all_historical_seasons(league_id: str, seasons_to_download: list = 
 	if not FANTRAX_USERNAME or not FANTRAX_PASSWORD:
 		return ["Set FANTRAX_USERNAME and FANTRAX_PASSWORD in fantrax.env"]
 	
+	kill_chromedriver_processes(also_chrome=True)
 	# Filter seasons if specific ones requested
 	if seasons_to_download:
 		seasons = [s for s in HISTORICAL_SEASONS if s[0] in seasons_to_download]
@@ -156,6 +159,7 @@ def download_all_historical_seasons(league_id: str, seasons_to_download: list = 
 	
 	finally:
 		driver.quit()
+		kill_chromedriver_processes(also_chrome=True)
 	
 	return messages
 
