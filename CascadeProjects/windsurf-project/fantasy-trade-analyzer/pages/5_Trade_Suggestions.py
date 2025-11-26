@@ -188,8 +188,8 @@ def display_trade_suggestion(suggestion, rank):
 	opp_core_ppg_change = opp_weekly_core_fp_change / min_games
 	
 	# Header with core impact
-	st.markdown(f"### 🔄 Trade Impact: **+{weekly_core_fp_change:.1f} weekly core FP** for you")
-	st.caption(f"Your core FP/G improves by ~{core_ppg_change:.2f} across your top {int(core_size_approx)} players")
+	st.markdown(f"### 🔄 Trade Impact: **{weekly_core_fp_change:+.1f} weekly core FP** for you")
+	st.caption(f"Your core FP/G changes by ~{core_ppg_change:+.2f} across your top {int(core_size_approx)} players")
 	
 	col1, col2 = st.columns(2)
 	
@@ -222,11 +222,11 @@ def display_trade_suggestion(suggestion, rank):
 	fig = go.Figure()
 	
 	fig.add_trace(go.Bar(
-		name='Your Gain',
+		name='Your Change',
 		x=['Weekly Core FP'],
 		y=[weekly_core_fp_change],
 		marker_color='#4CAF50',
-		text=[f"+{weekly_core_fp_change:.1f}"],
+		text=[f"{weekly_core_fp_change:+.1f}"],
 		textposition='outside'
 	))
 	
@@ -255,8 +255,12 @@ def display_trade_suggestion(suggestion, rank):
 		st.success("🟢 **Strong Trade** - Solid weekly core FP gain")
 	elif weekly_core_fp_change > 5:
 		st.info("🟡 **Decent Trade** - Modest weekly core FP improvement")
-	else:
+	elif weekly_core_fp_change >= 0:
 		st.info("🟡 **Marginal Trade** - Small weekly core FP gain")
+	elif weekly_core_fp_change > -5:
+		st.info("🟠 **Trade-Off:** Small weekly core FP loss – may be worth it if you gain consistency or positional fit")
+	else:
+		st.warning("🔴 **Core FP Loss:** You give up weekly core FP – only pursue if other factors clearly outweigh the downgrade")
 	
 	# Opponent fairness check
 	if opp_weekly_core_fp_change < -15:
@@ -278,8 +282,16 @@ def display_trade_suggestion(suggestion, rank):
 	reasons = []
 	
 	# Core FP/G is king
-	reasons.append(f"📈 **Core Roster Upgrade:** Your top ~{int(core_size_approx)} players improve by {core_ppg_change:.2f} FP/G on average")
-	reasons.append(f"🎯 **Weekly Impact:** Estimated +{weekly_core_fp_change:.1f} FP per week at the 25-game minimum")
+	if weekly_core_fp_change > 0:
+		reasons.append(f"📈 **Core Roster Upgrade:** Your top ~{int(core_size_approx)} players improve by {core_ppg_change:.2f} FP/G on average")
+		reasons.append(f"🎯 **Weekly Impact:** Estimated {weekly_core_fp_change:+.1f} FP per week at the 25-game minimum")
+	elif weekly_core_fp_change < 0:
+		if weekly_core_fp_change > -5 and cv_diff < -5:
+			reasons.append(f"🧩 **Consistency Trade-Off:** Your core sacrifices {abs(core_ppg_change):.2f} FP/G on average ({weekly_core_fp_change:.1f} FP/week) in exchange for a more stable, less volatile roster")
+		else:
+			reasons.append(f"📉 **Core Roster Downgrade:** Your top ~{int(core_size_approx)} players drop by {abs(core_ppg_change):.2f} FP/G on average ({weekly_core_fp_change:.1f} FP/week)")
+	else:
+		reasons.append(f"⚖️ **Core Roster Stable:** Your top ~{int(core_size_approx)} players stay roughly flat ({core_ppg_change:+.2f} FP/G, {weekly_core_fp_change:+.1f} FP/week)")
 	
 	# Consolidation strategy (from 901)
 	if suggestion['pattern'] in ['2-for-1', '3-for-1']:
@@ -295,8 +307,10 @@ def display_trade_suggestion(suggestion, rank):
 	# Package context (but emphasize it's not the main story)
 	if fpts_diff > 5:
 		reasons.append(f"📊 **Package FP/G:** +{fpts_diff:.1f} FP/G (but core impact matters more)")
-	elif fpts_diff < -5:
+	elif fpts_diff < -5 and weekly_core_fp_change >= 0:
 		reasons.append(f"⚖️ **Trading Down in Package FP/G:** −{abs(fpts_diff):.1f} FP/G, but your **core** still improves")
+	elif fpts_diff < -5:
+		reasons.append(f"⚖️ **Trading Down in Package FP/G:** −{abs(fpts_diff):.1f} FP/G; this is more of a fit/consistency play than a pure core upgrade")
 	
 	if cv_diff < -5:
 		reasons.append(f"✅ **Consistency Upgrade:** {abs(cv_diff):.1f}% less volatile")
@@ -562,7 +576,7 @@ if st.button("🔍 Find Trade Suggestions", type="primary"):
 		
 		# Display each suggestion
 		for i, suggestion in enumerate(suggestions, 1):
-			with st.expander(f"#{i} - {suggestion['pattern']} with {suggestion['team']} (Value Gain: +{suggestion['value_gain']:.1f})", expanded=(i <= 3)):
+			with st.expander(f"#{i} - {suggestion['pattern']} with {suggestion['team']} (Value Change: {suggestion['value_gain']:+.1f})", expanded=(i <= 3)):
 				display_trade_suggestion(suggestion, i)
 
 # Show value calculation explanation

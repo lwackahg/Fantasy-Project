@@ -104,6 +104,7 @@ class TradeAnalyzer:
         trade_teams: Dict[str, Dict[str, str]],
         num_top_players: int = 10,
         include_advanced_metrics: bool = True,
+        assumed_fpg_overrides: Optional[Dict[str, float]] = None,
     ) -> Dict[str, Dict[str, Any]]:
         """Evaluate the fairness of a trade between teams.
 
@@ -127,6 +128,25 @@ class TradeAnalyzer:
             for time_range in time_ranges:
                 range_data = team_data[team_data['Timestamp'] == time_range].reset_index()
                 if not range_data.empty:
+                    # Apply assumed FP/G overrides to this team's data for this time range, if provided
+                    if assumed_fpg_overrides:
+                        override_players = [
+                            p for p in range_data['Player'].unique()
+                            if p in assumed_fpg_overrides
+                        ]
+                        if override_players:
+                            range_data = range_data.copy()
+                            for player_name in override_players:
+                                try:
+                                    new_fpg = float(assumed_fpg_overrides.get(player_name))
+                                except (TypeError, ValueError):
+                                    continue
+                                mask = range_data['Player'] == player_name
+                                range_data.loc[mask, 'FP/G'] = new_fpg
+                                if 'GP' in range_data.columns and 'FPts' in range_data.columns:
+                                    gp_vals = pd.to_numeric(range_data.loc[mask, 'GP'], errors='coerce').fillna(0.0)
+                                    range_data.loc[mask, 'FPts'] = new_fpg * gp_vals
+
                     pre_trade_rosters[time_range] = range_data.nlargest(num_top_players, 'FP/G')[['Player', 'Team', 'FPts', 'FP/G', 'GP']].to_dict('records')
                     post_trade_data = range_data[~range_data['Player'].isin(outgoing_players)].copy()
                     incoming_data = []
@@ -136,6 +156,18 @@ class TradeAnalyzer:
                             (self.data['Timestamp'] == time_range)
                         ].reset_index()
                         if not player_data.empty:
+                            # Apply assumed FP/G overrides for incoming players, if provided
+                            if assumed_fpg_overrides and player in assumed_fpg_overrides:
+                                try:
+                                    new_fpg = float(assumed_fpg_overrides.get(player))
+                                except (TypeError, ValueError):
+                                    new_fpg = None
+                                if new_fpg is not None:
+                                    player_data = player_data.copy()
+                                    player_data['FP/G'] = new_fpg
+                                    if 'GP' in player_data.columns and 'FPts' in player_data.columns:
+                                        gp_vals = pd.to_numeric(player_data['GP'], errors='coerce').fillna(0.0)
+                                        player_data['FPts'] = new_fpg * gp_vals
                             player_data['Status'] = team
                             incoming_data.append(player_data)
 
@@ -337,6 +369,7 @@ def run_trade_analysis(
     trade_label: str = "",
     trade_date: Optional[str] = None,
     include_advanced_metrics: bool = True,
+    assumed_fpg_overrides: Optional[Dict[str, float]] = None,
 ) -> Dict[str, Any]:
     """Run the trade analysis, record it in history, and return the results."""
     if st.session_state.trade_analyzer:
@@ -347,6 +380,7 @@ def run_trade_analysis(
                 trade_teams,
                 num_players,
                 include_advanced_metrics=include_advanced_metrics,
+                assumed_fpg_overrides=assumed_fpg_overrides,
             )
         except TypeError:
             # Backwards compatibility for existing TradeAnalyzer instances: reinitialize
@@ -355,6 +389,7 @@ def run_trade_analysis(
                 trade_teams,
                 num_players,
                 include_advanced_metrics=include_advanced_metrics,
+                assumed_fpg_overrides=assumed_fpg_overrides,
             )
         duration = time.perf_counter() - start_time
         try:

@@ -205,6 +205,7 @@ def kill_chromedriver_processes(also_chrome=False):
 			subprocess.run(['pkill','-f','chromedriver'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 			if also_chrome:
 				subprocess.run(['pkill','-f','chrome'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+		time.sleep(1)  # Give OS time to fully release killed processes
 	except Exception:
 		pass
 
@@ -684,33 +685,38 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 		total_operations = len(player_dict) * len(seasons)
 		current_operation = 0
 		
-		for player_name, player_code in player_dict.items():
-			# Check which seasons need scraping for this player
-			seasons_to_scrape = []
-			for season in seasons:
-				cache_file = CACHE_DIR / f"player_game_log_full_{player_code}_{league_id}_{season.replace('-', '_')}.json"
-				
-				# Smart caching logic (unless force_refresh=True)
-				if force_refresh:
-					# Force refresh: scrape all seasons
-					seasons_to_scrape.append(season)
-				elif season == "2025-26":
-					# Current season: always scrape (it's updating)
-					seasons_to_scrape.append(season)
-				elif not cache_file.exists():
-					# Past season not cached: scrape it
-					seasons_to_scrape.append(season)
-				else:
-					# Past season already cached: skip
-					success_count += 1
+		players_list = list(player_dict.items())
+		current_idx = 0
+		retry_count = 0
+		MAX_RETRIES = 2
+		
+		while current_idx < len(players_list):
+			player_name, player_code = players_list[current_idx]
 			
-			# Skip player if all seasons are cached
-			if not seasons_to_scrape:
-				current_operation += len(seasons)
-				continue
-			
-			# Navigate to player page once per player
 			try:
+				# Check which seasons need scraping for this player
+				seasons_to_scrape = []
+				for season in seasons:
+					cache_file = CACHE_DIR / f"player_game_log_full_{player_code}_{league_id}_{season.replace('-', '_')}.json"
+					
+					# Smart caching logic (unless force_refresh=True)
+					if force_refresh:
+						seasons_to_scrape.append(season)
+					elif season == "2025-26":
+						seasons_to_scrape.append(season)
+					elif not cache_file.exists():
+						seasons_to_scrape.append(season)
+					else:
+						success_count += 1
+				
+				# Skip player if all seasons are cached
+				if not seasons_to_scrape:
+					current_operation += len(seasons)
+					current_idx += 1
+					retry_count = 0
+					continue
+				
+				# Navigate to player page once per player
 				player_url = f"https://www.fantrax.com/player/{player_code}/{league_id}"
 				driver.get(player_url)
 				time.sleep(3)
@@ -730,6 +736,8 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 						current_operation += 1
 						failed_items.append((player_name, season, "Games tab not found"))
 						fail_count += 1
+					current_idx += 1
+					retry_count = 0
 					continue
 				
 				consecutive_empty_seasons = 0  # Track consecutive seasons with 0 games
@@ -737,19 +745,17 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 				for season_index, season in enumerate(seasons_to_scrape):
 					current_operation += 1
 					
-					# Skip remaining seasons if we've had 3 consecutive empty seasons
+					# Skip remaining seasons if we've had 2 consecutive empty seasons
 					if consecutive_empty_seasons >= 2:
-						# Skip all remaining seasons for this player
 						remaining_seasons = len(seasons_to_scrape) - season_index
-						current_operation += remaining_seasons - 1  # Adjust operation count
+						current_operation += remaining_seasons - 1
 						break
 					
 					if progress_callback:
 						progress_callback(current_operation, total_operations, player_name, season)
 					
 					try:
-						
-						# Handle season selection - always select the season we want
+						# Handle season selection
 						if season != current_season_on_page:
 							try:
 								season_dropdown = driver.find_element(By.CSS_SELECTOR, "mat-select")
@@ -759,23 +765,18 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 								season_text = f"{season} Reg Season"
 								season_option = driver.find_element(By.XPATH, f"//mat-option//span[contains(text(), '{season_text}')]")
 								season_option.click()
-								
-								# Wait for season data to load
 								time.sleep(2)
-								
-								current_season_on_page = season  # Update what's currently displayed
+								current_season_on_page = season
 							except Exception as e:
-								# If season selection fails, skip this season
 								failed_items.append((player_name, season, "Season selection failed"))
 								fail_count += 1
 								continue
 						
 						# Get page source and parse
-						time.sleep(1)  # Brief wait for data to load
+						time.sleep(1)
 						page_source = driver.page_source
 						soup = BeautifulSoup(page_source, 'html.parser')
 						
-						# Find the game log table
 						game_log_table = soup.find('div', class_='i-table minimal-scrollbar i-table--standard i-table--outside-sticky')
 						if not game_log_table:
 							failed_items.append((player_name, season, "Table not found"))
@@ -790,127 +791,95 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 							fail_count += 1
 							continue
 						
-						# Extract headers
-						headers = []
-						header_cells = table_header.find_all('div', class_='i-table__cell')
-						for cell in header_cells:
-							headers.append(cell.text.strip())
-						
-						# Extract game rows
+						headers = [cell.text.strip() for cell in table_header.find_all('div', class_='i-table__cell')]
 						game_rows = table_body.find_all('div', {'itablerow': ''})
 						all_games = []
-						
 						
 						for row in game_rows:
 							cells = row.find_all('div', class_='i-table__cell')
 							game_data = {}
-							
 							for i, cell in enumerate(cells):
-								if i >= len(headers):
-									break
+								if i >= len(headers): break
 								header = headers[i]
 								link = cell.find('a')
-								if link:
-									value = link.get_text(strip=True)
-								else:
-									span = cell.find('span')
-									if span:
-										value = span.get_text(strip=True)
-									else:
-										value = cell.get_text(strip=True)
+								value = link.get_text(strip=True) if link else (cell.find('span').get_text(strip=True) if cell.find('span') else cell.get_text(strip=True))
 								game_data[header] = value
-							
 							if game_data:
 								all_games.append(game_data)
 						
-						
-						# Handle different scenarios for empty/missing data
 						if not all_games:
-							# Check if this might be a season the player didn't play
-							# Look for indicators like "No games found" or empty table with headers
 							if headers:
-								# Table structure exists but no games - player didn't play this season
-								# Create empty cache file to avoid re-scraping
+								# Valid empty season
 								cache_file = CACHE_DIR / f"player_game_log_full_{player_code}_{league_id}_{season.replace('-', '_')}.json"
-								cache_data = {
-									'player_name': player_name,
-									'player_code': player_code,
-									'league_id': league_id,
-									'season': season,
-									'data': [],  # Empty games list
-									'status': 'no_games_played'
-								}
+								cache_data = {'player_name': player_name, 'player_code': player_code, 'league_id': league_id, 'season': season, 'data': [], 'status': 'no_games_played'}
 								CACHE_DIR.mkdir(parents=True, exist_ok=True)
 								with open(cache_file, 'w') as f:
 									json.dump(cache_data, f, indent=4)
 								try:
-									db_store.store_player_season(
-										player_code=player_code,
-										player_name=player_name,
-										league_id=league_id,
-										season=season,
-										status='no_games_played',
-										game_log_records=[],
-									)
-								except Exception:
-									pass
-								
-								success_count += 1  # Count as success (valid empty season)
-								consecutive_empty_seasons += 1  # Increment empty season counter
+									db_store.store_player_season(player_code, player_name, league_id, season, 'no_games_played', [])
+								except: pass
+								success_count += 1
+								consecutive_empty_seasons += 1
 								continue
 							else:
-								# No table structure - likely season doesn't exist or scraping failed
-								failed_items.append((player_name, season, "Season not available or scraping failed"))
+								failed_items.append((player_name, season, "Season not available"))
 								fail_count += 1
 								continue
 						
-						# Convert to DataFrame and save (normal case with games)
+						# Process and save games
 						df = pd.DataFrame(all_games)
-						numeric_columns = ['FPts', 'FGM', 'FGA', 'FG%', '3PTM', '3PTA', '3PT%', 
-										   'FTM', 'FTA', 'FT%', 'REB', 'AST', 'ST', 'BLK', 'TO', 'PF', 'PTS']
+						numeric_columns = ['FPts', 'FGM', 'FGA', 'FG%', '3PTM', '3PTA', '3PT%', 'FTM', 'FTA', 'FT%', 'REB', 'AST', 'ST', 'BLK', 'TO', 'PF', 'PTS']
 						for col in numeric_columns:
 							if col in df.columns:
 								df[col] = pd.to_numeric(df[col], errors='coerce')
 						
-						# Save to cache
 						CACHE_DIR.mkdir(parents=True, exist_ok=True)
 						cache_file = CACHE_DIR / f"player_game_log_full_{player_code}_{league_id}_{season.replace('-', '_')}.json"
-						cache_data = {
-							'player_name': player_name,
-							'player_code': player_code,
-							'league_id': league_id,
-							'season': season,
-							'data': df.to_dict('records'),
-							'status': 'success'
-						}
+						cache_data = {'player_name': player_name, 'player_code': player_code, 'league_id': league_id, 'season': season, 'data': df.to_dict('records'), 'status': 'success'}
 						with open(cache_file, 'w') as f:
 							json.dump(cache_data, f, indent=4)
 						try:
-							db_store.store_player_season(
-								player_code=player_code,
-								player_name=player_name,
-								league_id=league_id,
-								season=season,
-								status='success',
-								game_log_records=df.to_dict('records'),
-							)
-						except Exception:
-							pass
+							db_store.store_player_season(player_code, player_name, league_id, season, 'success', df.to_dict('records'))
+						except: pass
 						
 						success_count += 1
-						consecutive_empty_seasons = 0  # Reset counter when we find games
+						consecutive_empty_seasons = 0
 						
 					except Exception as e:
 						failed_items.append((player_name, season, str(e)))
 						fail_count += 1
 			
+				# Move to next player after successful processing
+				current_idx += 1
+				retry_count = 0
+				
 			except Exception as e:
-				# If player-level navigation fails, skip all seasons for this player
-				for season in seasons_to_scrape:
-					if current_operation < total_operations:
-						current_operation += 1
-					failed_items.append((player_name, season, f"Player navigation failed: {str(e)}"))
-					fail_count += 1
+				# Critical error handling (Driver crash / Connection issue)
+				err_msg = str(e).lower()
+				critical_errors = ["chrome", "driver", "connection", "reset", "disconnected", "refused"]
+				if any(ce in err_msg for ce in critical_errors):
+					if retry_count < MAX_RETRIES:
+						print(f"Driver died while processing {player_name}, restarting... ({retry_count+1}/{MAX_RETRIES})")
+						try:
+							driver.quit()
+						except: pass
+						kill_chromedriver_processes(also_chrome=True)
+						time.sleep(2)
+						driver = get_chrome_driver()
+						login_to_fantrax(driver, username, password)
+						retry_count += 1
+						continue # Retry the same player
+					else:
+						failed_items.append((player_name, "ALL_SEASONS", f"Driver died repeatedly: {e}"))
+						fail_count += len(seasons)
+						current_idx += 1
+						retry_count = 0
+				else:
+					# Non-critical error, log and move on
+					failed_items.append((player_name, "ALL_SEASONS", f"Unexpected error: {e}"))
+					fail_count += len(seasons)
+					current_idx += 1
+					retry_count = 0
 		
 		return {
 			"success_count": success_count,

@@ -6,7 +6,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 from modules.trade_analysis.logic import TradeAnalyzer, get_team_name, run_trade_analysis, get_all_teams
 
 
@@ -120,42 +120,55 @@ def display_trade_analysis_page():
                 if selected_entry is not None:
                     _replay_trade_from_history(selected_entry)
 
-def _display_player_selection_interface(selected_teams: List[str]) -> Dict[str, Dict[str, str]]:
-    """Displays the UI for selecting players and their destinations."""
-    st.write("### Select Players for Each Team")
-    trade_teams = {}
+def _display_player_selection_interface(selected_teams: List[str]) -> Tuple[Dict[str, Dict[str, str]], Dict[str, float]]:
+	"""Displays the UI for selecting players and their destinations."""
+	st.write("### Select Players for Each Team")
+	trade_teams: Dict[str, Dict[str, str]] = {}
+	assumed_fpg_overrides: Dict[str, float] = {}
 
-    if st.session_state.combined_data is None:
-        st.error("No data available for analysis")
-        return {}
+	if st.session_state.combined_data is None:
+		st.error("No data available for analysis")
+		return {}, assumed_fpg_overrides
 
-    num_cols = min(len(selected_teams), 3)
-    cols = st.columns(num_cols)
+	num_cols = min(len(selected_teams), 3)
+	cols = st.columns(num_cols)
 
-    for i, team in enumerate(selected_teams):
-        with cols[i % num_cols]:
-            st.write(f"#### {get_team_name(team)}")
-            team_data = st.session_state.combined_data.reset_index()
-            team_players = team_data[team_data['Status'] == team]['Player'].unique().tolist()
+	for i, team in enumerate(selected_teams):
+		with cols[i % num_cols]:
+			st.write(f"#### {get_team_name(team)}")
+			team_data = st.session_state.combined_data.reset_index()
+			team_players = team_data[team_data['Status'] == team]['Player'].unique().tolist()
 
-            selected_players = st.multiselect(
-                f"Select players from {get_team_name(team)}",
-                team_players,
-                key=f"players_{team}"
-            )
+			selected_players = st.multiselect(
+				f"Select players from {get_team_name(team)}",
+				team_players,
+				key=f"players_{team}"
+			)
 
-            if selected_players:
-                trade_teams[team] = {}
-                for player in selected_players:
-                    other_teams = [t for t in selected_teams if t != team]
-                    dest = st.selectbox(
-                        f"Select destination team for {player}",
-                        other_teams,
-                        format_func=get_team_name,
-                        key=f"dest_{team}_{player}"
-                    )
-                    trade_teams[team][player] = dest
-    return trade_teams
+			if selected_players:
+				trade_teams[team] = {}
+				for player in selected_players:
+					other_teams = [t for t in selected_teams if t != team]
+					dest = st.selectbox(
+						f"Select destination team for {player}",
+						other_teams,
+						format_func=get_team_name,
+						key=f"dest_{team}_{player}"
+					)
+					trade_teams[team][player] = dest
+
+					override_str = st.text_input(
+						f"Assumed FP/G for {player} (optional)",
+						key=f"assumed_fpg_{team}_{player}",
+					)
+					if override_str.strip():
+						try:
+							assumed_val = float(override_str)
+						except ValueError:
+							assumed_val = None
+						if assumed_val is not None:
+							assumed_fpg_overrides[player] = assumed_val
+	return trade_teams, assumed_fpg_overrides
 
 def _replay_trade_from_history(entry: Dict[str, Any]) -> None:
     """Recompute and display a read-only view of a cached trade history entry.
@@ -286,7 +299,7 @@ def trade_setup():
         st.warning("Please select at least 2 teams")
         return
 
-    trade_teams = _display_player_selection_interface(selected_teams)
+    trade_teams, assumed_fpg_overrides = _display_player_selection_interface(selected_teams)
 
     last_duration = st.session_state.get("trade_analysis_last_duration_sec")
     if last_duration:
@@ -305,6 +318,7 @@ def trade_setup():
                 num_players,
                 trade_label=trade_label,
                 include_advanced_metrics=include_advanced_metrics,
+                assumed_fpg_overrides=assumed_fpg_overrides,
             )
         if results:
             display_trade_results(results)

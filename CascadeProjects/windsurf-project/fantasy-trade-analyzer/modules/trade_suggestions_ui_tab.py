@@ -27,9 +27,9 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
     core_ppg_change = weekly_core_fp_change / min_games
     opp_weekly_core_fp_change = suggestion.get("opp_core_gain", 0)
 
-    st.markdown(f"### 🔄 Trade Impact: **+{weekly_core_fp_change:.1f} weekly core FP** for you")
+    st.markdown(f"### 🔄 Trade Impact: **{weekly_core_fp_change:+.1f} weekly core FP** for you")
     st.caption(
-        f"Your core FP/G improves by ~{core_ppg_change:.2f} across your top {int(core_size_approx)} players"
+        f"Your core FP/G changes by ~{core_ppg_change:+.2f} across your top {int(core_size_approx)} players"
     )
 
     col1, col2 = st.columns(2)
@@ -63,11 +63,11 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
     fig = go.Figure()
     fig.add_trace(
         go.Bar(
-            name="Your Gain",
+            name="Your Change",
             x=["Weekly Core FP"],
             y=[weekly_core_fp_change],
             marker_color="#4CAF50",
-            text=[f"+{weekly_core_fp_change:.1f}"],
+            text=[f"{weekly_core_fp_change:+.1f}"],
             textposition="outside",
         )
     )
@@ -95,8 +95,12 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
         st.success("🟢 **Strong Trade** - Solid weekly core FP gain")
     elif weekly_core_fp_change > 5:
         st.info("🟡 **Decent Trade** - Modest weekly core FP improvement")
-    else:
+    elif weekly_core_fp_change >= 0:
         st.info("🟡 **Marginal Trade** - Small weekly core FP gain")
+    elif weekly_core_fp_change > -5:
+        st.info("🟠 **Trade-Off:** Small weekly core FP loss – may be worth it if you gain consistency or positional fit")
+    else:
+        st.warning("🔴 **Core FP Loss:** You give up weekly core FP – only pursue if other factors clearly outweigh the downgrade")
 
     if opp_weekly_core_fp_change < -15:
         st.warning("⚠️ **Opponent loses significant core FP** - they may not accept")
@@ -114,10 +118,27 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
     # Short narrative summary
     st.markdown("#### 💡 Why this trade works")
     reasons = []
-    reasons.append(
-        f"📈 Core upgrade: your top ~{int(core_size_approx)} players gain ~{core_ppg_change:.2f} FP/G "
-        f"(+{weekly_core_fp_change:.1f} weekly core FP)."
-    )
+    if weekly_core_fp_change > 0:
+        reasons.append(
+            f"📈 Core upgrade: your top ~{int(core_size_approx)} players gain ~{core_ppg_change:.2f} FP/G "
+            f"({weekly_core_fp_change:+.1f} weekly core FP)."
+        )
+    elif weekly_core_fp_change < 0:
+        if weekly_core_fp_change > -5 and cv_change < -5:
+            reasons.append(
+                f"🧩 Consistency trade-off: your core gives up ~{abs(core_ppg_change):.2f} FP/G "
+                f"({weekly_core_fp_change:.1f} weekly core FP) in exchange for a more stable, less volatile roster."
+            )
+        else:
+            reasons.append(
+                f"📉 Core downgrade: your top ~{int(core_size_approx)} players lose ~{abs(core_ppg_change):.2f} FP/G "
+                f"({weekly_core_fp_change:.1f} weekly core FP)."
+            )
+    else:
+        reasons.append(
+            f"⚖️ Core neutral: your top ~{int(core_size_approx)} players stay roughly flat (~{core_ppg_change:+.2f} FP/G, "
+            f"{weekly_core_fp_change:+.1f} weekly core FP)."
+        )
 
     pattern = suggestion.get("pattern", "")
     if pattern in ("2-for-1", "3-for-1"):

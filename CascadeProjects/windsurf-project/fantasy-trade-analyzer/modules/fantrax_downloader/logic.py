@@ -2,6 +2,7 @@ import os
 import time
 import requests
 import subprocess
+import concurrent.futures
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -131,19 +132,55 @@ def download_players_csv(driver, start_date=None, end_date=None, league_id=None)
     download_path = os.path.join(DOWNLOAD_DIR, csv_filename)
 
     # --- Download Logic ---
-    cookies = driver.get_cookies()
+    try:
+        # Wrap get_cookies in a timeout because a dead driver can hang for 120s (socket default)
+        def get_cookies_safe():
+            return driver.get_cookies()
+            
+        cookies_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        try:
+            future = cookies_executor.submit(get_cookies_safe)
+            cookies = future.result(timeout=5)
+        except Exception as e:
+            # If timeout or other error, re-raise to be caught below
+            raise e
+        finally:
+            cookies_executor.shutdown(wait=False)
+            
+    except Exception as e:
+        msg = f'{range_name}: Error: Chrome driver died (cookies) - {e}'
+        print(msg)
+        return False, msg, "", 0
+    
     session = requests.Session()
     for cookie in cookies:
         session.cookies.set(cookie['name'], cookie['value'])
 
     print(f'Downloading CSV for {start_date} to {end_date}...')
+    
+    # Use a thread with a hard wall-clock timeout to prevent slow-trickling responses
+    # from blocking for minutes. The requests timeout only applies to connection/read gaps.
+    HARD_TIMEOUT_SECONDS = 15
+    
+    def do_request():
+        return session.get(csv_url, timeout=10)
+    
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     try:
-        # Add a timeout so we never hang indefinitely on a stalled request
-        resp = session.get(csv_url, timeout=60)
-    except requests.exceptions.RequestException as e:
-        msg = f'Error: Exception while downloading CSV: {e}'
+        future = executor.submit(do_request)
+        resp = future.result(timeout=HARD_TIMEOUT_SECONDS)
+    except concurrent.futures.TimeoutError:
+        msg = f'{range_name}: Error: Download timed out after {HARD_TIMEOUT_SECONDS}s'
         print(msg)
         return False, msg, "", 0
+    except requests.exceptions.RequestException as e:
+        msg = f'{range_name}: Error: Exception while downloading CSV: {e}'
+        print(msg)
+        return False, msg, "", 0
+    finally:
+        # Important: wait=False prevents the main thread from blocking 
+        # if the worker thread is still stuck on a slow request.
+        executor.shutdown(wait=False)
 
     if resp.status_code == 200 and resp.content:
         with open(download_path, 'wb') as f:
@@ -162,6 +199,7 @@ def download_all_ranges(league_id: str, progress_callback=None):
 		return ["Set FANTRAX_USERNAME and FANTRAX_PASSWORD in fantrax.env"]
 	
 	kill_chromedriver_processes(also_chrome=True)
+	time.sleep(1)  # Give OS time to fully release killed processes
 	messages = []
 	driver = get_chrome_driver(DOWNLOAD_DIR)
 	try:
@@ -200,21 +238,55 @@ def download_all_ranges(league_id: str, progress_callback=None):
 		best_non_ytd_path = ""
 
 		total_ranges = len(ranges)
+		max_attempts = 2
 		for i, (name, (start, end, requested_days)) in enumerate(ranges):
-			if progress_callback:
-				progress_callback(i / total_ranges, f"Downloading {name}...")
-			success, msg, path, actual_days = download_players_csv(driver, start, end, league_id)
-			messages.append(msg)
-			# Track best non-YTD window we have actually downloaded
-			if name != 'YTD' and success and actual_days > best_non_ytd_days:
+			for attempt in range(1, max_attempts + 1):
+				if progress_callback:
+					progress_label = f"Downloading {name} (attempt {attempt}/{max_attempts})"
+					progress_callback(i / total_ranges, progress_label)
+				success, msg, path, actual_days = download_players_csv(driver, start, end, league_id)
+				
+				# Self-healing: If driver died, restart it and retry immediately
+				if not success and "Chrome driver died" in msg:
+					messages.append(f"{name} (attempt {attempt}): Driver died, restarting...")
+					try:
+						try:
+							driver.quit()
+						except:
+							pass
+						kill_chromedriver_processes(also_chrome=True)
+						time.sleep(1)
+						driver = get_chrome_driver(DOWNLOAD_DIR)
+						login_to_fantrax(driver, FANTRAX_USERNAME, FANTRAX_PASSWORD)
+					except Exception as e:
+						messages.append(f"{name}: Restart failed ({e}). Skipping retry.")
+						continue
+
+					# Retry this attempt counter (decrement loop var? no, just let the loop continue to next attempt)
+					# Ideally we'd retry this exact attempt, but moving to the next attempt count is fine.
+					# If this was the last attempt, we might want one extra bonus attempt?
+					if attempt == max_attempts:
+						# Give it one bonus attempt since this wasn't a download failure but a crash
+						success, msg, path, actual_days = download_players_csv(driver, start, end, league_id)
+						messages.append(f"{name} (bonus attempt): {msg}")
+
+				else:
+					messages.append(f"{name} (attempt {attempt}): {msg}")
+				
+				if success:
+					break
+				if attempt < max_attempts:
+					time.sleep(1)
+
+			if not success:
+				continue
+
+			if name != 'YTD' and actual_days > best_non_ytd_days:
 				best_non_ytd_days = actual_days
 				best_non_ytd_path = path
-
-			# If the requested window (60/30) couldn't be fully met (start capped),
-			# duplicate the most complete non-YTD file so far under the expected name
-			if name in ('60 days', '30 days', '14 days', '7 days') and success and isinstance(actual_days, int) and actual_days < requested_days:
+		
+			if name in ('60 days', '30 days', '14 days', '7 days') and isinstance(actual_days, int) and actual_days < requested_days:
 				if best_non_ytd_path:
-					# Build fallback filename with requested_days suffix
 					fallback_filename = f"Fantrax-Players-{league_name}-({requested_days}).csv"
 					fallback_path = os.path.join(DOWNLOAD_DIR, fallback_filename)
 					try:
@@ -222,6 +294,7 @@ def download_all_ranges(league_id: str, progress_callback=None):
 						messages.append(f"Filled {requested_days}-day file using most complete range so far ({best_non_ytd_days} days)")
 					except Exception as e:
 						messages.append(f"Failed to create fallback file for {requested_days} days: {e}")
+
 			time.sleep(1)  # Add a delay to avoid overwhelming the server
 		
 		if progress_callback:
