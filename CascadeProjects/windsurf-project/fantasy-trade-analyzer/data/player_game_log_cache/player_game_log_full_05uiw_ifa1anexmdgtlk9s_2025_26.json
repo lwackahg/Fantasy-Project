@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 24",
+            "Team": "IND",
+            "Opp": "DET",
+            "Score": "L 117-122",
+            "FPts": 22,
+            "FG-": "2.0",
+            "3PTM": 0,
+            "FT-": "0",
+            "PTS": 9,
+            "OREB": "0",
+            "REB": 4,
+            "AST": 0,
+            "ST": 0,
+            "BLK": 0,
+            "TO": 0,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 21",
             "Team": "IND",
             "Opp": "@CLE",
@@ -340,5 +361,6 @@
             "3D": "0",
             "2D": "0"
         }
-    ]
+    ],
+    "status": "success"
 }

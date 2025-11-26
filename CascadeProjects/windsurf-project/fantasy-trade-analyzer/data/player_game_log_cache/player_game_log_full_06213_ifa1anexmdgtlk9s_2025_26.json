@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 24",
+            "Team": "SAC",
+            "Opp": "MIN",
+            "Score": "W 117-112",
+            "FPts": 93,
+            "FG-": "9.0",
+            "3PTM": 3,
+            "FT-": "0",
+            "PTS": 26,
+            "OREB": "2",
+            "REB": 14,
+            "AST": 2,
+            "ST": 1,
+            "BLK": 1,
+            "TO": 0,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "1"
+        },
+        {
             "Date": "Nov 22",
             "Team": "SAC",
             "Opp": "@DEN",
@@ -46,5 +67,6 @@
             "3D": "0",
             "2D": "0"
         }
-    ]
+    ],
+    "status": "success"
 }

@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 25",
+            "Team": "LAL",
+            "Opp": "LAC",
+            "Score": "W 135-118",
+            "FPts": 78,
+            "FG-": "6.0",
+            "3PTM": 2,
+            "FT-": "1",
+            "PTS": 25,
+            "OREB": "1",
+            "REB": 6,
+            "AST": 6,
+            "ST": 1,
+            "BLK": 1,
+            "TO": 3,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 23",
             "Team": "LAL",
             "Opp": "@UTA",
@@ -46,5 +67,6 @@
             "3D": "0",
             "2D": "1"
         }
-    ]
+    ],
+    "status": "success"
 }

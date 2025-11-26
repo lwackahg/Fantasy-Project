@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 24",
+            "Team": "TOR",
+            "Opp": "CLE",
+            "Score": "W 110-99",
+            "FPts": 70,
+            "FG-": "5.0",
+            "3PTM": 0,
+            "FT-": "0",
+            "PTS": 18,
+            "OREB": "2",
+            "REB": 11,
+            "AST": 6,
+            "ST": 1,
+            "BLK": 0,
+            "TO": 4,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "1"
+        },
+        {
             "Date": "Nov 23",
             "Team": "TOR",
             "Opp": "BKN",
@@ -361,5 +382,6 @@
             "3D": "0",
             "2D": "0"
         }
-    ]
+    ],
+    "status": "success"
 }

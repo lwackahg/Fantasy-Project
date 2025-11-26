@@ -9,13 +9,13 @@
             "Team": "OKC",
             "Opp": "POR",
             "Score": "W 122-95",
-            "FPts": 45,
+            "FPts": 42,
             "FG-": "6.0",
             "3PTM": 0,
             "FT-": "1",
             "PTS": 7,
-            "OREB": "3",
-            "REB": 15,
+            "OREB": "2",
+            "REB": 14,
             "AST": 3,
             "ST": 0,
             "BLK": 3,
@@ -382,5 +382,6 @@
             "3D": "0",
             "2D": "0"
         }
-    ]
+    ],
+    "status": "success"
 }

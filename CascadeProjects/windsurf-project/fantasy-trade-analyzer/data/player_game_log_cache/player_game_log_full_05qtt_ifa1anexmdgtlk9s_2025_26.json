@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 25",
+            "Team": "ATL",
+            "Opp": "@WAS",
+            "Score": "L 113-132",
+            "FPts": 45,
+            "FG-": "6.0",
+            "3PTM": 3,
+            "FT-": "1",
+            "PTS": 20,
+            "OREB": "1",
+            "REB": 3,
+            "AST": 0,
+            "ST": 0,
+            "BLK": 1,
+            "TO": 1,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 23",
             "Team": "ATL",
             "Opp": "CHA",
@@ -361,5 +382,6 @@
             "3D": "0",
             "2D": "0"
         }
-    ]
+    ],
+    "status": "success"
 }

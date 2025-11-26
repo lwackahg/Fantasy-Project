@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 24",
+            "Team": "DAL",
+            "Opp": "@MIA",
+            "Score": "L 102-106",
+            "FPts": 28,
+            "FG-": "9.0",
+            "3PTM": 1,
+            "FT-": "1",
+            "PTS": 12,
+            "OREB": "1",
+            "REB": 2,
+            "AST": 5,
+            "ST": 1,
+            "BLK": 0,
+            "TO": 3,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 22",
             "Team": "DAL",
             "Opp": "MEM",
@@ -340,5 +361,6 @@
             "3D": "0",
             "2D": "0"
         }
-    ]
+    ],
+    "status": "success"
 }

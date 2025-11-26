@@ -5,6 +5,27 @@
     "season": "2025-26",
     "data": [
         {
+            "Date": "Nov 25",
+            "Team": "PHI",
+            "Opp": "ORL",
+            "Score": "L 103-144",
+            "FPts": 23,
+            "FG-": "5.0",
+            "3PTM": 1,
+            "FT-": "0",
+            "PTS": 3,
+            "OREB": "2",
+            "REB": 12,
+            "AST": 0,
+            "ST": 0,
+            "BLK": 2,
+            "TO": 2,
+            "TF": "1",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0"
+        },
+        {
             "Date": "Nov 23",
             "Team": "PHI",
             "Opp": "MIA",
@@ -319,5 +340,6 @@
             "3D": "0",
             "2D": "0"
         }
-    ]
+    ],
+    "status": "success"
 }
