@@ -192,7 +192,7 @@ def main():
 						df_display[col] = df_display[col].round(2)
 				st.dataframe(
 					df_display.sort_values("TradeModelValue", ascending=False),
-					use_container_width=True,
+					width="stretch",
 					height=600,
 				)
 				st.markdown("---")
@@ -217,7 +217,7 @@ def main():
 					yaxis_title="Composite Value Score",
 					hovermode="closest",
 				)
-				st.plotly_chart(fig, use_container_width=True)
+				st.plotly_chart(fig, width="stretch")
 				# Download button
 				csv = df.to_csv(index=False)
 				st.download_button(
@@ -317,7 +317,7 @@ def main():
 						breakouts = len(filtered_df[filtered_df[pct_col] > 20])
 						st.metric("Breakouts (>20%)", breakouts)
 			st.markdown("#### Player Comparison")
-			st.dataframe(filtered_df, use_container_width=True, height=550)
+			st.dataframe(filtered_df, width="stretch", height=550)
 
 
 if __name__ == "__main__":

@@ -401,6 +401,7 @@ def find_trade_suggestions(
 	exclude_teams: List[str] = None,
 	target_opposing_players: List[str] = None,
 	exclude_opposing_players: List[str] = None,
+	player_fpts_overrides: Dict[str, float] = None,
 ) -> List[Dict]:
 	"""
 	Find optimal trade suggestions based on exponential value calculations.
@@ -413,20 +414,51 @@ def find_trade_suggestions(
 		max_suggestions: Maximum number of suggestions to return
 		target_teams: Optional list of teams to target (None = all teams)
 		exclude_players: Optional list of players to exclude from your side
+		player_fpts_overrides: Optional dict mapping player names to assumed FP/G
 	
 	Returns:
 		List of trade suggestions sorted by value gain
 	"""
 	suggestions = []
 	
+	# Apply overrides to your team if provided
+	your_full_team = your_team.copy()
+	if player_fpts_overrides:
+		for player, fpts in player_fpts_overrides.items():
+			mask = your_full_team['Player'] == player
+			if mask.any():
+				your_full_team.loc[mask, 'Mean FPts'] = fpts
+
+	# Apply overrides to other teams
+	effective_other_teams = {}
+	for name, team_df in other_teams.items():
+		if team_df is None or team_df.empty:
+			effective_other_teams[name] = team_df
+			continue
+		
+		# Check if we need to modify this team's dataframe
+		if player_fpts_overrides:
+			# Check if any overridden player is on this team
+			team_players = set(team_df['Player'].tolist()) if 'Player' in team_df.columns else set()
+			common = team_players.intersection(player_fpts_overrides.keys())
+			
+			if common:
+				new_df = team_df.copy()
+				for player in common:
+					new_df.loc[new_df['Player'] == player, 'Mean FPts'] = player_fpts_overrides[player]
+				effective_other_teams[name] = new_df
+			else:
+				effective_other_teams[name] = team_df
+		else:
+			effective_other_teams[name] = team_df
+			
+	other_teams = effective_other_teams
+	
 	# Filter teams if specified
 	if target_teams:
 		other_teams = {k: v for k, v in other_teams.items() if k in target_teams}
 	if exclude_teams:
 		other_teams = {k: v for k, v in other_teams.items() if k not in exclude_teams}
-	
-	# Preserve your full roster for core / context calculations
-	your_full_team = your_team.copy()
 	
 	# GP-based eligibility filter using share of max GP in league
 	all_teams_raw = {**other_teams, 'Your Team': your_full_team}

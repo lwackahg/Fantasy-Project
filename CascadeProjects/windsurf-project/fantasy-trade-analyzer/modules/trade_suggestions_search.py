@@ -796,8 +796,9 @@ def _find_3_for_2_trades(
 			)
 
 			# Optional 3-for-2 FP/G ratio sanity check
-			if not _check_3_for_2_package_ratio(your_players, their_players):
-				continue
+			if cfg.TRADE_BALANCE_LEVEL < 40:
+				if not _check_3_for_2_package_ratio(your_players, their_players):
+					continue
 
 			if not _passes_score_guards(
 				your_players,

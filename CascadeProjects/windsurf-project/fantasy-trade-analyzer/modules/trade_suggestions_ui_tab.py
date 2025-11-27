@@ -42,7 +42,7 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
                 "CV%": suggestion["your_cv"],
             }
         )
-        st.dataframe(give_df, hide_index=True, use_container_width=True)
+        st.dataframe(give_df, hide_index=True, width="stretch")
         your_avg_fpts = sum(suggestion["your_fpts"]) / max(len(suggestion["your_fpts"]), 1)
         st.caption(f"Package avg: {your_avg_fpts:.1f} FP/G")
     with col2:
@@ -54,7 +54,7 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
                 "CV%": suggestion["their_cv"],
             }
         )
-        st.dataframe(get_df, hide_index=True, use_container_width=True)
+        st.dataframe(get_df, hide_index=True, width="stretch")
         their_avg_fpts = sum(suggestion["their_fpts"]) / max(len(suggestion["their_fpts"]), 1)
         st.caption(f"Package avg: {their_avg_fpts:.1f} FP/G")
 
@@ -87,7 +87,7 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
         showlegend=True,
         yaxis_title="Weekly Core FP Change",
     )
-    st.plotly_chart(fig, use_container_width=True, key=f"trade_value_chart_{rank}")
+    st.plotly_chart(fig, width="stretch", key=f"trade_value_chart_{rank}")
 
     if weekly_core_fp_change > 30:
         st.success("🟢 **Excellent Trade** - Major weekly core FP upgrade!")
@@ -459,16 +459,16 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
             st.markdown("**Your Team**")
             st.caption("Top roster slots before and after this trade.")
             st.write("Before")
-            st.dataframe(_prepare_roster(your_before, suggestion["you_give"], []), hide_index=True, use_container_width=True)
+            st.dataframe(_prepare_roster(your_before, suggestion["you_give"], []), hide_index=True, width="stretch")
             st.write("After")
-            st.dataframe(_prepare_roster(your_after, suggestion["you_give"], suggestion["you_get"]), hide_index=True, use_container_width=True)
+            st.dataframe(_prepare_roster(your_after, suggestion["you_give"], suggestion["you_get"]), hide_index=True, width="stretch")
         with col2:
             st.markdown(f"**{suggestion['team']}**")
             st.caption("Top roster slots before and after this trade.")
             st.write("Before")
-            st.dataframe(_prepare_roster(opp_before, suggestion["you_get"], []), hide_index=True, use_container_width=True)
+            st.dataframe(_prepare_roster(opp_before, suggestion["you_get"], []), hide_index=True, width="stretch")
             st.write("After")
-            st.dataframe(_prepare_roster(opp_after, suggestion["you_get"], suggestion["you_give"]), hide_index=True, use_container_width=True)
+            st.dataframe(_prepare_roster(opp_after, suggestion["you_get"], suggestion["you_give"]), hide_index=True, width="stretch")
 
     with st.expander("📉 Full Trend & Risk Analysis (Trade Analysis tool)", expanded=False):
         has_analyzer = bool(st.session_state.get("trade_analyzer")) and st.session_state.get("combined_data") is not None
@@ -904,6 +904,47 @@ def display_trade_suggestions_tab():
                 key="tab_fp_cv_preference",
             )
 
+    with st.expander("⚙️ Player Performance Assumptions (Override FP/G)", expanded=False):
+        st.caption("Select players to manually set their assumed FP/G for trade calculations.")
+        
+        all_players_set = set()
+        if rosters_by_team:
+            for df in rosters_by_team.values():
+                if df is not None and "Player" in df.columns:
+                    all_players_set.update(df["Player"].dropna().tolist())
+        all_players_sorted = sorted(list(all_players_set))
+        
+        selected_override_players = st.multiselect(
+            "Select Players to Override",
+            options=all_players_sorted,
+            key="tab_override_players_select"
+        )
+        
+        player_fpts_overrides = {}
+        if selected_override_players:
+            st.markdown("##### Set Assumed FP/G")
+            cols = st.columns(3)
+            for i, player in enumerate(selected_override_players):
+                current_fpts = 0.0
+                for df in rosters_by_team.values():
+                    if df is not None and "Player" in df.columns:
+                        match = df[df["Player"] == player]
+                        if not match.empty:
+                            val = match.iloc[0].get("Mean FPts")
+                            if val is not None and not pd.isna(val):
+                                current_fpts = float(val)
+                            break
+                
+                with cols[i % 3]:
+                    new_fpts = st.number_input(
+                        f"{player}",
+                        value=current_fpts,
+                        step=0.1,
+                        format="%.1f",
+                        key=f"override_fpts_{player}"
+                    )
+                    player_fpts_overrides[player] = new_fpts
+
     suggestions_session_key = "tab_trade_suggestions_results"
     if st.button("🔍 Find Trade Suggestions (Tab)", type="primary", key="tab_find_trade_suggestions"):
         with st.spinner("Analyzing trade opportunities..."):
@@ -924,6 +965,7 @@ def display_trade_suggestions_tab():
                 exclude_teams=exclude_teams if exclude_teams else None,
                 target_opposing_players=target_opposing_players if target_opposing_players else None,
                 exclude_opposing_players=exclude_opposing_players if exclude_opposing_players else None,
+                player_fpts_overrides=player_fpts_overrides if "player_fpts_overrides" in locals() and player_fpts_overrides else None,
             )
 
             if not suggestions:
@@ -940,13 +982,13 @@ def display_trade_suggestions_tab():
                 st.session_state[suggestions_session_key] = filtered_suggestions
 
     filtered_suggestions = st.session_state.get(suggestions_session_key)
+    
     if filtered_suggestions is None:
         # No search has been run yet
         pass
     elif not filtered_suggestions:
         st.warning(
-            "No beneficial trades found with current filters, or all trades were filtered out by the "
-            "opponent FP change threshold. Try loosening your criteria."
+            "No beneficial trades found with current filters."
         )
     else:
         # Sort suggestions according to the current FP/G vs CV preference slider
@@ -1074,4 +1116,4 @@ def display_trade_suggestions_tab():
             hovermode="x unified",
         )
 
-        st.plotly_chart(fig, use_container_width=True, key="tab_exponential_curve_chart")
+        st.plotly_chart(fig, width="stretch", key="tab_exponential_curve_chart")

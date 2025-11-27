@@ -186,7 +186,7 @@ def _display_fantasy_teams_overview(rosters_by_team):
 	st.markdown("### Fantasy Team Performance Summary")
 	st.dataframe(
 		summary_df,
-		use_container_width=True,
+		width="stretch",
 		height=400,
 		column_config={
 			'Fantasy Team': st.column_config.TextColumn('Fantasy Team', width='large'),
@@ -303,7 +303,7 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 				title="Players by Production Tier"
 			)
 			fig_tiers.update_layout(showlegend=False, height=300)
-			st.plotly_chart(fig_tiers, use_container_width=True)
+			st.plotly_chart(fig_tiers, width="stretch")
 			
 			# Depth analysis
 			if elite_count >= 2:
@@ -328,7 +328,7 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 				color_discrete_sequence=['#90ee90', '#ffd700', '#ff6b6b']
 			)
 			fig_cons.update_layout(height=300)
-			st.plotly_chart(fig_cons, use_container_width=True)
+			st.plotly_chart(fig_cons, width="stretch")
 			
 			# Consistency analysis
 			consistent_pct = (consistent_count / total_players * 100) if total_players > 0 else 0
@@ -359,7 +359,7 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 				yaxis_title="Mean FPts",
 				height=350
 			)
-			st.plotly_chart(fig_dist, use_container_width=True)
+			st.plotly_chart(fig_dist, width="stretch")
 		
 		with col2:
 			# CV% distribution
@@ -375,7 +375,7 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 				yaxis_title="CV%",
 				height=350
 			)
-			st.plotly_chart(fig_cv, use_container_width=True)
+			st.plotly_chart(fig_cv, width="stretch")
 		
 		# Scatter plot: Production vs Consistency
 		fig_scatter = px.scatter(
@@ -390,7 +390,7 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 		fig_scatter.add_hline(y=CONSISTENCY_VERY_MAX_CV, line_dash="dash", line_color="green", opacity=0.5, annotation_text="Very Consistent")
 		fig_scatter.add_hline(y=CONSISTENCY_MODERATE_MAX_CV, line_dash="dash", line_color="orange", opacity=0.5, annotation_text="Moderate")
 		fig_scatter.update_layout(height=400)
-		st.plotly_chart(fig_scatter, use_container_width=True)
+		st.plotly_chart(fig_scatter, width="stretch")
 	
 	# League Comparison
 	with st.expander("🏆 League Comparison", expanded=False):
@@ -431,7 +431,7 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 			height=400,
 			showlegend=False
 		)
-		st.plotly_chart(fig_comp, use_container_width=True)
+		st.plotly_chart(fig_comp, width="stretch")
 		
 		# Detailed comparison table
 		st.markdown("#### Detailed League Standings")
@@ -440,7 +440,7 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 		
 		st.dataframe(
 			display_df,
-			use_container_width=True,
+			width="stretch",
 			height=400,
 			column_config={
 				'Rank': st.column_config.NumberColumn('Rank', width='small'),
@@ -557,7 +557,7 @@ def show_fantasy_teams_viewer(league_id, cache_files, selected_season):
 	
 	st.dataframe(
 		filtered.drop(columns=['code']),
-		use_container_width=True,
+		width="stretch",
 		height=400,
 		column_config={
 			'Player': st.column_config.TextColumn('Player', width='medium'),
@@ -629,7 +629,7 @@ def show_fantasy_teams_viewer(league_id, cache_files, selected_season):
 	other_cols = [c for c in games.columns if c not in priority_cols]
 	display_cols = [c for c in priority_cols if c in games.columns] + other_cols
 	
-	st.dataframe(games[display_cols], use_container_width=True, height=350)
+	st.dataframe(games[display_cols], width="stretch", height=350)
 	
 	csv = games.to_csv(index=False)
 	st.download_button(

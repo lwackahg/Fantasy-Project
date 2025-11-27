@@ -251,9 +251,15 @@ def download_all_ranges(league_id: str, progress_callback=None):
 					messages.append(f"{name} (attempt {attempt}): Driver died, restarting...")
 					try:
 						try:
-							driver.quit()
-						except:
+							# Wrap quit in a timeout so we don't hang on a zombie driver
+							def safe_quit():
+								driver.quit()
+							
+							with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+								executor.submit(safe_quit).result(timeout=3)
+						except Exception:
 							pass
+							
 						kill_chromedriver_processes(also_chrome=True)
 						time.sleep(1)
 						driver = get_chrome_driver(DOWNLOAD_DIR)

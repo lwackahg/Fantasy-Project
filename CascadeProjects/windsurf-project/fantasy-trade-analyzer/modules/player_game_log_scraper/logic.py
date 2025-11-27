@@ -4,12 +4,15 @@ import json
 import pandas as pd
 import re
 import subprocess
+import concurrent.futures
 from pathlib import Path
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException
 from webdriver_manager.chrome import ChromeDriverManager
 from dotenv import load_dotenv, find_dotenv
@@ -154,15 +157,41 @@ def clean_cached_game_log(game_log):
 	
 	return cleaned_log
 
+# Global cache for driver path to avoid repeated install checks
+_cached_driver_path = None
+
 def get_chrome_driver():
+	global _cached_driver_path
 	options = webdriver.ChromeOptions()
-	#options.add_argument('--headless')
+	options.add_argument('--headless')
 	options.add_argument('--no-sandbox')
 	options.add_argument('--disable-dev-shm-usage')
 	options.add_argument('--log-level=3')
-	options.add_experimental_option('excludeSwitches', ['enable-logging'])
-	service = Service(ChromeDriverManager().install())
+	options.add_argument('--disable-blink-features=AutomationControlled')
+	options.add_experimental_option('excludeSwitches', ['enable-logging', 'enable-automation'])
+	options.add_experimental_option('useAutomationExtension', False)
+
+	# Block images, stylesheets, and fonts to speed up loading
+	prefs = {
+		"profile.managed_default_content_settings.images": 2,
+		"profile.managed_default_content_settings.stylesheets": 2,
+		"profile.managed_default_content_settings.fonts": 2
+	}
+	options.add_experimental_option("prefs", prefs)
+	
+	# CRITICAL: Use 'eager' loading strategy to stop waiting for ads/trackers that hang
+	options.page_load_strategy = 'eager'
+	
+	if _cached_driver_path is None:
+		_cached_driver_path = ChromeDriverManager().install()
+	
+	service = Service(_cached_driver_path)
 	driver = webdriver.Chrome(service=service, options=options)
+	
+	# Set strict timeouts to fail fast rather than hang for 120s
+	driver.set_page_load_timeout(25)
+	driver.set_script_timeout(25)
+	
 	return driver
 
 def login_to_fantrax(driver, username, password):
@@ -275,9 +304,12 @@ def get_player_game_log_full(player_code, league_id, username, password, season=
 			if force_refresh == False:
 				with open(cache_file, 'r') as f:
 					cache_data = json.load(f)
-					df = pd.DataFrame.from_records(cache_data['data'])
-					player_name = cache_data.get('player_name', 'Unknown Player')
-					return df, True, player_name
+					# Check if cache is fresh (< 1 hour)
+					last_updated = cache_data.get('timestamp', 0)
+					if time.time() - last_updated < 3600:
+						df = pd.DataFrame.from_records(cache_data['data'])
+						player_name = cache_data.get('player_name', 'Unknown Player')
+						return df, True, player_name
 
 	kill_chromedriver_processes(also_chrome=False)
 	driver = get_chrome_driver()
@@ -291,9 +323,12 @@ def get_player_game_log_full(player_code, league_id, username, password, season=
 		for attempt in range(1, max_attempts + 1):
 			try:
 				driver.get(player_url)
-				time.sleep(1.5)  # Short wait for initial load
+				# Wait for Games tab to be present instead of sleeping
+				WebDriverWait(driver, 10).until(
+					EC.presence_of_element_located((By.XPATH, "//button[contains(text(), 'Games (Fntsy)')]"))
+				)
 				break
-			except WebDriverException as e:
+			except (WebDriverException, Exception) as e:
 				last_error = e
 				if attempt == max_attempts:
 					raise Exception(f"Failed to load player page after {max_attempts} attempts: {e}")
@@ -316,7 +351,10 @@ def get_player_game_log_full(player_code, league_id, username, password, season=
 			# Find the Games (Fntsy) tab button
 			games_tab = driver.find_element(By.XPATH, "//button[contains(text(), 'Games (Fntsy)')]")
 			games_tab.click()
-			time.sleep(1.5)  # Short wait for tab load
+			# Wait for table body instead of sleep
+			WebDriverWait(driver, 10).until(
+				EC.presence_of_element_located((By.CSS_SELECTOR, "div[itablebody]"))
+			)
 		except Exception as e:
 			driver.quit()
 			raise Exception(f"Could not find or click Games (Fntsy) tab: {e}")
@@ -412,6 +450,7 @@ def get_player_game_log_full(player_code, league_id, username, password, season=
 			'player_code': player_code,
 			'league_id': league_id,
 			'season': season,
+			'timestamp': time.time(),
 			'data': df.to_dict('records')
 		}
 		with open(cache_file, 'w') as f:
@@ -703,7 +742,20 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 					if force_refresh:
 						seasons_to_scrape.append(season)
 					elif season == "2025-26":
-						seasons_to_scrape.append(season)
+						# Check if cache is fresh (< 1 hour)
+						is_fresh = False
+						if cache_file.exists():
+							try:
+								with open(cache_file, 'r') as f:
+									cdata = json.load(f)
+								if time.time() - cdata.get('timestamp', 0) < 3600:
+									is_fresh = True
+							except: pass
+						
+						if not is_fresh:
+							seasons_to_scrape.append(season)
+						else:
+							success_count += 1
 					elif not cache_file.exists():
 						seasons_to_scrape.append(season)
 					else:
@@ -719,13 +771,17 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 				# Navigate to player page once per player
 				player_url = f"https://www.fantrax.com/player/{player_code}/{league_id}"
 				driver.get(player_url)
-				time.sleep(3)
 				
 				# Navigate to Games (Fntsy) tab once
 				try:
+					WebDriverWait(driver, 10).until(
+						EC.presence_of_element_located((By.XPATH, "//button[contains(text(), 'Games (Fntsy)')]"))
+					)
 					games_tab = driver.find_element(By.XPATH, "//button[contains(text(), 'Games (Fntsy)')]")
 					games_tab.click()
-					time.sleep(1.5)  # Wait for Games tab to fully load
+					WebDriverWait(driver, 10).until(
+						EC.presence_of_element_located((By.CSS_SELECTOR, "div[itablebody]"))
+					)
 					
 					# Games tab typically defaults to current season
 					current_season_on_page = "2025-26"
@@ -760,12 +816,12 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 							try:
 								season_dropdown = driver.find_element(By.CSS_SELECTOR, "mat-select")
 								season_dropdown.click()
-								time.sleep(1)
+								time.sleep(0.5)
 								
 								season_text = f"{season} Reg Season"
 								season_option = driver.find_element(By.XPATH, f"//mat-option//span[contains(text(), '{season_text}')]")
 								season_option.click()
-								time.sleep(2)
+								time.sleep(1) # Wait for data reload
 								current_season_on_page = season
 							except Exception as e:
 								failed_items.append((player_name, season, "Season selection failed"))
@@ -773,7 +829,8 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 								continue
 						
 						# Get page source and parse
-						time.sleep(1)
+						# No sleep needed if we waited for elements, but keeping a tiny buffer for rendering
+						time.sleep(0.1)
 						page_source = driver.page_source
 						soup = BeautifulSoup(page_source, 'html.parser')
 						
@@ -835,7 +892,15 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 						
 						CACHE_DIR.mkdir(parents=True, exist_ok=True)
 						cache_file = CACHE_DIR / f"player_game_log_full_{player_code}_{league_id}_{season.replace('-', '_')}.json"
-						cache_data = {'player_name': player_name, 'player_code': player_code, 'league_id': league_id, 'season': season, 'data': df.to_dict('records'), 'status': 'success'}
+						cache_data = {
+							'player_name': player_name, 
+							'player_code': player_code, 
+							'league_id': league_id, 
+							'season': season, 
+							'timestamp': time.time(),
+							'data': df.to_dict('records'), 
+							'status': 'success'
+						}
 						with open(cache_file, 'w') as f:
 							json.dump(cache_data, f, indent=4)
 						try:
@@ -854,19 +919,34 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 				retry_count = 0
 				
 			except Exception as e:
-				# Critical error handling (Driver crash / Connection issue)
+				# Critical error handling (Driver crash / Connection issue / Timeout)
 				err_msg = str(e).lower()
-				critical_errors = ["chrome", "driver", "connection", "reset", "disconnected", "refused"]
+				critical_errors = ["chrome", "driver", "connection", "reset", "disconnected", "refused", "timeout", "timed out"]
 				if any(ce in err_msg for ce in critical_errors):
 					if retry_count < MAX_RETRIES:
 						print(f"Driver died while processing {player_name}, restarting... ({retry_count+1}/{MAX_RETRIES})")
 						try:
-							driver.quit()
-						except: pass
+							# Wrap quit in a timeout so we don't hang on a zombie driver
+							def safe_quit():
+								if driver: driver.quit()
+							
+							print("Debug: Attempting safe driver quit...")
+							with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+								executor.submit(safe_quit).result(timeout=3)
+						except Exception:
+							pass
+
+						print("Debug: Killing stale processes...")
 						kill_chromedriver_processes(also_chrome=True)
 						time.sleep(2)
+						
+						print("Debug: Starting new driver...")
 						driver = get_chrome_driver()
+						
+						print("Debug: Logging into Fantrax...")
 						login_to_fantrax(driver, username, password)
+						
+						print("Debug: Restart complete, retrying...")
 						retry_count += 1
 						continue # Retry the same player
 					else:
@@ -920,13 +1000,13 @@ def bulk_scrape_all_players(league_id, username, password, player_dict=None, pro
 				# Navigate to player page
 				player_url = f"https://www.fantrax.com/player/{player_code}/{league_id}"
 				driver.get(player_url)
-				time.sleep(1.0)  # Shorter wait for bulk operations
+				time.sleep(0.5)  # Shorter wait for bulk operations
 				
 				# Navigate to Games (Fntsy) tab
 				try:
 					games_tab = driver.find_element(By.XPATH, "//button[contains(text(), 'Games (Fntsy)')]")
 					games_tab.click()
-					time.sleep(1.0)
+					time.sleep(0.5)
 				except Exception:
 					failed_players.append((player_name, "Games tab not found"))
 					fail_count += 1

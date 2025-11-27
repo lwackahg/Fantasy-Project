@@ -371,11 +371,11 @@ def _check_3_for_2_package_ratio(
 	if your_total_fpts <= their_total_fpts:
 		return True
 	total_ratio = your_total_fpts / their_total_fpts
-	# Base cap: at strictest setting, allow only a very small FP/G sacrifice.
-	base_cap = 1.03
-	# TRADE_BALANCE_LEVEL ~ 1..50; map to multiplier ~ [1.0, 1.2]
+	# Base cap: at strictest setting, allow a moderate FP/G sacrifice for consolidation.
+	base_cap = 1.15
+	# TRADE_BALANCE_LEVEL ~ 1..50; map to multiplier ~ [1.0, 1.3]
 	looseness = cfg.TRADE_BALANCE_LEVEL
-	looseness_factor = 1.0 + (min(max(looseness, 1), 50) - 1) * (0.2 / 49.0)
+	looseness_factor = 1.0 + (min(max(looseness, 1), 50) - 1) * (0.3 / 49.0)
 	max_ratio = base_cap * looseness_factor
 	return total_ratio <= max_ratio
 

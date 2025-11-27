@@ -314,7 +314,7 @@ if not st.session_state.draft_started:
             current = order[i] if (order[i] in remaining) else "-- Select --"
             idx = opts.index(current) if current in opts else 0
             sel = st.selectbox(
-                "",
+                label=f"Select Team for Slot {i+1}",
                 options=opts,
                 index=idx,
                 key=f"draft_order_slot_{i}_{st.session_state.draft_order_version}",
@@ -633,7 +633,7 @@ else: # Draft is in progress
                     'Base MAE ($)': round(drafted_f['AbsError_Base'].mean(), 2),
                 }
                 st.markdown("**Overall**")
-                st.dataframe(pd.DataFrame([overall]), hide_index=True, use_container_width=True)
+                st.dataframe(pd.DataFrame([overall]), hide_index=True, width="stretch")
 
                 # By Tier
                 if 'Tier' in drafted_f.columns:
@@ -646,7 +646,7 @@ else: # Draft is in progress
                     ).reset_index()
                     by_tier[['Adj_ME','Adj_MAE','Base_ME','Base_MAE']] = by_tier[['Adj_ME','Adj_MAE','Base_ME','Base_MAE']].round(2)
                     st.markdown("**By Tier**")
-                    st.dataframe(by_tier, hide_index=True, use_container_width=True)
+                    st.dataframe(by_tier, hide_index=True, width="stretch")
 
                     # Suggest non-destructive calibration multipliers by Tier (not applied)
                     try:
@@ -658,7 +658,7 @@ else: # Draft is in progress
                         tier_sugg['SuggestedMultiplierPct'] = ((tier_sugg['SuggestedMultiplier'] - 1.0) * 100).round(1)
                         tier_sugg = tier_sugg.reset_index()[['Tier','AdjMean','AdjME','SuggestedMultiplier','SuggestedMultiplierPct']]
                         st.markdown("**Calibration suggestions (by Tier)** – informational only, not applied")
-                        st.dataframe(tier_sugg, hide_index=True, use_container_width=True)
+                        st.dataframe(tier_sugg, hide_index=True, width="stretch")
                     except Exception:
                         pass
 
@@ -673,7 +673,7 @@ else: # Draft is in progress
                     ).reset_index()
                     by_pos[['Adj_ME','Adj_MAE','Base_ME','Base_MAE']] = by_pos[['Adj_ME','Adj_MAE','Base_ME','Base_MAE']].round(2)
                     st.markdown("**By Position**")
-                    st.dataframe(by_pos, hide_index=True, use_container_width=True)
+                    st.dataframe(by_pos, hide_index=True, width="stretch")
 
                     # Suggest non-destructive calibration multipliers by Position (not applied)
                     try:
@@ -684,7 +684,7 @@ else: # Draft is in progress
                         pos_sugg['SuggestedMultiplierPct'] = ((pos_sugg['SuggestedMultiplier'] - 1.0) * 100).round(1)
                         pos_sugg = pos_sugg.reset_index()[['Position','AdjMean','AdjME','SuggestedMultiplier','SuggestedMultiplierPct']]
                         st.markdown("**Calibration suggestions (by Position)** – informational only, not applied")
-                        st.dataframe(pos_sugg, hide_index=True, use_container_width=True)
+                        st.dataframe(pos_sugg, hide_index=True, width="stretch")
                     except Exception:
                         pass
 
@@ -862,9 +862,9 @@ else: # Draft is in progress
                 return [''] * len(row)
 
             styled = display_df.style.format(style_formats).apply(_injury_row_style, axis=1)
-            st.dataframe(styled, use_container_width=True, hide_index=True)
+            st.dataframe(styled, width="stretch", hide_index=True)
         except Exception:
-            st.dataframe(display_df, use_container_width=True, hide_index=True)
+            st.dataframe(display_df, width="stretch", hide_index=True)
 
         # Download current curated values
         try:
@@ -930,9 +930,9 @@ else: # Draft is in progress
                             style_formats_d['Conf %'] = '{:.1f}%'
                         if 'Scarcity %' in drafted_vals.columns:
                             style_formats_d['Scarcity %'] = '{:.0f}%'
-                        st.dataframe(drafted_vals.style.format(style_formats_d), use_container_width=True, hide_index=True)
+                        st.dataframe(drafted_vals.style.format(style_formats_d), width="stretch", hide_index=True)
                     except Exception:
-                        st.dataframe(drafted_vals, use_container_width=True, hide_index=True)
+                        st.dataframe(drafted_vals, width="stretch", hide_index=True)
                 else:
                     st.write("No cached values for drafted players.")
         # Quick legend

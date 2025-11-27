@@ -147,7 +147,7 @@ def show_player_game_log_scraper():
 			)
 		
 		# Second row of options
-		col4, col5, col6 = st.columns(3)
+		col4, col5 = st.columns(2)
 		with col4:
 			if st.button("🗑️ Clear All Cache", help="Delete all cached player game logs"):
 				message, success = clear_player_game_log_cache()
@@ -156,10 +156,7 @@ def show_player_game_log_scraper():
 				else:
 					st.error(message)
 		with col5:
-			if st.button("📦 Bulk Scrape All", help="Scrape game logs for ALL players (one login, saves to cache)"):
-				st.session_state['show_bulk_scrape'] = True
-		with col6:
-			if st.button("🆕 Bulk Scrape Full", help="Enhanced bulk scraper using Games (Fntsy) tab with multi-season support"):
+			if st.button("📦 Bulk Scrape All Players", help="Scrape game logs for all players with multi-season support"):
 				st.session_state['show_bulk_scrape_full'] = True
 
 		# Scrape button
@@ -306,7 +303,7 @@ def show_player_game_log_scraper():
 								height=400
 							)
 						
-							st.plotly_chart(fig_trend, use_container_width=True)
+							st.plotly_chart(fig_trend, width="stretch")
 					
 						with viz_tab2:
 							# Histogram showing distribution
@@ -344,7 +341,7 @@ def show_player_game_log_scraper():
 								height=400
 							)
 						
-							st.plotly_chart(fig_hist, use_container_width=True)
+							st.plotly_chart(fig_hist, width="stretch")
 						
 							# Add distribution stats
 							col1, col2, col3 = st.columns(3)
@@ -409,7 +406,7 @@ def show_player_game_log_scraper():
 								height=400
 							)
 						
-							st.plotly_chart(fig_zones, use_container_width=True)
+							st.plotly_chart(fig_zones, width="stretch")
 						
 							# Summary table
 							category_counts = df_viz['Category'].value_counts()
@@ -447,7 +444,7 @@ def show_player_game_log_scraper():
 									height=400
 								)
 							
-								st.plotly_chart(fig_cats, use_container_width=True)
+								st.plotly_chart(fig_cats, width="stretch")
 							
 								# Show detailed stats table
 								st.write("**Detailed Category Statistics:**")
@@ -477,7 +474,7 @@ def show_player_game_log_scraper():
 				
 					st.dataframe(
 						df[display_cols],
-						use_container_width=True,
+						width="stretch",
 						height=400
 					)
 
@@ -494,71 +491,11 @@ def show_player_game_log_scraper():
 				st.error(f"An error occurred: {e}")
 				st.exception(e)
 	
-		# Bulk Scraper Section
-		if st.session_state.get('show_bulk_scrape', False):
-			st.markdown("---")
-			st.subheader("📦 Bulk Scrape All Players")
-			st.write("This will scrape game logs for **all players** in one session (single login). Perfect for weekly updates!")
-		
-			player_dict = get_available_players_from_csv()
-			if not player_dict:
-				st.error("No players found to scrape.")
-				st.session_state['show_bulk_scrape'] = False
-			else:
-				st.info(f"Ready to scrape **{len(player_dict)} players**. This will take approximately {len(player_dict) * 2 / 60:.1f} minutes.")
-			
-				col1, col2 = st.columns(2)
-				with col1:
-					if st.button("▶️ Start Bulk Scrape", type="primary"):
-						if not league_id:
-							st.error("Please enter a Fantrax League ID.")
-						elif not FANTRAX_USERNAME or not FANTRAX_PASSWORD:
-							st.error("Fantrax credentials not found in fantrax.env")
-						else:
-							progress_bar = st.progress(0)
-							status_text = st.empty()
-						
-							def progress_callback(current, total, player_name):
-								progress = current / total
-								progress_bar.progress(progress)
-								status_text.text(f"Scraping {current}/{total}: {player_name}")
-						
-							try:
-								with st.spinner("Starting bulk scrape..."):
-									result = bulk_scrape_all_players(
-										league_id, 
-										FANTRAX_USERNAME, 
-										FANTRAX_PASSWORD,
-										player_dict,
-										progress_callback
-									)
-							
-								progress_bar.empty()
-								status_text.empty()
-							
-								if "error" in result:
-									st.error(result["error"])
-								else:
-									st.success(f"✅ Bulk scrape complete! Successfully scraped {result['success_count']}/{result['total']} players.")
-								
-									if result['fail_count'] > 0:
-										with st.expander(f"⚠️ {result['fail_count']} players failed"):
-											for player_name, error in result['failed_players']:
-												st.write(f"- **{player_name}**: {error}")
-							
-							except Exception as e:
-								st.error(f"Bulk scrape failed: {e}")
-								st.exception(e)
-			
-				with col2:
-					if st.button("❌ Cancel"):
-						st.session_state['show_bulk_scrape'] = False
-	
-		# Enhanced Bulk Scraper Section
+		# Bulk Scraper Section (Multi-Season)
 		if st.session_state.get('show_bulk_scrape_full', False):
 			st.markdown("---")
-			st.subheader("🆕 Enhanced Bulk Scrape - Multi-Season")
-			st.write("Scrape complete game logs using Games (Fntsy) tab with multi-season support. Perfect for historical analysis!")
+			st.subheader("📦 Bulk Scrape All Players")
+			st.write("Scrape complete game logs using Games (Fntsy) tab with multi-season support.")
 			
 			player_dict = get_available_players_from_csv()
 			if not player_dict:

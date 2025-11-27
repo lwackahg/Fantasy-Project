@@ -120,7 +120,7 @@ def display_trade_analysis_page():
                 if selected_entry is not None:
                     _replay_trade_from_history(selected_entry)
 
-def _display_player_selection_interface(selected_teams: List[str]) -> Tuple[Dict[str, Dict[str, str]], Dict[str, float]]:
+def _display_player_selection_interface(selected_teams: List[str], key_suffix: str = "") -> Tuple[Dict[str, Dict[str, str]], Dict[str, float]]:
 	"""Displays the UI for selecting players and their destinations."""
 	st.write("### Select Players for Each Team")
 	trade_teams: Dict[str, Dict[str, str]] = {}
@@ -142,7 +142,7 @@ def _display_player_selection_interface(selected_teams: List[str]) -> Tuple[Dict
 			selected_players = st.multiselect(
 				f"Select players from {get_team_name(team)}",
 				team_players,
-				key=f"players_{team}"
+				key=f"players_{team}{key_suffix}"
 			)
 
 			if selected_players:
@@ -153,13 +153,13 @@ def _display_player_selection_interface(selected_teams: List[str]) -> Tuple[Dict
 						f"Select destination team for {player}",
 						other_teams,
 						format_func=get_team_name,
-						key=f"dest_{team}_{player}"
+						key=f"dest_{team}_{player}{key_suffix}"
 					)
 					trade_teams[team][player] = dest
 
 					override_str = st.text_input(
 						f"Assumed FP/G for {player} (optional)",
-						key=f"assumed_fpg_{team}_{player}",
+						key=f"assumed_fpg_{team}_{player}{key_suffix}",
 					)
 					if override_str.strip():
 						try:
@@ -299,31 +299,145 @@ def trade_setup():
         st.warning("Please select at least 2 teams")
         return
 
-    trade_teams, assumed_fpg_overrides = _display_player_selection_interface(selected_teams)
+    enable_comparison = st.checkbox(
+        "Compare two trade scenarios", 
+        value=False, 
+        help="Define two different trade packages (Scenario A vs Scenario B) to see a side-by-side comparison of their impact."
+    )
+
+    trade_teams_1, overrides_1 = {}, {}
+    trade_teams_2, overrides_2 = {}, {}
+
+    if enable_comparison:
+        tab1, tab2 = st.tabs(["Scenario A (Primary)", "Scenario B (Alternative)"])
+        with tab1:
+            trade_teams_1, overrides_1 = _display_player_selection_interface(selected_teams, key_suffix="_scen_a")
+        with tab2:
+            st.info("Define the alternative trade package below.")
+            trade_teams_2, overrides_2 = _display_player_selection_interface(selected_teams, key_suffix="_scen_b")
+    else:
+        trade_teams_1, overrides_1 = _display_player_selection_interface(selected_teams, key_suffix="")
 
     last_duration = st.session_state.get("trade_analysis_last_duration_sec")
     if last_duration:
         est_seconds = int(round(last_duration)) or 1
+        if enable_comparison:
+            est_seconds *= 2
         st.caption(f"Last analysis took about {est_seconds} seconds. Future runs should be similar.")
 
-    if trade_teams and st.button("Analyze Trade"):
+    if st.button("Analyze Trade"):
+        if not trade_teams_1:
+            st.warning("Please select players for the primary scenario.")
+            return
+        
+        if enable_comparison and not trade_teams_2:
+            st.warning("Please select players for Scenario B or disable comparison mode.")
+            return
+
         spinner_msg = "Running trade analysis..."
         if last_duration:
             est_seconds = int(round(last_duration)) or 1
+            if enable_comparison: 
+                est_seconds *= 2
             spinner_msg = f"Running trade analysis (expected ~{est_seconds} seconds)..."
 
         with st.spinner(spinner_msg):
-            results = run_trade_analysis(
-                trade_teams,
+            results1 = run_trade_analysis(
+                trade_teams_1,
                 num_players,
-                trade_label=trade_label,
+                trade_label=f"{trade_label} (Scenario A)" if trade_label else "Scenario A",
                 include_advanced_metrics=include_advanced_metrics,
-                assumed_fpg_overrides=assumed_fpg_overrides,
+                assumed_fpg_overrides=overrides_1,
             )
-        if results:
-            display_trade_results(results)
+            
+            if enable_comparison:
+                results2 = run_trade_analysis(
+                    trade_teams_2,
+                    num_players,
+                    trade_label=f"{trade_label} (Scenario B)" if trade_label else "Scenario B",
+                    include_advanced_metrics=include_advanced_metrics,
+                    assumed_fpg_overrides=overrides_2,
+                )
+                if results1 and results2:
+                    display_trade_comparison(results1, results2)
+            elif results1:
+                display_trade_results(results1)
 
-def display_trade_results(analysis_results: Dict[str, Dict[str, Any]]):
+def display_trade_comparison(results_a: Dict[str, Dict[str, Any]], results_b: Dict[str, Dict[str, Any]]):
+    """Display a side-by-side comparison of two trade scenarios."""
+    st.markdown("## ⚖️ Scenario Comparison")
+    
+    # Get list of teams present in both
+    teams = list(set(results_a.keys()) & set(results_b.keys()))
+    
+    for team in teams:
+        with st.container(border=True):
+            st.subheader(f"{get_team_name(team)}")
+            
+            res_a = results_a[team]
+            res_b = results_b[team]
+            
+            # Check time range availability (default to YTD or first available)
+            ranges_a = list(res_a.get('pre_trade_metrics', {}).keys())
+            if not ranges_a:
+                continue
+            time_range = 'YTD' if 'YTD' in ranges_a else ranges_a[0]
+            
+            pre_metrics = res_a.get('pre_trade_metrics', {}).get(time_range, {})
+            metrics_a = res_a.get('post_trade_metrics', {}).get(time_range, {})
+            metrics_b = res_b.get('post_trade_metrics', {}).get(time_range, {})
+            
+            if not metrics_a or not metrics_b or not pre_metrics:
+                st.caption(f"Insufficient data for {team} comparison.")
+                continue
+                
+            col1, col2, col3 = st.columns(3)
+            
+            base_fpg = pre_metrics.get('mean_fpg', 0.0)
+            fpg_a = metrics_a.get('mean_fpg', 0.0)
+            fpg_b = metrics_b.get('mean_fpg', 0.0)
+            
+            diff_a = fpg_a - base_fpg
+            diff_b = fpg_b - base_fpg
+            
+            incoming_a = res_a.get('incoming_players', [])
+            incoming_b = res_b.get('incoming_players', [])
+            
+            # Helper for truncated lists
+            def _fmt_list(lst):
+                if not lst: return "None"
+                if len(lst) > 3: return f"{', '.join(lst[:3])}..."
+                return ", ".join(lst)
+
+            with col1:
+                st.markdown("**Scenario A**")
+                st.caption(f"In: {_fmt_list(incoming_a)}")
+                st.metric("FP/G Change", f"{diff_a:+.1f}", delta_color="normal")
+                
+            with col2:
+                st.markdown("**Scenario B**")
+                st.caption(f"In: {_fmt_list(incoming_b)}")
+                st.metric("FP/G Change", f"{diff_b:+.1f}", delta_color="normal")
+                
+            with col3:
+                st.markdown("**Net Advantage (B vs A)**")
+                net_diff = diff_b - diff_a
+                if net_diff > 0:
+                    st.success(f"Scenario B is **+{net_diff:.1f} FP/G** better")
+                elif net_diff < 0:
+                    st.error(f"Scenario A is **+{abs(net_diff):.1f} FP/G** better")
+                else:
+                    st.info("Both scenarios have equal impact")
+    
+    st.markdown("---")
+    st.markdown("### Detailed Views")
+    tab_a, tab_b = st.tabs(["Scenario A Details", "Scenario B Details"])
+    with tab_a:
+        display_trade_results(results_a, key_suffix="_scen_a")
+    with tab_b:
+        display_trade_results(results_b, key_suffix="_scen_b")
+
+def display_trade_results(analysis_results: Dict[str, Dict[str, Any]], key_suffix: str = ""):
     """Display the trade analysis results."""
     time_ranges = list(next(iter(analysis_results.values()))['pre_trade_metrics'].keys())
     
@@ -331,7 +445,7 @@ def display_trade_results(analysis_results: Dict[str, Dict[str, Any]]):
     
     for team_tab, (team, results) in zip(team_tabs, analysis_results.items()):
         with team_tab:
-            _display_trade_overview(results)
+            _display_trade_overview(results, key_suffix)
             _display_trade_impact_section(results, time_ranges)
 
 def _display_trade_impact_section(results: Dict[str, Any], time_ranges: List[str]):
@@ -344,7 +458,7 @@ def _display_trade_impact_section(results: Dict[str, Any], time_ranges: List[str
         _display_performance_visualizations(results, time_ranges)
         _display_roster_details(results, time_ranges)
 
-def _display_trade_overview(results: Dict[str, Any]):
+def _display_trade_overview(results: Dict[str, Any], key_suffix: str = ""):
     st.title("Trade Overview")
     col1, col2 = st.columns(2)
     with col1:
@@ -358,7 +472,7 @@ def _display_trade_overview(results: Dict[str, Any]):
     st.write("---")
     
     # Add player game logs viewer
-    _display_traded_players_game_logs(results)
+    _display_traded_players_game_logs(results, key_suffix)
 
 def _display_trade_metrics_table(results: Dict[str, Any], time_ranges: List[str]):
     st.markdown(
@@ -459,7 +573,7 @@ def _display_styled_roster(title: str, roster_data: List[Dict[str, Any]], player
     else:
         st.write("No data available.")
 
-def _display_traded_players_game_logs(results: Dict[str, Any]):
+def _display_traded_players_game_logs(results: Dict[str, Any], key_suffix: str = ""):
     """Display game logs for all players involved in the trade."""
     from modules.trade_analysis.consistency_integration import load_player_consistency, get_consistency_cache_directory
     import json
@@ -479,6 +593,7 @@ def _display_traded_players_game_logs(results: Dict[str, Any]):
         
         for player_tab, player_name in zip(player_tabs, all_players):
             with player_tab:
+                # ... (keep existing logic until download button) ...
                 # Find and load player's game log
                 cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
                 game_log_df = None
@@ -561,7 +676,7 @@ def _display_traded_players_game_logs(results: Dict[str, Any]):
                     # Download button
                     csv = game_log_df.to_csv(index=False)
                     # Create unique key by combining player name with index to avoid duplicates
-                    unique_key = f"trade_download_{player_name.replace(' ', '_')}_{all_players.index(player_name)}"
+                    unique_key = f"trade_download_{player_name.replace(' ', '_')}_{all_players.index(player_name)}{key_suffix}"
                     st.download_button(
                         label=f"📥 Download {player_name} Game Log",
                         data=csv,

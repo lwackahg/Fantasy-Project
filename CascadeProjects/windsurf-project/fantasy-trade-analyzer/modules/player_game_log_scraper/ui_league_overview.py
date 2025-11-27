@@ -412,7 +412,7 @@ def _display_consistency_table(overview_df, league_id):
 
 	st.dataframe(
 		display_df,
-		use_container_width=True,
+		width="stretch",
 		height=600,
 		column_config={
 			"Player": st.column_config.TextColumn("Player", width="medium"),
@@ -501,7 +501,7 @@ def _display_cv_distribution(overview_df):
 	fig_cv_dist.add_vline(x=CONSISTENCY_MODERATE_MAX_CV, line_dash="dash", line_color="red", annotation_text="Volatile / Boom-Bust")
 	
 	fig_cv_dist.update_layout(height=400)
-	st.plotly_chart(fig_cv_dist, use_container_width=True)
+	st.plotly_chart(fig_cv_dist, width="stretch")
 
 def _display_consistency_vs_production(overview_df):
 	"""Display consistency vs production scatter plot."""
@@ -522,7 +522,7 @@ def _display_consistency_vs_production(overview_df):
 	fig_scatter.add_hline(y=25, line_dash="dot", line_color="gray")
 	
 	fig_scatter.update_layout(height=500)
-	st.plotly_chart(fig_scatter, use_container_width=True)
+	st.plotly_chart(fig_scatter, width="stretch")
 	
 	st.caption("**Top Right:** High production, high variance | **Top Left:** Low production, high variance")
 	st.caption("**Bottom Right:** High production, consistent | **Bottom Left:** Low production, consistent")
@@ -553,7 +553,7 @@ def _display_boom_bust_scatter(overview_df):
 		height=500
 	)
 	
-	st.plotly_chart(fig_boom_bust, use_container_width=True)
+	st.plotly_chart(fig_boom_bust, width="stretch")
 	st.caption("**Bubble size** = Average FPts/Game | **Color** = CV% (red = volatile, green = consistent)")
 
 def _display_performance_ranges(overview_df):
@@ -589,7 +589,7 @@ def _display_performance_ranges(overview_df):
 		showlegend=False
 	)
 	
-	st.plotly_chart(fig_range, use_container_width=True)
+	st.plotly_chart(fig_range, width="stretch")
 	
 	# Range statistics
 	col1, col2, col3, col4 = st.columns(4)
@@ -639,7 +639,7 @@ def _display_tier_breakdown(overview_df):
 			title="Player Distribution by Tier",
 			color_discrete_sequence=px.colors.sequential.RdBu_r
 		)
-		st.plotly_chart(fig_pie, use_container_width=True)
+		st.plotly_chart(fig_pie, width="stretch")
 	
 	with col2:
 		# Consistency by tier
@@ -665,7 +665,7 @@ def _display_tier_breakdown(overview_df):
 			yaxis_title="CV%",
 			showlegend=False
 		)
-		st.plotly_chart(fig_tier_cv, use_container_width=True)
+		st.plotly_chart(fig_tier_cv, width="stretch")
 	
 	# Detailed tier table
 	st.markdown("#### Tier Details")
@@ -679,7 +679,7 @@ def _display_tier_breakdown(overview_df):
 	tier_summary.columns = ['Count', 'Avg FPts', 'Min FPts', 'Max FPts', 'Avg CV%', 'Avg Boom%', 'Avg Bust%']
 	tier_summary = tier_summary.reindex([t for t in tier_order if t in tier_summary.index])
 	
-	st.dataframe(tier_summary, use_container_width=True)
+	st.dataframe(tier_summary, width="stretch")
 
 def _display_advanced_metrics(overview_df):
 	"""Display advanced statistical analysis."""
@@ -698,7 +698,7 @@ def _display_advanced_metrics(overview_df):
 		title="Correlation Matrix of Performance Metrics",
 		labels=dict(color="Correlation")
 	)
-	st.plotly_chart(fig_corr, use_container_width=True)
+	st.plotly_chart(fig_corr, width="stretch")
 	
 	st.caption("**Interpretation:** Values close to 1 or -1 indicate strong correlation. Look for unexpected relationships!")
 	
@@ -711,17 +711,17 @@ def _display_advanced_metrics(overview_df):
 	with metric_col1:
 		st.markdown("**🏆 Highest Production**")
 		top_fpts = overview_df.nlargest(10, 'Mean FPts')[['Player', 'Mean FPts', 'CV %']]
-		st.dataframe(top_fpts, hide_index=True, use_container_width=True)
+		st.dataframe(top_fpts, hide_index=True, width="stretch")
 	
 	with metric_col2:
 		st.markdown("**🟢 Most Consistent**")
 		top_consistent = overview_df.nsmallest(10, 'CV %')[['Player', 'CV %', 'Mean FPts']]
-		st.dataframe(top_consistent, hide_index=True, use_container_width=True)
+		st.dataframe(top_consistent, hide_index=True, width="stretch")
 	
 	with metric_col3:
 		st.markdown("**💥 Highest Boom Rate**")
 		top_boom = overview_df.nlargest(10, 'Boom %')[['Player', 'Boom %', 'Mean FPts']]
-		st.dataframe(top_boom, hide_index=True, use_container_width=True)
+		st.dataframe(top_boom, hide_index=True, width="stretch")
 	
 	# Statistical outliers
 	st.markdown("---")
@@ -738,7 +738,7 @@ def _display_advanced_metrics(overview_df):
 		st.markdown("**🔴 Extremely Volatile Players** (CV% > 2 std dev)")
 		volatile_outliers = overview_df[overview_df['CV_zscore'] > 2][['Player', 'CV %', 'Mean FPts', 'Boom %', 'Bust %']].sort_values('CV %', ascending=False)
 		if not volatile_outliers.empty:
-			st.dataframe(volatile_outliers, hide_index=True, use_container_width=True)
+			st.dataframe(volatile_outliers, hide_index=True, width="stretch")
 		else:
 			st.info("No extreme outliers found")
 	
@@ -746,7 +746,7 @@ def _display_advanced_metrics(overview_df):
 		st.markdown("**🟢 Extremely Consistent Players** (CV% < -2 std dev)")
 		consistent_outliers = overview_df[overview_df['CV_zscore'] < -2][['Player', 'CV %', 'Mean FPts', 'Min', 'Max']].sort_values('CV %')
 		if not consistent_outliers.empty:
-			st.dataframe(consistent_outliers, hide_index=True, use_container_width=True)
+			st.dataframe(consistent_outliers, hide_index=True, width="stretch")
 		else:
 			st.info("No extreme outliers found")
 	
@@ -786,4 +786,4 @@ def _display_advanced_metrics(overview_df):
 							text="Low Prod, High Risk", showarrow=False, font=dict(size=10, color="red"))
 	
 	fig_quad.update_layout(height=600)
-	st.plotly_chart(fig_quad, use_container_width=True)
+	st.plotly_chart(fig_quad, width="stretch")

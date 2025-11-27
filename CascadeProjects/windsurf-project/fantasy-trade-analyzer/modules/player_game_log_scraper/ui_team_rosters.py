@@ -135,7 +135,7 @@ def _display_teams_overview(rosters_by_team):
 	st.markdown("### Team Performance Summary")
 	st.dataframe(
 		summary_df,
-		use_container_width=True,
+		width="stretch",
 		height=400,
 		column_config={
 			'Team': st.column_config.TextColumn('Team', width='medium'),
@@ -188,7 +188,7 @@ def show_team_rosters_viewer(league_id, cache_files, selected_season):
 	filtered.insert(3, 'Consistency', filtered['CV %'].apply(_consistency))
 	st.dataframe(
 		filtered.drop(columns=['code']),
-		use_container_width=True,
+		width="stretch",
 		height=500,
 		column_config={
 			'Player': st.column_config.TextColumn('Player', width='medium'),
@@ -249,7 +249,7 @@ def show_team_rosters_viewer(league_id, cache_files, selected_season):
 	priority_cols = ['Date', 'Team', 'Opp', 'Score', 'FPts', 'MIN', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO']
 	other_cols = [c for c in games.columns if c not in priority_cols]
 	display_cols = [c for c in priority_cols if c in games.columns] + other_cols
-	st.dataframe(games[display_cols], use_container_width=True, height=350)
+	st.dataframe(games[display_cols], width="stretch", height=350)
 	csv = games.to_csv(index=False)
 	st.download_button(
 		label="📥 Download Player Game Log",

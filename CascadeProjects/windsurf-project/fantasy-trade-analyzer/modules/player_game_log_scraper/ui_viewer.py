@@ -506,7 +506,7 @@ def show_single_season_analysis(player_code, league_id, season, selected_player)
 	
 	st.dataframe(
 		df[display_cols],
-		use_container_width=True,
+		width="stretch",
 		height=400
 	)
 	
@@ -567,7 +567,7 @@ def show_multi_season_overview(player_code, league_id, seasons, selected_player)
 	
 	st.dataframe(
 		season_df,
-		use_container_width=True,
+		width="stretch",
 		height=300
 	)
 	
@@ -617,7 +617,7 @@ def show_multi_season_overview(player_code, league_id, seasons, selected_player)
 			yaxis_title="Fantasy Points Per Game",
 			hovermode='x unified'
 		)
-		st.plotly_chart(fig, use_container_width=True)
+		st.plotly_chart(fig, width="stretch")
 	
 	with chart_tab2:
 		# Consistency metrics
@@ -637,7 +637,7 @@ def show_multi_season_overview(player_code, league_id, seasons, selected_player)
 			yaxis_title="Coefficient of Variation %",
 			hovermode='x unified'
 		)
-		st.plotly_chart(fig, use_container_width=True)
+		st.plotly_chart(fig, width="stretch")
 	
 	with chart_tab3:
 		# Games played trends
@@ -655,4 +655,4 @@ def show_multi_season_overview(player_code, league_id, seasons, selected_player)
 			yaxis_title="Games Played",
 			showlegend=False
 		)
-		st.plotly_chart(fig, use_container_width=True)
+		st.plotly_chart(fig, width="stretch")
