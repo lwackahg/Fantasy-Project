@@ -18,6 +18,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from dotenv import load_dotenv, find_dotenv
 from datetime import datetime
 import atexit
+import numpy as np
 from . import db_store
 
 # --- CONFIGURATION ---
@@ -163,7 +164,7 @@ _cached_driver_path = None
 def get_chrome_driver():
 	global _cached_driver_path
 	options = webdriver.ChromeOptions()
-	options.add_argument('--headless')
+	#options.add_argument('--headless')
 	options.add_argument('--no-sandbox')
 	options.add_argument('--disable-dev-shm-usage')
 	options.add_argument('--log-level=3')
@@ -255,6 +256,141 @@ def get_player_game_log(player_code, league_id, username, password, force_refres
 	"""
 	# Always use current season and full format
 	return get_player_game_log_full(player_code, league_id, username, password, "2025-26", force_refresh)
+
+
+def _enrich_with_minutes_from_games_tab(
+	driver,
+	fantasy_df: pd.DataFrame,
+	season: str,
+	restore_fantasy_tab: bool = False,
+) -> pd.DataFrame:
+	"""Best-effort enrichment of a fantasy game log with minutes from the plain Games tab.
+
+	This helper:
+	- Switches to the non-Fantasy "Games" tab
+	- (Optionally) aligns the season dropdown
+	- Parses the table for a MIN column
+	- Joins numeric minutes back onto fantasy_df by Date
+
+	On any failure it returns fantasy_df unchanged so that scraping never breaks.
+	"""
+	if fantasy_df is None or fantasy_df.empty:
+		return fantasy_df
+
+	try:
+		# Switch to the regular "Games" tab (not "Games (Fntsy)")
+		games_button = driver.find_element(
+			By.XPATH,
+			"//button[contains(text(), 'Games') and not(contains(text(), 'Fntsy'))]",
+		)
+		games_button.click()
+		WebDriverWait(driver, 10).until(
+			EC.presence_of_element_located((By.CSS_SELECTOR, "div[itablebody]"))
+		)
+	except Exception:
+		# If we cannot even switch tabs, just return original data
+		return fantasy_df
+
+	# Try to align the season dropdown with the requested season
+	try:
+		if season and season != "2025-26":
+			season_dropdown = driver.find_element(By.CSS_SELECTOR, "mat-select")
+			season_dropdown.click()
+			time.sleep(0.6)
+			season_text = f"{season} Reg Season"
+			season_option = driver.find_element(
+				By.XPATH,
+				f"//mat-option//span[contains(text(), '{season_text}')]",
+			)
+			season_option.click()
+			time.sleep(1.0)
+	except Exception:
+		# Season alignment is a nice-to-have only
+		pass
+
+	page_source = driver.page_source
+	soup = BeautifulSoup(page_source, "html.parser")
+	table = soup.find(
+		"div",
+		class_="i-table minimal-scrollbar i-table--standard i-table--outside-sticky",
+	)
+	if not table:
+		return fantasy_df
+
+	body = table.find("div", {"itablebody": ""})
+	header = table.find("div", {"itableheader": ""})
+	if not body or not header:
+		return fantasy_df
+
+	headers = [cell.text.strip() for cell in header.find_all("div", class_="i-table__cell")]
+	rows = []
+	for row_div in body.find_all("div", {"itablerow": ""}):
+		cells = row_div.find_all("div", class_="i-table__cell")
+		row_data = {}
+		for i, cell in enumerate(cells):
+			if i >= len(headers):
+				break
+			text = cell.get_text(strip=True)
+			row_data[headers[i]] = text
+		if row_data:
+			rows.append(row_data)
+
+	if not rows:
+		return fantasy_df
+
+	games_df = pd.DataFrame(rows)
+	if "MIN" not in games_df.columns:
+		return fantasy_df
+
+	# Convert MIN to a numeric minutes float
+	def _parse_min(val):
+		if val is None:
+			return np.nan
+		s = str(val).strip()
+		if not s:
+			return np.nan
+		if ":" in s:
+			parts = s.split(":")
+			if len(parts) >= 2:
+				try:
+					mins = float(parts[0])
+					secs = float(parts[1])
+					return mins + secs / 60.0
+				except Exception:
+					return np.nan
+			return np.nan
+		return pd.to_numeric(s, errors="coerce")
+
+	try:
+		games_df["MIN_num"] = games_df["MIN"].apply(_parse_min)
+	except Exception:
+		return fantasy_df
+
+	# Join minutes back onto the fantasy DataFrame by Date
+	if "Date" not in games_df.columns or "Date" not in fantasy_df.columns:
+		return fantasy_df
+
+	minutes_by_date = games_df.drop_duplicates(subset=["Date"])[["Date", "MIN_num"]]
+	merged = fantasy_df.merge(minutes_by_date, on="Date", how="left")
+	merged.rename(columns={"MIN_num": "MIN"}, inplace=True)
+
+	# Optionally switch back to the fantasy Games (Fntsy) tab so that callers
+	# which expect to continue scraping that view (e.g., bulk_scrape) can keep
+	# working without additional state management.
+	if restore_fantasy_tab:
+		try:
+			games_fntsy_button = driver.find_element(
+				By.XPATH,
+				"//button[contains(text(), 'Games (Fntsy)')]",
+			)
+			games_fntsy_button.click()
+			WebDriverWait(driver, 5).until(
+				EC.presence_of_element_located((By.CSS_SELECTOR, "div[itablebody]"))
+			)
+		except Exception:
+			# If we cannot restore the fantasy view, the caller still has valid data.
+			pass
+	return merged
 
 def get_player_game_log_full(player_code, league_id, username, password, season="2025-26", force_refresh=False):
 	"""
@@ -444,6 +580,13 @@ def get_player_game_log_full(player_code, league_id, username, password, season=
 			if col in df.columns:
 				df[col] = pd.to_numeric(df[col], errors='coerce')
 		
+		# Best-effort enrichment with minutes from the non-fantasy Games tab
+		try:
+			df = _enrich_with_minutes_from_games_tab(driver, df, season)
+		except Exception:
+			# Minutes are an enhancement only; ignore any failures here.
+			pass
+
 		# Save to cache
 		cache_data = {
 			'player_name': player_name,
@@ -501,6 +644,27 @@ def calculate_variability_stats(game_log_df):
 		'q3': fpts.quantile(0.75),
 		'iqr': fpts.quantile(0.75) - fpts.quantile(0.25)
 	}
+	
+	# If minutes are available, derive per-game minutes and FPPM.
+	if 'MIN' in game_log_df.columns:
+		mins = pd.to_numeric(game_log_df['MIN'], errors='coerce')
+		mins = mins.dropna()
+		if not mins.empty and mins.sum() > 0:
+			mean_minutes = float(mins.mean())
+			stats['mean_minutes'] = mean_minutes
+			stats['total_minutes'] = float(mins.sum())
+			if mean_minutes > 0:
+				stats['fppm_mean'] = float(stats['mean_fpts'] / mean_minutes)
+			else:
+				stats['fppm_mean'] = None
+		else:
+			stats['mean_minutes'] = None
+			stats['total_minutes'] = None
+			stats['fppm_mean'] = None
+	else:
+		stats['mean_minutes'] = None
+		stats['total_minutes'] = None
+		stats['fppm_mean'] = None
 	
 	# Calculate boom/bust rates (games above/below 1 std dev from mean)
 	mean = stats['mean_fpts']
@@ -882,13 +1046,20 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 								failed_items.append((player_name, season, "Season not available"))
 								fail_count += 1
 								continue
-						
+			
 						# Process and save games
 						df = pd.DataFrame(all_games)
 						numeric_columns = ['FPts', 'FGM', 'FGA', 'FG%', '3PTM', '3PTA', '3PT%', 'FTM', 'FTA', 'FT%', 'REB', 'AST', 'ST', 'BLK', 'TO', 'PF', 'PTS']
 						for col in numeric_columns:
 							if col in df.columns:
 								df[col] = pd.to_numeric(df[col], errors='coerce')
+						
+						# Best-effort enrichment with minutes from the non-fantasy Games tab
+						try:
+							df = _enrich_with_minutes_from_games_tab(driver, df, season)
+						except Exception:
+							# Minutes are an enhancement only; ignore any failures here.
+							pass
 						
 						CACHE_DIR.mkdir(parents=True, exist_ok=True)
 						cache_file = CACHE_DIR / f"player_game_log_full_{player_code}_{league_id}_{season.replace('-', '_')}.json"

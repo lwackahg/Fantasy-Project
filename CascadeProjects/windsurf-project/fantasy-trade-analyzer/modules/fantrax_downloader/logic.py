@@ -88,13 +88,28 @@ def login_to_fantrax(driver, username, password):
         raise Exception('Login failed. Check credentials.')
 
 def is_driver_alive(driver) -> bool:
-    """Check if the Chrome driver is still responsive."""
-    try:
-        # Quick check - if we can get the current URL, driver is alive
-        _ = driver.current_url
-        return True
-    except Exception:
-        return False
+	"""Check if the Chrome driver is still responsive.
+
+	Uses a short, hard timeout around driver.current_url to avoid long hangs
+	and noisy localhost read timeouts when the driver is dead or wedged.
+	"""
+	if driver is None:
+		return False
+	
+	def _probe_url():
+		# This call can hang at the HTTP level, so we run it in a worker.
+		_ = driver.current_url
+		return True
+	
+	executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+	try:
+		future = executor.submit(_probe_url)
+		return future.result(timeout=3)
+	except Exception:
+		return False
+	finally:
+		# Don't wait for a potentially stuck worker thread; just tear down.
+		executor.shutdown(wait=False)
 
 def download_players_csv(driver, start_date=None, end_date=None, league_id=None):
     """
@@ -250,10 +265,6 @@ def download_all_ranges(league_id: str, progress_callback=None):
 
 		league_name = sanitize_name(get_league_name_map().get(league_id, league_id))
 
-		import shutil
-		best_non_ytd_days = 0
-		best_non_ytd_path = ""
-
 		total_ranges = len(ranges)
 		max_attempts = 2
 		for i, (name, (start, end, requested_days)) in enumerate(ranges):
@@ -315,22 +326,23 @@ def download_all_ranges(league_id: str, progress_callback=None):
 
 			if not success:
 				continue
-
-			if name != 'YTD' and actual_days > best_non_ytd_days:
-				best_non_ytd_days = actual_days
-				best_non_ytd_path = path
 		
-			if name in ('60 days', '30 days', '14 days', '7 days') and isinstance(actual_days, int) and actual_days < requested_days:
-				if best_non_ytd_path:
-					fallback_filename = f"Fantrax-Players-{league_name}-({requested_days}).csv"
-					fallback_path = os.path.join(DOWNLOAD_DIR, fallback_filename)
-					try:
-						shutil.copyfile(best_non_ytd_path, fallback_path)
-						messages.append(f"Filled {requested_days}-day file using most complete range so far ({best_non_ytd_days} days)")
-					except Exception as e:
-						messages.append(f"Failed to create fallback file for {requested_days} days: {e}")
-
-			time.sleep(1)  # Add a delay to avoid overwhelming the server
+			# If the season has fewer games than the requested window (e.g. 57 days
+			# available for a 60-day request), just keep the real CSV and log a
+			# message. The data loader will later map this shorter window onto the
+			# canonical label ("60 Days", etc.) without creating duplicate files.
+			if (
+				name in ('60 days', '30 days', '14 days', '7 days')
+				and isinstance(actual_days, int)
+				and actual_days < requested_days
+			):
+				msg = (
+					f"{name}: only {actual_days} days available this season; "
+					f"using that file as the {requested_days}-day window."
+				)
+				messages.append(msg)
+			
+		time.sleep(1)  # Add a delay to avoid overwhelming the server
 		
 		if progress_callback:
 			progress_callback(1.0, "All downloads complete!")

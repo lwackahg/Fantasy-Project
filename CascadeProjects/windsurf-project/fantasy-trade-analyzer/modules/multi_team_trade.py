@@ -6,7 +6,7 @@ import pandas as pd
 from typing import Dict, List, Optional
 from itertools import permutations, product
 
-from modules.trade_suggestions_core import (
+from modules.trade_suggestions.trade_suggestions_core import (
     _calculate_core_value,
     _get_core_size,
     _simulate_core_value_gain,

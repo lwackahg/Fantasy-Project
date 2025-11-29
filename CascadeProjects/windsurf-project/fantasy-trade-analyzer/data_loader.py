@@ -63,33 +63,64 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 def _load_and_clean_csv_data(file_paths):
     """Loads and processes a tuple of CSV file paths, returning clean data."""
     data_ranges = {}
+    best_days = {}
     combined_data = pd.DataFrame()
+    
+    def _canonical_range_label(days: int) -> str | None:
+        """Map an actual N-day window into a standard bucket.
 
+        For example, a 57-day CSV is treated as "60 Days" so callers can keep
+        using the canonical labels (7/14/30/60 Days) even if the season has not
+        yet reached the full length of the requested window.
+        """
+        try:
+            d = int(days)
+        except Exception:
+            return None
+        for target in (7, 14, 30, 60):
+            if d <= target:
+                return f"{target} Days"
+        return f"{d} Days"
+    
     for file_path in file_paths:
         file = Path(file_path)
-        df = pd.read_csv(file)
+        try:
+            df = pd.read_csv(file)
+        except Exception:
+            continue
         df = clean_data(df)  # Clean the DataFrame
         
-        if not df.empty:
-            # Extract timestamp from filename
-            timestamp_value = None
-            if "YTD" in file.name:
-                timestamp_value = 'YTD'
-                data_ranges['YTD'] = df
-            else:
-                match = re.search(r'\((\d+)\)', file.name)
-                if match:
-                    days = match.group(1)
-                    timestamp_value = f'{days} Days'
-                    data_ranges[f'{days} Days'] = df
-            
-            if timestamp_value:
-                df['Timestamp'] = timestamp_value
-                
-            combined_data = pd.concat([combined_data, df], ignore_index=True)
-
-    if not combined_data.empty:
+        if df.empty:
+            continue
+        
+        # Extract timestamp and actual day count from filename
+        timestamp_value = None
+        actual_days = None
+        if "YTD" in file.name:
+            timestamp_value = 'YTD'
+            actual_days = 0
+        else:
+            match = re.search(r'\((\d+)\)', file.name)
+            if match:
+                actual_days = int(match.group(1))
+                timestamp_value = _canonical_range_label(actual_days)
+        
+        if not timestamp_value:
+            continue
+        
+        df['Timestamp'] = timestamp_value
+        
+        prev_best = best_days.get(timestamp_value)
+        # Prefer the file with the largest actual_days for each canonical label.
+        if prev_best is None or (actual_days is not None and actual_days > prev_best):
+            data_ranges[timestamp_value] = df
+            best_days[timestamp_value] = actual_days if actual_days is not None else prev_best
+    
+    if data_ranges:
+        combined_data = pd.concat(data_ranges.values(), ignore_index=True)
         combined_data.set_index('Player', inplace=True)
+    else:
+        combined_data = pd.DataFrame()
     
     return data_ranges, combined_data
 

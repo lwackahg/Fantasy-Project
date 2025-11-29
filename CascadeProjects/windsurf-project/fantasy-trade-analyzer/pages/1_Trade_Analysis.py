@@ -3,7 +3,7 @@ This file contains the Streamlit page for the Trade Analysis feature.
 """
 import streamlit as st
 from modules.trade_analysis.ui import display_trade_analysis_page
-from modules.trade_suggestions_ui_tab import display_trade_suggestions_tab
+from modules.trade_suggestions.trade_suggestions_ui_tab import display_trade_suggestions_tab
 from modules.sidebar.ui import display_global_sidebar
 
 st.set_page_config(page_title="Trade Analysis", layout="wide")
