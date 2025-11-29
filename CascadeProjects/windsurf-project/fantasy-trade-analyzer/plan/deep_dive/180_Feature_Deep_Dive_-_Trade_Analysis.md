@@ -6,6 +6,15 @@
 
 The Trade Analysis feature is a core component of the application, designed to provide a deep, data-driven evaluation of fantasy basketball trades. It allows users to simulate a trade involving two or more teams and see a detailed breakdown of the statistical impact on each team's roster. The analysis compares key performance metrics before and after the proposed trade across multiple time ranges (e.g., YTD, Last 60 Days, Last 14 Days), helping users make informed trading decisions.
 
+**Key Capabilities (Nov 2025):**
+- Multi-team trade support (2+ teams)
+- Scenario comparison (A vs B side-by-side)
+- Assumed FP/G overrides for injured/returning players
+- Advanced metrics toggle (consistency, ValueScore)
+- Integrated game log viewer for traded players
+- Friend Dollar Value lens for auction league context
+- Historical trade replay from cached snapshots
+
 ---
 
 ## 2. Architecture and Core Components
@@ -17,21 +26,37 @@ graph TD
     subgraph "Trade Analysis Architecture"
         A[1_Trade_Analysis.py] --> B[modules/trade_analysis/ui.py];
         B -- Calls --> C[modules/trade_analysis/logic.py];
+        B -- Calls --> D[modules/trade_analysis/consistency_integration.py];
 
         subgraph "UI Layer"
-            B -- Renders --> D[Team/Player Selection & Results Visualization];
+            B -- Renders --> E[Team/Player Selection & Results Visualization];
+            B -- Renders --> F[Scenario Comparison View];
+            B -- Renders --> G[Traded Players Game Logs];
         end
 
         subgraph "Logic Layer"
-            C -- Contains --> E(TradeAnalyzer Class);
-            E -- Performs --> F[Before & After Roster Analysis];
+            C -- Contains --> H(TradeAnalyzer Class);
+            H -- Performs --> I[Before & After Roster Analysis];
+            H -- Uses --> J[Player Value Profiles];
+        end
+
+        subgraph "Integration Layer"
+            D -- Loads --> K[Consistency Metrics from Game Log Cache];
         end
     end
 ```
 
 -   **`pages/1_Trade_Analysis.py`**: A lightweight entry point that sets the page configuration and calls the main UI display function.
--   **`modules/trade_analysis/ui.py`**: Manages the entire user interface. It's responsible for rendering the team and player selection widgets and for displaying the final analysis in a structured format with tabs, tables, and Plotly charts.
--   **`modules/trade_analysis/logic.py`**: Contains the `TradeAnalyzer` class, which is the engine of the feature. It handles all the data manipulation and statistical calculations required to evaluate a trade.
+-   **`modules/trade_analysis/ui.py`**: Manages the entire user interface (~1200 lines). Responsible for:
+    - Team and player selection widgets
+    - Scenario comparison mode (A vs B)
+    - Assumed FP/G override inputs
+    - Results display with tabs, tables, and Plotly charts
+    - Trade insights and recommendations
+    - Traded players' game log viewer
+    - Friend Dollar Value lens
+-   **`modules/trade_analysis/logic.py`**: Contains the `TradeAnalyzer` class and `run_trade_analysis()` helper. Handles all data manipulation and statistical calculations.
+-   **`modules/trade_analysis/consistency_integration.py`**: Bridges game log cache data to provide CV%, boom/bust rates, and consistency tiers for trade analysis.
 
 ---
 
@@ -63,9 +88,82 @@ The `ui.py` module takes the complex dictionary of results from the logic layer 
 
 -   **Team Tabs**: The results for each team are separated into their own tabs for clarity.
 -   **Trade Overview**: A high-level summary shows which players are being received and traded away.
--   **Metrics Table**: A powerful table shows the Before -> After comparison for each key metric, with color-coding (green for improvement, red for decline) to quickly highlight the impact.
+-   **Metrics Table**: A powerful table shows the Before → After comparison for each key metric, with color-coding (green for improvement, red for decline) to quickly highlight the impact.
 -   **Performance Charts**: Plotly line charts visualize the trend of key metrics (like FP/G) across all time ranges, making it easy to see if a trade provides a short-term gain but a long-term loss.
 -   **Roster Details**: A side-by-side view of the pre-trade and post-trade rosters, with outgoing players highlighted in red and incoming players highlighted in green.
+
+### 4.1 Scenario Comparison Mode
+
+The UI supports comparing two trade scenarios side-by-side:
+
+```python
+enable_comparison = st.checkbox(
+    "Compare two trade scenarios", 
+    value=False, 
+    help="Define two different trade packages (Scenario A vs Scenario B)..."
+)
+```
+
+When enabled:
+- Two tabs appear: "Scenario A (Primary)" and "Scenario B (Alternative)"
+- Each scenario has its own player selection interface
+- Results show a comparison summary with net advantage calculations
+- Detailed views for each scenario are available in sub-tabs
+
+### 4.2 Assumed FP/G Overrides
+
+For injured or returning players, users can override the FP/G used in analysis:
+
+```python
+override_str = st.text_input(
+    f"Assumed FP/G for {player} (optional)",
+    key=f"assumed_fpg_{team}_{player}{key_suffix}",
+)
+```
+
+This allows realistic projections for:
+- Players returning from injury
+- Players expected to have increased/decreased roles
+- Rookies with limited sample size
+
+### 4.3 Advanced Metrics Toggle
+
+Users can disable advanced metrics for faster analysis:
+
+```python
+include_advanced_metrics = st.checkbox(
+    "Include advanced metrics (consistency, Total ValueScore)",
+    value=True,
+    help="Turn this off for faster runs..."
+)
+```
+
+When enabled, the analysis includes:
+- **CV% (Coefficient of Variation)**: Game-to-game consistency
+- **Total ValueScore**: Composite score combining production, consistency, and availability
+- **Boom/Bust rates**: Frequency of exceptional/poor performances
+
+### 4.4 Friend Dollar Value Lens
+
+For auction leagues, the UI displays Friend Dollar Values based on FP/G tiers:
+
+```python
+def _friend_dollar_value(fpg):
+    if fpg >= 125: return 22.0
+    elif fpg >= 120: return 20.0
+    # ... tiered mapping down to 0.0 for < 40 FP/G
+```
+
+This helps contextualize player value in auction draft terms.
+
+### 4.5 Trade Insights & Recommendations
+
+The `_display_trade_insights()` function provides comprehensive analysis:
+
+- **Overall Assessment**: Production impact, consistency impact, total points impact, Sharpe ratio
+- **Trade Verdict**: Color-coded recommendation (Strong Trade, Decent Trade, Marginal, Poor)
+- **Trend Analysis**: Performance changes across time ranges with visualizations
+- **Risk Profile**: Core FP/G spread and average player CV% changes
 
 ## 5. Trade History & Snapshot Replay
 

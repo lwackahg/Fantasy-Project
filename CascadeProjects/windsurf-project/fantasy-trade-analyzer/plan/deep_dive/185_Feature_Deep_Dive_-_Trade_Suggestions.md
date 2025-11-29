@@ -123,22 +123,99 @@ In practice:
 
 ## 5. UI Enhancements & Deep Dive
 
-`display_trade_suggestion()` now provides:
+`_display_trade_suggestion()` in `trade_suggestions_ui_tab.py` provides comprehensive trade analysis:
 
-- **Side-by-side tables** with FPts and CV% per player.
-- **Value comparison chart** highlighting total exponential values.
-- **Trade rationale bullets** explaining production and consistency changes.
-- **Deep Dive expander** covering:
-  - Statistical breakdown (total FPts, Avg CV%, player counts)
-  - Impact metrics (FPts change, CV% change, roster spots)
-  - Tier analysis (Elite, Star, Solid, Streamer, Bench)
-  - Strategic considerations (consolidation vs. expansion, risk profile)
+### 5.1 Core Display Components
 
-This context helps managers understand why the engine recommends a trade and whether the move aligns with their roster strategy.
+- **Side-by-side tables** with FP/G and CV% per player
+- **Weekly Core FP Impact chart** (bar chart comparing your change vs opponent change)
+- **Trade verdict badges**: Excellent, Strong, Decent, Marginal, Trade-Off, Core FP Loss
+- **Opponent acceptance indicators**: Win-win, negotiate carefully, may not accept
+
+### 5.2 Trade Rationale ("Why this trade works")
+
+Dynamic bullet points explaining:
+- Core upgrade/downgrade with FP/G and weekly FP changes
+- Trade pattern context (consolidation vs depth play)
+- Package FP/G comparison
+- Consistency impact (risk reduction vs higher variance)
+
+### 5.3 Deep Dive Expander (compact)
+
+Three-column metrics display:
+- Your Avg FP/G, Your Avg CV%
+- Their Avg FP/G, Their Avg CV%
+- FP/G Change, CV% Change
+- Risk level assessment (Low/Moderate/High)
+
+### 5.4 Recent Form Analysis
+
+Compares YTD vs Last 7/14/30 performance:
+- Identifies players with significant recent FP/G swings (±3 FP/G)
+- Flags trending up (📈) or down (📉) players
+- Helps identify buy-low/sell-high opportunities
+
+### 5.5 Talking Points for Opponent
+
+AI-generated negotiation suggestions:
+- Opponent core FP impact framing
+- Package FP/G advantage from their perspective
+- Consistency trade-offs
+- Pattern-specific selling angles (depth vs consolidation)
+- **YoY Integration**: Highlights sell-high candidates (YoY upswing) and buy-low candidates (YoY decline) using historical data
+
+### 5.6 Trade Framework Analysis Expander
+
+Multi-angle strategic breakdown:
+
+**Package-level comparison:**
+- FP/G advantage/disadvantage assessment
+- Consistency upgrade/downgrade analysis
+
+**Roster construction impact:**
+- Core upgrade magnitude (major/solid/modest)
+- Consolidation vs depth trade implications
+
+**Strategic trade-offs:**
+- Star-for-depth vs depth-for-star bets
+- Risk profile shifts
+- Opponent sacrifice vs win-win structure
+
+**Bottom line verdict:**
+- Strong trade, Strategic overpay, Modest upgrade, or Marginal trade
+
+### 5.7 Roster Snapshot Expander
+
+Before/after roster comparison (top 10 players):
+- Your team: before and after with Trade Status column (IN/OUT)
+- Opponent team: before and after with Trade Status column
+- Sorted by Mean FPts or FP/G
+
+### 5.8 Full Trade Analysis Integration
+
+Button to run complete Trade Analysis tool:
+- Converts suggestion to `trade_teams` format
+- Calls `run_trade_analysis()` with 7/14/30/60d time ranges
+- Displays full `display_trade_results()` output
 
 ---
 
-## 6. Workflow Summary (engine + UI)
+## 6. YoY Data Integration
+
+The Trade Suggestions UI integrates Year-over-Year comparison data:
+
+```python
+from modules.historical_ytd_downloader.logic import load_and_compare_seasons, get_available_seasons
+```
+
+**Usage in talking points:**
+- Identifies players with +5 FP/G YoY improvement (sell-high candidates you're offering)
+- Identifies players with -5 FP/G YoY decline (buy-low candidates you're receiving)
+- Provides specific FP/G trajectory data for negotiation leverage
+
+---
+
+## 7. Workflow Summary (engine + UI)
 
 1. **Load league data and rosters** from cached game logs / DB.
 2. **UI collects configuration:**

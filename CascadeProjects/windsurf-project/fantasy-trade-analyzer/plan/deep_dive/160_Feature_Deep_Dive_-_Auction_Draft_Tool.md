@@ -123,22 +123,32 @@ Note on Market Value: `MarketValue` is computed from historical bid prices using
 ---
 
 ## 6. GP Reliability Adjustment
-{{ ... }}
+
+Players with limited games played receive adjusted valuations to account for sample size uncertainty:
+
+- **Full confidence**: Players with 20+ games in the reference season
+- **Reduced confidence**: Players with 10-19 games get a slight discount
+- **High uncertainty**: Players with <10 games get a larger discount
+
+This prevents overvaluing players who had a hot start but limited sample.
+
+---
+
+## 7. Smart Auction Bot
+
+The Smart Auction Bot provides real-time nomination and bidding advice during the draft.
 
 ```mermaid
 graph TD
     subgraph "Smart Auction Bot Logic"
         A[Draft State] --> B{SmartAuctionBot};
-        elif model == "Blended (VORP + Market)":
-            if 'MarketValue' not in final_df.columns:
-                final_df['MarketValue'] = 0
-            final_df[col_name] = (final_df['VORPValue'] * 0.5) + (final_df['MarketValue'] * 0.5)
-      B -- Analyzes --> F[All Available Players];
+        B -- Analyzes --> F[All Available Players];
         F -- For each player --> G(Calculate NominationScore);
         subgraph "NominationScore Components"
             H[Budget Pressure] --> G;
             I[Positional Scarcity] --> G;
             J[Value Inflation] --> G;
+        end
         G --> K{Find Highest Score};
         K --> L[Top Nomination Recommendation];
         L --> M[UI: Nomination Advice];
@@ -167,4 +177,75 @@ The score is a weighted sum of three factors:
 
 To accurately track opponent roster needs, a new UI component is required. When a player with multiple eligible positions is drafted, the user will be prompted to assign them to a single position on the drafting team's roster. This ensures the bot's scarcity and budget pressure calculations are always based on precise data.
 
+---
+
+## 8. Realistic Pricing
+
+The `calculate_realistic_price()` function provides market-aware bid suggestions:
+
+```python
+if 'realism_enabled' not in st.session_state:
+    st.session_state.realism_enabled = True
+if 'realism_aggression' not in st.session_state:
+    st.session_state.realism_aggression = 1.0
+```
+
+- **Realism Enabled**: Adjusts bids based on historical market data
+- **Aggression Factor**: 0.5 (conservative) to 1.5 (aggressive) multiplier
+
+---
+
+## 9. Nomination Strategy
+
+Users can select from multiple nomination strategies:
+
+- **Blended (recommended)**: Balanced approach using all factors
+- **Budget Pressure Focus**: Prioritize draining opponent budgets
+- **Positional Scarcity Focus**: Target scarce positions first
+- **Value Inflation Focus**: Nominate overvalued players
+
+Configurable weights:
+```python
+st.session_state.nomination_weights = {
+    'budget_pressure': 0.5, 
+    'positional_scarcity': 0.3, 
+    'value_inflation': 0.2
+}
+```
+
+---
+
+## 10. UI Components
+
+The UI is organized into modular components in `logic/ui_components.py`:
+
+- `render_setup_page()` - Draft configuration and projections
+- `render_sidebar_in_draft()` - Live draft sidebar with bot advice
+- `render_value_calculation_expander()` - Value model explanations
+- `render_draft_board()` - Available players with filtering
+- `render_team_rosters()` - All team rosters and budgets
+- `render_drafting_form()` - Player nomination and bidding form
+- `render_player_analysis_metrics()` - Detailed player analysis
+- `render_draft_summary()` - Post-draft summary and export
+
+---
+
+## 11. Session State Management
+
+The tool maintains extensive session state for draft persistence:
+
+**Draft Status:**
+- `draft_started`, `draft_history`, `teams`, `main_team`, `my_team_name`
+
+**Draft Flow:**
+- `current_nominating_team_index`, `player_on_the_block`, `draft_order`
+
+**Configuration:**
+- `num_teams`, `budget_per_team`, `roster_spots_per_team`, `games_in_season`
+- `base_value_models`, `scarcity_models`, `tier_cutoffs`, `trend_weights`
+- `roster_composition` (G/F/C/Flx/Bench slots)
+
+**Tracking:**
+- `available_players`, `drafted_players`, `total_money_spent`
+- `initial_pos_counts`, `initial_tier_counts`
 

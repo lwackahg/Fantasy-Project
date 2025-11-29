@@ -66,6 +66,7 @@ Below is a curated list of key Python files in the project, categorized by their
 - `config.py`
 - `session_manager.py`
 - `debug.py`
+- `league_config.py`
 
 ### Data Handling
 - `data_loader.py`
@@ -85,15 +86,40 @@ Below is a curated list of key Python files in the project, categorized by their
 - `pages/2_Player_Consistency.py` (Public viewer for cached consistency data)
 - `pages/3_Schedule_Analysis.py`
 - `pages/4_Player_Full_Data.py`
-- `pages/5_Team_Analyzer.py`
-- `pages/6_Admin_Tools.py` (Password-protected: Downloader, Player Game Logs Scraper, Weekly Standings, Standings Adjuster)
+- `pages/6_Admin_Tools.py` (Password-protected: Downloader, Player Game Logs Scraper, Weekly Standings, Standings Adjuster, Historical Trade Analyzer)
 - `pages/7_Auction_Draft_Tool.py`
 - `pages/8_YoY_Comparison.py`
 - `pages/9_Player_Value_Analyzer.py`
 
-### Modules
+### Trade Analysis Module
+- `modules/trade_analysis/logic.py` - TradeAnalyzer class, run_trade_analysis()
+- `modules/trade_analysis/ui.py` - Trade UI, scenario comparison, game log viewer
+- `modules/trade_analysis/consistency_integration.py` - CV%, boom/bust metrics
+
+### Trade Suggestions Module
+- `modules/trade_suggestions.py` - Main orchestrator, value model
+- `modules/trade_suggestions_config.py` - Constants, trade-balance presets
+- `modules/trade_suggestions_core.py` - Core value/floor impact/realism caps
+- `modules/trade_suggestions_realism.py` - Realism and fairness checks
+- `modules/trade_suggestions_search.py` - Pattern-specific search helpers
+- `modules/trade_suggestions_ui_tab.py` - Embedded UI tab with deep dive expanders
+
+### Player Game Log Scraper Module
+- `modules/player_game_log_scraper/logic.py` - Scraping, caching, league index
+- `modules/player_game_log_scraper/db_store.py` - SQLite database storage
+- `modules/player_game_log_scraper/ui.py` - Main UI entry point
+- `modules/player_game_log_scraper/ui_components.py` - Visualization components
+- `modules/player_game_log_scraper/ui_league_overview.py` - League overview
+- `modules/player_game_log_scraper/ui_fantasy_teams.py` - Fantasy team views
+- `modules/player_game_log_scraper/ui_team_rosters.py` - Team roster display
+- `modules/player_game_log_scraper/ui_viewer.py` - Public viewer
+
+### Historical Trade Analyzer Module
+- `modules/historical_trade_analyzer/logic.py` - Snapshot builder, date parsing
+- `modules/historical_trade_analyzer/ui.py` - Admin UI for historical trades
+
+### Other Modules
 - `modules/auth/ui.py`
-- `modules/data_loader_ui/ui.py`
 - `modules/fantrax_downloader/logic.py`
 - `modules/fantrax_downloader/ui.py`
 - `modules/player_data/logic.py`
@@ -101,20 +127,14 @@ Below is a curated list of key Python files in the project, categorized by their
 - `modules/sidebar/ui.py`
 - `modules/standings_adjuster/logic.py`
 - `modules/standings_adjuster/ui.py`
-- `modules/team_analyzer/logic.py`
-- `modules/team_analyzer/ui.py`
-- `modules/trade_analysis/logic.py`
-- `modules/trade_analysis/ui.py`
-- `modules/trade_suggestions.py`
+- `modules/standings_adjuster/audit_log.py`
 - `modules/weekly_standings_analyzer/logic.py`
 - `modules/weekly_standings_analyzer/ui.py`
-- `modules/player_game_log_scraper/logic.py`
-- `modules/player_game_log_scraper/ui.py`
-- `modules/team_mappings.py`
 - `modules/historical_ytd_downloader/logic.py`
 - `modules/historical_ytd_downloader/ui.py`
 - `modules/player_value/logic.py`
-- `modules/standings_adjuster/audit_log.py`
+- `modules/team_mappings.py`
+- `modules/multi_team_trade.py`
 
 ### Tests
 - `tests/test_app.py`

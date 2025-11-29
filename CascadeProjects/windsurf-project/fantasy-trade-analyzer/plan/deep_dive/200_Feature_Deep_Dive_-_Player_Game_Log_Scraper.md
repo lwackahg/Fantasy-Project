@@ -20,17 +20,22 @@ The **Player Game Log Scraper** is a Selenium-based tool that extracts detailed 
 ```
 modules/player_game_log_scraper/
 ├── __init__.py
-├── logic.py                # Scraping, caching, and calculation logic
-├── ui.py                   # Main UI entry point (280 lines)
-├── ui_components.py        # Visualization components (290 lines)
-└── ui_league_overview.py   # League overview interface (280 lines)
+├── logic.py                # Scraping, caching, and calculation logic (~1100 lines)
+├── db_store.py             # SQLite database storage for game logs (~300 lines)
+├── ui.py                   # Main UI entry point (~580 lines)
+├── ui_components.py        # Visualization components (~290 lines)
+├── ui_league_overview.py   # League overview interface (~700 lines)
+├── ui_fantasy_teams.py     # Fantasy team roster views (~700 lines)
+├── ui_team_rosters.py      # Team roster display (~300 lines)
+└── ui_viewer.py            # Public viewer for cached data (~600 lines)
 
 pages/
+├── 2_Player_Consistency.py # Public viewer page
 └── 6_Admin_Tools.py        # Consolidated admin page with password protection
     └── Tab: Player Game Logs
 ```
 
-**Note:** The UI has been refactored into modular components for better maintainability. The old monolithic 727-line `ui.py` has been split into three focused files.
+**Note:** The UI has been significantly expanded with new views for fantasy teams, team rosters, and a public viewer. The module now supports both JSON cache and SQLite database storage.
 
 ### Data Flow
 
@@ -491,55 +496,101 @@ print(f"Success: {result['success_count']}/{result['total']}")
 
 ## Code Organization
 
-### Modular Refactoring
+### Modular Refactoring (Nov 2025)
 
-The UI was refactored from a single 727-line file into three focused modules:
+The UI has been significantly expanded from the original 3-file structure to 7 focused modules:
 
-**ui.py** (280 lines) - Main entry point
+**logic.py** (~1100 lines) - Core scraping and caching
+- `get_chrome_driver()` - Selenium WebDriver setup with optimized settings
+- `login_to_fantrax()` - Authentication handling
+- `scrape_player_game_log()` - Legacy scraper
+- `get_player_game_log_full()` - Full season scraper with season support
+- `bulk_scrape_all_players_full()` - Multi-season bulk scraping
+- `build_league_cache_index()` - League-level cache index generation
+- `load_league_cache_index()` - Index loading with rebuild option
+- `calculate_variability_stats()` - CV%, boom/bust calculations
+
+**db_store.py** (~300 lines) - SQLite database storage
+- `get_db_path()` - Database path resolution
+- `init_db()` - Schema initialization
+- `upsert_game_log()` - Insert/update game logs
+- `get_player_game_log()` - Retrieve player data
+- `get_all_players_for_league()` - List all cached players
+- Alternative to JSON cache for larger datasets
+
+**ui.py** (~580 lines) - Main entry point
 - `show_player_game_log_scraper()` - Main function with tab layout
-- `show_individual_player_analysis()` - Individual player interface
-- `show_player_selection()` - Player dropdown/input
-- `show_control_buttons()` - Control panel
-- `handle_player_scrape()` - Scraping logic
-- `display_player_analysis()` - Results display
-- `show_bulk_scraper_section()` - Bulk scraper UI
-- `handle_bulk_scrape()` - Bulk scraping logic
+- Season selector with multi-season support (2018-19 to 2025-26)
+- Individual player analysis with variability metrics
+- Bulk scrape controls with progress tracking
+- Cache management (clear, refresh)
 
-**ui_components.py** (290 lines) - Visualization components
-- `display_variability_metrics()` - Metric cards
-- `display_boom_bust_analysis()` - Boom/bust metrics
-- `display_fpts_trend_chart()` - Trend line chart
-- `display_distribution_chart()` - Histogram with stats
-- `display_boom_bust_zones_chart()` - Scatter plot
-- `display_category_breakdown()` - Category bar chart
+**ui_components.py** (~290 lines) - Visualization components
+- `display_variability_metrics()` - Metric cards with tooltips
+- `display_boom_bust_analysis()` - Boom/bust rates and counts
+- `display_fpts_trend_chart()` - FPts trend line chart
+- `display_distribution_chart()` - Histogram with skewness/kurtosis
+- `display_boom_bust_zones_chart()` - Scatter plot with categorization
+- `display_category_breakdown()` - Category bar chart (PTS/REB/AST/etc.)
 
-**ui_league_overview.py** (280 lines) - League overview
-- `show_league_overview()` - Main overview function
-- `_load_all_cached_data()` - Data loading helper
-- `_display_summary_metrics()` - Top-level metrics
-- `_display_consistency_table()` - Main data table
-- `_display_visualizations()` - Chart tabs
-- `_display_cv_distribution()` - CV% histogram
-- `_display_consistency_vs_production()` - Scatter plot
-- `_display_boom_bust_scatter()` - Bubble chart
+**ui_league_overview.py** (~700 lines) - League overview
+- `show_league_overview()` - Main overview with multiple tabs
+- Season filtering and comparison
+- Consistency table with sorting and filtering
+- CV% distribution histogram
+- Consistency vs Production scatter plot
+- Boom/bust bubble chart
+- Team-level aggregations
+
+**ui_fantasy_teams.py** (~700 lines) - Fantasy team views
+- `_build_fantasy_team_view()` - Team roster builder from cache
+- Team-by-team roster display with consistency metrics
+- Aggregated team statistics
+- Trade target identification
+- Integration with Trade Suggestions engine
+
+**ui_team_rosters.py** (~300 lines) - Team roster display
+- `show_team_rosters()` - Team roster interface
+- Player cards with key metrics
+- Roster depth analysis
+- Position-based grouping
+
+**ui_viewer.py** (~600 lines) - Public viewer
+- `show_player_consistency_viewer()` - Public-facing viewer
+- No authentication required
+- Read-only access to cached data
+- Filtering and search capabilities
 
 **Benefits:**
 - Single Responsibility Principle - each file has one purpose
 - Easier to maintain and debug
-- Reusable components
+- Reusable components across multiple pages
 - Better testability
 - Cleaner imports and dependencies
+- Separation of admin (scraping) and public (viewing) functionality
 
 ---
 
 ## Changelog
+
+**v2.0 (Nov 2025)**
+- Expanded UI to 7 modular files (logic, db_store, ui, ui_components, ui_league_overview, ui_fantasy_teams, ui_team_rosters, ui_viewer)
+- Added SQLite database storage option (`db_store.py`)
+- Multi-season support (2018-19 to 2025-26)
+- League cache index for faster lookups (`build_league_cache_index()`)
+- Fantasy team views with roster aggregations
+- Public viewer page (2_Player_Consistency.py)
+- Integration with Trade Suggestions engine
+- Optimized Chrome driver with eager loading strategy
+- Parallel scraping support with concurrent.futures
+- Season-aware cache file naming: `player_game_log_full_{code}_{league}_{season}.json`
 
 **v1.1 (Nov 2024)**
 - Refactored UI into modular components (3 files)
 - Moved to Admin Tools page with password protection
 - Added League Overview tab with filtering
 - Fixed duplicate checkbox IDs with unique keys
-- Added consistency indicator column (/ / )
+- Added consistency indicator column (🟢/🟡/🔴)
 - Improved table filtering with native Streamlit controls
 
 **v1.0 (Nov 2024)**

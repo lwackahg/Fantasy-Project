@@ -50,10 +50,18 @@ def get_chrome_driver(download_dir):
         "profile.default_content_setting_values.automatic_downloads": 1
     }
     chrome_options.add_experimental_option('prefs', prefs)
+    chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
     chrome_options.add_argument('--headless')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
+    chrome_options.add_argument('--disable-gpu')
+    chrome_options.add_argument('--log-level=3')
+    
     driver = webdriver.Chrome(options=chrome_options)
+    
+    # Set timeouts to fail fast instead of hanging forever
+    driver.set_page_load_timeout(60)
+    driver.set_script_timeout(30)
 
     driver.command_executor._commands["send_command"] = ("POST", '/session/$sessionId/chromium/send_command')
     params = {
@@ -78,6 +86,15 @@ def login_to_fantrax(driver, username, password):
     time.sleep(5)
     if 'login' in driver.current_url:
         raise Exception('Login failed. Check credentials.')
+
+def is_driver_alive(driver) -> bool:
+    """Check if the Chrome driver is still responsive."""
+    try:
+        # Quick check - if we can get the current URL, driver is alive
+        _ = driver.current_url
+        return True
+    except Exception:
+        return False
 
 def download_players_csv(driver, start_date=None, end_date=None, league_id=None):
     """
@@ -244,6 +261,18 @@ def download_all_ranges(league_id: str, progress_callback=None):
 				if progress_callback:
 					progress_label = f"Downloading {name} (attempt {attempt}/{max_attempts})"
 					progress_callback(i / total_ranges, progress_label)
+				
+				# Proactive health check before each download
+				if not is_driver_alive(driver):
+					messages.append(f"{name} (attempt {attempt}): Driver dead before download, restarting...")
+					try:
+						kill_chromedriver_processes(also_chrome=True)
+						time.sleep(2)
+						driver = get_chrome_driver(DOWNLOAD_DIR)
+						login_to_fantrax(driver, FANTRAX_USERNAME, FANTRAX_PASSWORD)
+					except Exception as e:
+						messages.append(f"{name}: Proactive restart failed ({e}). Continuing anyway.")
+				
 				success, msg, path, actual_days = download_players_csv(driver, start, end, league_id)
 				
 				# Self-healing: If driver died, restart it and retry immediately
@@ -261,7 +290,7 @@ def download_all_ranges(league_id: str, progress_callback=None):
 							pass
 							
 						kill_chromedriver_processes(also_chrome=True)
-						time.sleep(1)
+						time.sleep(2)  # Give OS more time to release processes
 						driver = get_chrome_driver(DOWNLOAD_DIR)
 						login_to_fantrax(driver, FANTRAX_USERNAME, FANTRAX_PASSWORD)
 					except Exception as e:
