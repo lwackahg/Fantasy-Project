@@ -51,6 +51,7 @@ def init_schema() -> None:
 			);
 			"""
 		)
+		
 		conn.execute(
 			"""
 			CREATE INDEX IF NOT EXISTS idx_player_seasons_player

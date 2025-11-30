@@ -164,7 +164,7 @@ _cached_driver_path = None
 def get_chrome_driver():
 	global _cached_driver_path
 	options = webdriver.ChromeOptions()
-	#options.add_argument('--headless')
+	options.add_argument('--headless')
 	options.add_argument('--no-sandbox')
 	options.add_argument('--disable-dev-shm-usage')
 	options.add_argument('--log-level=3')

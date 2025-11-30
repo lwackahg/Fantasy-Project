@@ -4,6 +4,7 @@ UI components for the trade analysis feature.
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import datetime
 from typing import Dict, Any, List, Tuple
@@ -887,6 +888,10 @@ def _display_trade_insights(results: Dict[str, Any], time_ranges: List[str]):
     with st.expander("🔬 Statistical Analysis & Significance", expanded=False):
         _display_statistical_analysis(results, time_ranges, ytd_pre, ytd_post)
     
+    # Monte Carlo simulation
+    with st.expander("🎲 Monte Carlo Simulation", expanded=False):
+        _display_monte_carlo_simulation(results)
+    
     # Player-by-player comparison - collapsible
     with st.expander("👥 Player-by-Player Comparison", expanded=False):
         outgoing = results.get('outgoing_players', [])
@@ -1086,6 +1091,168 @@ def _display_statistical_analysis(results, time_ranges, ytd_pre, ytd_post):
     st.plotly_chart(fig_dist, width='stretch')
     
     st.caption("**Box plots** show the distribution of expected performance. The box represents the middle 50% of outcomes, with the line showing the median.")
+
+
+def _display_monte_carlo_simulation(results: Dict[str, Any]):
+    """Display Monte Carlo simulation of weekly outcomes before/after trade."""
+    import plotly.graph_objects as go
+    from scipy import stats as scipy_stats
+    
+    st.markdown("#### 🎲 Weekly Outcome Simulation")
+    st.caption("Simulates 1000 weekly outcomes using player CV% to model game-to-game variance")
+    
+    # Get roster data
+    pre_rosters = results.get("pre_trade_rosters", {}) or {}
+    post_rosters = results.get("post_trade_rosters", {}) or {}
+    ytd_pre = pre_rosters.get("YTD") or []
+    ytd_post = post_rosters.get("YTD") or []
+    
+    if not ytd_pre or not ytd_post:
+        st.info("Insufficient roster data for Monte Carlo simulation")
+        return
+    
+    # Build DataFrames
+    pre_df = pd.DataFrame(ytd_pre)
+    post_df = pd.DataFrame(ytd_post)
+    
+    # Check required columns
+    if 'FP/G' not in pre_df.columns or 'FP/G' not in post_df.columns:
+        st.info("Missing FP/G data for simulation")
+        return
+    
+    # Run simulations
+    try:
+        from modules.trade_suggestions.advanced_stats import simulate_weekly_outcome
+        
+        # Rename columns to match expected format
+        pre_sim_df = pre_df.rename(columns={'FP/G': 'Mean FPts'})
+        post_sim_df = post_df.rename(columns={'FP/G': 'Mean FPts'})
+        
+        # Add CV% if missing (default to 30%)
+        if 'CV%' not in pre_sim_df.columns:
+            pre_sim_df['CV%'] = 30.0
+        if 'CV%' not in post_sim_df.columns:
+            post_sim_df['CV%'] = 30.0
+        
+        with st.spinner("Running Monte Carlo simulation (1000 iterations)..."):
+            before_stats = simulate_weekly_outcome(pre_sim_df, n_simulations=1000, games_target=25)
+            after_stats = simulate_weekly_outcome(post_sim_df, n_simulations=1000, games_target=25)
+        
+        # Display metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            mean_change = after_stats['mean'] - before_stats['mean']
+            st.metric(
+                "Expected Weekly FP",
+                f"{after_stats['mean']:.0f}",
+                f"{mean_change:+.0f}",
+                help="Average weekly fantasy points across 1000 simulations"
+            )
+        
+        with col2:
+            floor_change = after_stats['p10'] - before_stats['p10']
+            st.metric(
+                "Floor (10th %ile)",
+                f"{after_stats['p10']:.0f}",
+                f"{floor_change:+.0f}",
+                help="Worst-case weekly outcome (10th percentile)"
+            )
+        
+        with col3:
+            ceiling_change = after_stats['p90'] - before_stats['p90']
+            st.metric(
+                "Ceiling (90th %ile)",
+                f"{after_stats['p90']:.0f}",
+                f"{ceiling_change:+.0f}",
+                help="Best-case weekly outcome (90th percentile)"
+            )
+        
+        with col4:
+            variance_change = after_stats['std'] - before_stats['std']
+            variance_emoji = "📉" if variance_change < 0 else "📈"
+            st.metric(
+                "Volatility",
+                f"{variance_emoji} {after_stats['std']:.0f}",
+                f"{variance_change:+.0f}",
+                delta_color="inverse",
+                help="Standard deviation of weekly outcomes (lower = more predictable)"
+            )
+        
+        # Distribution visualization
+        st.markdown("---")
+        st.markdown("##### Weekly FP Distribution Comparison")
+        
+        # Create distribution curves
+        x_min = min(before_stats['p10'], after_stats['p10']) - 100
+        x_max = max(before_stats['p90'], after_stats['p90']) + 100
+        x_range = np.linspace(x_min, x_max, 200)
+        
+        before_curve = scipy_stats.norm.pdf(x_range, before_stats['mean'], before_stats['std'])
+        after_curve = scipy_stats.norm.pdf(x_range, after_stats['mean'], after_stats['std'])
+        
+        # Normalize for display
+        before_curve = before_curve / before_curve.max()
+        after_curve = after_curve / after_curve.max()
+        
+        fig = go.Figure()
+        
+        fig.add_trace(go.Scatter(
+            x=x_range, y=before_curve,
+            mode='lines', fill='tozeroy',
+            name='Before Trade',
+            line_color='#FF9800',
+            fillcolor='rgba(255, 152, 0, 0.3)',
+        ))
+        
+        fig.add_trace(go.Scatter(
+            x=x_range, y=after_curve,
+            mode='lines', fill='tozeroy',
+            name='After Trade',
+            line_color='#4CAF50',
+            fillcolor='rgba(76, 175, 80, 0.3)',
+        ))
+        
+        # Add vertical lines for means
+        fig.add_vline(x=before_stats['mean'], line_dash='dash', line_color='#FF9800')
+        fig.add_vline(x=after_stats['mean'], line_dash='dash', line_color='#4CAF50')
+        
+        fig.update_layout(
+            title='Projected Weekly FP Distribution',
+            xaxis_title='Weekly Fantasy Points (25 games)',
+            yaxis_title='Relative Probability',
+            height=400,
+            showlegend=True,
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Interpretation
+        if mean_change > 50:
+            st.success("🟢 **Strong improvement** - Significant increase in expected weekly output")
+        elif mean_change > 20:
+            st.success("🟢 **Solid improvement** - Meaningful increase in expected weekly output")
+        elif mean_change > 0:
+            st.info("🟡 **Modest improvement** - Small increase in expected weekly output")
+        elif mean_change > -20:
+            st.info("🟡 **Slight decrease** - Small reduction in expected weekly output")
+        else:
+            st.warning("🔴 **Notable decrease** - Significant reduction in expected weekly output")
+        
+        if floor_change > 30:
+            st.success("✅ **Floor raised** - Your worst weeks should be better")
+        elif floor_change < -30:
+            st.warning("⚠️ **Floor lowered** - Your worst weeks could be worse")
+        
+        if variance_change < -20:
+            st.success("✅ **More predictable** - Less week-to-week variance")
+        elif variance_change > 20:
+            st.info("ℹ️ **More volatile** - Higher week-to-week variance")
+        
+    except Exception as e:
+        st.warning(f"Monte Carlo simulation unavailable: {str(e)}")
+        st.caption("Ensure the advanced_stats module is properly installed")
+
 
 def _display_player_comparison(outgoing_players, incoming_players, results):
     """Display detailed player-by-player comparison."""

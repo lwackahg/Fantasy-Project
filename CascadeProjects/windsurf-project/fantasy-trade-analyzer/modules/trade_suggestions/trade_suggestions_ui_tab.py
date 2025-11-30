@@ -17,6 +17,20 @@ from modules.trade_analysis.ui import display_trade_results
 from modules.team_mappings import TEAM_MAPPINGS
 from modules.historical_ytd_downloader.logic import load_and_compare_seasons, get_available_seasons
 
+# Player similarity imports
+from modules.trade_suggestions.player_similarity import (
+    calculate_league_stats,
+    trade_package_similarity,
+    find_similar_players,
+    create_player_vector,
+    player_similarity_score,
+    weighted_euclidean_distance,
+)
+from modules.trade_suggestions.similarity_viz import (
+    render_player_comparison_radar,
+    render_multi_player_radar,
+)
+
 CODE_BY_MANAGER = {v: k for k, v in TEAM_MAPPINGS.items()}
 
 def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name, yoy_index=None):
@@ -392,6 +406,96 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
             st.info("**Modest upgrade**: You gain some core value. Whether it's worth it depends on your team needs, schedule, and risk tolerance.")
         else:
             st.info("**Marginal trade**: Small core gain. This is more about fit, positional needs, or strategic roster reshaping than a clear value win.")
+
+    # Player Similarity Analysis Section
+    with st.expander("🔍 Player Similarity Analysis", expanded=False):
+        st.markdown("### Profile-based trade analysis")
+        
+        # Get league stats for normalization
+        try:
+            # Build combined player data from rosters
+            all_roster_dfs = [df for df in rosters_by_team.values() if df is not None and not df.empty]
+            if all_roster_dfs:
+                combined_df = pd.concat(all_roster_dfs, ignore_index=True)
+                if 'Player' in combined_df.columns:
+                    combined_df = combined_df.drop_duplicates(subset=['Player'])
+                
+                league_means, league_stds = calculate_league_stats(combined_df)
+                
+                # Get player rows for the trade
+                give_players = []
+                get_players = []
+                
+                for player_name in suggestion["you_give"]:
+                    player_rows = combined_df[combined_df['Player'] == player_name]
+                    if not player_rows.empty:
+                        give_players.append(player_rows.iloc[0])
+                
+                for player_name in suggestion["you_get"]:
+                    player_rows = combined_df[combined_df['Player'] == player_name]
+                    if not player_rows.empty:
+                        get_players.append(player_rows.iloc[0])
+                
+                if give_players and get_players:
+                    # Calculate package similarity
+                    pkg_analysis = trade_package_similarity(
+                        give_players, get_players, league_means, league_stds
+                    )
+                    
+                    st.markdown("#### 📊 Package Profile Comparison")
+                    
+                    sim_cols = st.columns(4)
+                    with sim_cols[0]:
+                        st.metric("Package Similarity", f"{pkg_analysis['similarity']:.1f}%",
+                                  help="How similar the trade packages are in overall profile")
+                    with sim_cols[1]:
+                        fpg_change = pkg_analysis.get('fpg_change', 0)
+                        st.metric("FP/G Profile", f"{fpg_change:+.2f}σ",
+                                  help="Z-score change in FP/G dimension")
+                    with sim_cols[2]:
+                        cons_change = pkg_analysis.get('consistency_change', 0)
+                        st.metric("Consistency", f"{cons_change:+.2f}σ",
+                                  help="Z-score change in consistency (positive = more consistent)")
+                    with sim_cols[3]:
+                        value_change = pkg_analysis.get('value_change', 0)
+                        st.metric("Value Profile", f"{value_change:+.2f}σ",
+                                  help="Z-score change in composite value")
+                    
+                    # Interpretation
+                    if pkg_analysis['similarity'] > 80:
+                        st.success("📊 **Very similar packages** - This is a balanced swap of comparable players")
+                    elif pkg_analysis['similarity'] > 60:
+                        st.info("📊 **Moderately similar packages** - Some profile differences but reasonable swap")
+                    elif pkg_analysis['similarity'] > 40:
+                        st.warning("📊 **Different profiles** - You're trading for a different type of player")
+                    else:
+                        st.warning("📊 **Very different profiles** - Major shift in player archetype")
+                    
+                    # Show radar comparison if 1-for-1 or small trade
+                    if len(give_players) <= 2 and len(get_players) <= 2:
+                        st.markdown("#### 🎯 Player Profile Radar")
+                        all_trade_players = give_players + get_players
+                        if len(all_trade_players) >= 2:
+                            fig = render_multi_player_radar(all_trade_players, league_means, league_stds)
+                            st.plotly_chart(fig, use_container_width=True, key=f"radar_{rank}")
+                    
+                    # Find similar players to what you're giving up
+                    st.markdown("#### 🔄 Similar Players to What You're Giving")
+                    for give_player in give_players[:2]:  # Limit to first 2
+                        player_name = give_player.get('Player', 'Unknown')
+                        similar = find_similar_players(
+                            player_name, combined_df, league_means, league_stds,
+                            n=3, exclude_same_team=True
+                        )
+                        if similar:
+                            similar_names = [f"{name} ({score:.0f}%)" for name, score, _ in similar]
+                            st.caption(f"**{player_name}** → Similar: {', '.join(similar_names)}")
+                else:
+                    st.caption("Unable to find player data for similarity analysis.")
+            else:
+                st.caption("No roster data available for similarity analysis.")
+        except Exception as e:
+            st.caption(f"Similarity analysis unavailable: {str(e)}")
 
     with st.expander("📋 Roster Snapshot (top 10)", expanded=False):
         your_roster = rosters_by_team.get(your_team_name)
