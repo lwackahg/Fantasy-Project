@@ -3,15 +3,15 @@
     "player_code": "042n1",
     "league_id": "ifa1anexmdgtlk9s",
     "season": "2025-26",
-    "timestamp": 1764467078.0606368,
+    "timestamp": 1764518679.8924892,
     "data": [
         {
             "Date": "Nov 29",
             "Team": "TOR",
             "Opp": "@CHA",
-            "Score": "110-114",
-            "FPts": 35,
-            "FG-": "15.0",
+            "Score": "L 111-118",
+            "FPts": 33,
+            "FG-": "16.0",
             "3PTM": 1,
             "FT-": "1",
             "PTS": 22,
@@ -25,7 +25,7 @@
             "EJ": "0",
             "3D": "0",
             "2D": "0",
-            "MIN": 39.45
+            "MIN": 39.916666666666664
         },
         {
             "Date": "Nov 26",

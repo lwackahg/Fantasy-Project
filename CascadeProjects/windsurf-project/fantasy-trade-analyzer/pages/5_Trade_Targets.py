@@ -15,6 +15,11 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional
 
+try:
+	from league_config import FANTRAX_DEFAULT_LEAGUE_ID
+except ImportError:
+	FANTRAX_DEFAULT_LEAGUE_ID = ""
+
 from modules.trade_suggestions.player_similarity import (
     calculate_league_stats,
     find_similar_players,
@@ -67,7 +72,7 @@ def get_combined_data() -> pd.DataFrame:
 
 def get_league_id() -> str:
     """Get current league ID from session state."""
-    return st.session_state.get('league_id', '')
+    return st.session_state.get('league_id') or FANTRAX_DEFAULT_LEAGUE_ID
 
 
 def enrich_with_consistency(df: pd.DataFrame) -> pd.DataFrame:

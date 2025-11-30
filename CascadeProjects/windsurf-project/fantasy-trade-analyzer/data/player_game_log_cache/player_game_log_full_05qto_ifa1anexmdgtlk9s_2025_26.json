@@ -3,13 +3,13 @@
     "player_code": "05qto",
     "league_id": "ifa1anexmdgtlk9s",
     "season": "2025-26",
-    "timestamp": 1764465266.5820084,
+    "timestamp": 1764518773.950221,
     "data": [
         {
             "Date": "Nov 29",
             "Team": "CHA",
             "Opp": "TOR",
-            "Score": "95-100",
+            "Score": "W 118-111",
             "FPts": 26,
             "FG-": "10.0",
             "3PTM": 1,
@@ -25,7 +25,7 @@
             "EJ": "0",
             "3D": "0",
             "2D": "0",
-            "MIN": 21.683333333333334
+            "MIN": 21.7
         },
         {
             "Date": "Nov 28",

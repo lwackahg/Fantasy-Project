@@ -607,6 +607,14 @@ def get_player_game_log_full(player_code, league_id, username, password, season=
 				status='success',
 				game_log_records=df.to_dict('records'),
 			)
+			stats = calculate_variability_stats(df.copy())
+			if stats:
+				db_store.upsert_player_season_stats_for_keys(
+					league_id=league_id,
+					player_code=player_code,
+					season=season,
+					stats=stats,
+				)
 		except Exception:
 			pass
 
@@ -851,6 +859,48 @@ def get_available_players_from_csv():
 		print(f"Error reading {csv_file.name}: {e}")
 		return {}
 
+
+def recompute_player_season_stats_for_league(league_id, seasons=None):
+	"""Recompute and upsert player_season_stats for a league and set of seasons.
+
+	This reads player game logs from the SQLite DB and uses calculate_variability_stats
+	to derive season-level stats, then writes them into player_season_stats.
+	"""
+	try:
+		if seasons is None:
+			seasons = db_store.get_league_available_seasons(league_id) or []
+	except Exception:
+		seasons = []
+	if not seasons:
+		return
+	
+	for season in seasons:
+		try:
+			player_logs = db_store.get_league_season_player_logs(league_id, season)
+		except Exception:
+			continue
+		if not player_logs:
+			continue
+		for player_code, player_name, records in player_logs:
+			if not records:
+				continue
+			try:
+				df = pd.DataFrame(records)
+			except Exception:
+				continue
+			stats = calculate_variability_stats(df.copy())
+			if not stats:
+				continue
+			try:
+				db_store.upsert_player_season_stats_for_keys(
+					league_id=league_id,
+					player_code=player_code,
+					season=season,
+					stats=stats,
+				)
+			except Exception:
+				continue
+
 def bulk_scrape_all_players_full(league_id, username, password, seasons=None, player_dict=None, progress_callback=None, force_refresh=False):
 	"""
 	Enhanced bulk scraper that uses Games (Fntsy) tab and can scrape multiple seasons per player.
@@ -1075,8 +1125,16 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 						with open(cache_file, 'w') as f:
 							json.dump(cache_data, f, indent=4)
 						try:
-							db_store.store_player_season(player_code, player_name, league_id, season, 'success', df.to_dict('records'))
-						except: pass
+							db_store.store_player_season(
+								player_code,
+								player_name,
+								league_id,
+								season,
+								'success',
+								df.to_dict('records'),
+							)
+						except Exception:
+							pass
 						
 						success_count += 1
 						consecutive_empty_seasons = 0
@@ -1131,6 +1189,11 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 					fail_count += len(seasons)
 					current_idx += 1
 					retry_count = 0
+		
+		try:
+			recompute_player_season_stats_for_league(league_id, seasons)
+		except Exception:
+			pass
 		
 		return {
 			"success_count": success_count,
@@ -1276,6 +1339,11 @@ def bulk_scrape_all_players(league_id, username, password, player_dict=None, pro
 			except Exception as e:
 				failed_players.append((player_name, str(e)))
 				fail_count += 1
+		
+		try:
+			recompute_player_season_stats_for_league(league_id, ["2025-26"])
+		except Exception:
+			pass
 		
 		return {
 			"success_count": success_count,

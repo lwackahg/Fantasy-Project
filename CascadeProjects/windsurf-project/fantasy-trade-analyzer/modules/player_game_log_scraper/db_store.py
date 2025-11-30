@@ -51,7 +51,6 @@ def init_schema() -> None:
 			);
 			"""
 		)
-		
 		conn.execute(
 			"""
 			CREATE INDEX IF NOT EXISTS idx_player_seasons_player
@@ -70,6 +69,136 @@ def init_schema() -> None:
 			ON player_game_logs(player_season_id);
 			"""
 		)
+		conn.execute(
+			"""
+			CREATE TABLE IF NOT EXISTS player_season_stats (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				player_season_id INTEGER NOT NULL UNIQUE,
+				games_played INTEGER,
+				mean_fpts REAL,
+				median_fpts REAL,
+				std_dev REAL,
+				cv_percent REAL,
+				min_fpts REAL,
+				max_fpts REAL,
+				range REAL,
+				boom_games INTEGER,
+				bust_games INTEGER,
+				boom_rate REAL,
+				bust_rate REAL,
+				mean_minutes REAL,
+				total_minutes REAL,
+				fppm_mean REAL,
+				computed_at TEXT NOT NULL,
+				FOREIGN KEY(player_season_id) REFERENCES player_seasons(id) ON DELETE CASCADE
+			);
+			"""
+		)
+
+
+def upsert_player_season_stats(player_season_id: int, stats: dict) -> None:
+	init_schema()
+	games_played = stats.get("games_played")
+	mean_fpts = stats.get("mean_fpts")
+	median_fpts = stats.get("median_fpts")
+	std_dev = stats.get("std_dev")
+	min_fpts = stats.get("min_fpts")
+	max_fpts = stats.get("max_fpts")
+	value_range = stats.get("range")
+	coefficient_of_variation = stats.get("coefficient_of_variation")
+	boom_games = stats.get("boom_games")
+	bust_games = stats.get("bust_games")
+	boom_rate = stats.get("boom_rate")
+	bust_rate = stats.get("bust_rate")
+	mean_minutes = stats.get("mean_minutes")
+	total_minutes = stats.get("total_minutes")
+	fppm_mean = stats.get("fppm_mean")
+	computed_at = datetime.utcnow().isoformat()
+	with _get_connection() as conn:
+		conn.execute("PRAGMA foreign_keys = ON;")
+		conn.execute(
+			"""
+			INSERT INTO player_season_stats (
+				player_season_id,
+				games_played,
+				mean_fpts,
+				median_fpts,
+				std_dev,
+				cv_percent,
+				min_fpts,
+				max_fpts,
+				range,
+				boom_games,
+				bust_games,
+				boom_rate,
+				bust_rate,
+				mean_minutes,
+				total_minutes,
+				fppm_mean,
+				computed_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(player_season_id) DO UPDATE SET
+				games_played=excluded.games_played,
+				mean_fpts=excluded.mean_fpts,
+				median_fpts=excluded.median_fpts,
+				std_dev=excluded.std_dev,
+				cv_percent=excluded.cv_percent,
+				min_fpts=excluded.min_fpts,
+				max_fpts=excluded.max_fpts,
+				range=excluded.range,
+				boom_games=excluded.boom_games,
+				bust_games=excluded.bust_games,
+				boom_rate=excluded.boom_rate,
+				bust_rate=excluded.bust_rate,
+				mean_minutes=excluded.mean_minutes,
+				total_minutes=excluded.total_minutes,
+				fppm_mean=excluded.fppm_mean,
+				computed_at=excluded.computed_at;
+			""",
+			(
+				player_season_id,
+				games_played,
+				mean_fpts,
+				median_fpts,
+				std_dev,
+				coefficient_of_variation,
+				min_fpts,
+				max_fpts,
+				value_range,
+				boom_games,
+				bust_games,
+				boom_rate,
+				bust_rate,
+				mean_minutes,
+				total_minutes,
+				fppm_mean,
+				computed_at,
+			),
+		)
+
+
+def upsert_player_season_stats_for_keys(
+	league_id: str,
+	player_code: str,
+	season: str,
+	stats: dict,
+) -> None:
+	init_schema()
+	with _get_connection() as conn:
+		conn.execute("PRAGMA foreign_keys = ON;")
+		cur = conn.cursor()
+		cur.execute(
+			"""
+			SELECT id FROM player_seasons
+			WHERE league_id = ? AND player_code = ? AND season = ?;
+			""",
+			(league_id, player_code, season),
+		)
+		row = cur.fetchone()
+		if row is None:
+			return
+		player_season_id = row[0]
+	upsert_player_season_stats(player_season_id, stats)
 
 
 def store_player_season(

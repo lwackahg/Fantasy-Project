@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Dict, Optional
 from functools import lru_cache
 import pandas as pd
+from modules.player_game_log_scraper.logic import calculate_variability_stats
 
 CONSISTENCY_VERY_MAX_CV = 25.0
 CONSISTENCY_MODERATE_MAX_CV = 40.0
@@ -162,6 +163,18 @@ def build_league_consistency_index(league_id: str) -> Dict[str, Dict]:
 		boom_games = len(fpts[fpts > boom_threshold])
 		bust_games = len(fpts[fpts < bust_threshold])
 		total_games = len(fpts)
+
+		# Derive minutes-based metrics when MIN data is available in the game log.
+		mean_minutes = None
+		fppm_mean = None
+		try:
+			stats = calculate_variability_stats(df.copy())
+			if stats:
+				mean_minutes = stats.get('mean_minutes')
+				fppm_mean = stats.get('fppm_mean')
+		except Exception:
+			stats = None
+
 		all_consistency[player_name] = {
 			'player_name': player_name,
 			'games_played': total_games,
@@ -177,6 +190,9 @@ def build_league_consistency_index(league_id: str) -> Dict[str, Dict]:
 			'bust_games': bust_games,
 			'bust_rate': (bust_games / total_games * 100) if total_games > 0 else 0,
 			'consistency_tier': get_consistency_tier(cv),
+			# Optional minutes-based fields for downstream consumers.
+			'mean_minutes': mean_minutes,
+			'fppm_mean': fppm_mean,
 		}
 
 	return all_consistency
@@ -200,6 +216,8 @@ def enrich_roster_with_consistency(roster_df: pd.DataFrame, league_id: str, cons
 	roster_df['Consistency'] = None
 	roster_df['Boom%'] = None
 	roster_df['Bust%'] = None
+	if 'Min' not in roster_df.columns:
+		roster_df['Min'] = None
 	
 	index = consistency_index or {}
 	
@@ -216,5 +234,8 @@ def enrich_roster_with_consistency(roster_df: pd.DataFrame, league_id: str, cons
 			roster_df.at[idx, 'Consistency'] = consistency['consistency_tier']
 			roster_df.at[idx, 'Boom%'] = round(consistency['boom_rate'], 1)
 			roster_df.at[idx, 'Bust%'] = round(consistency['bust_rate'], 1)
+			mean_minutes = consistency.get('mean_minutes')
+			if mean_minutes is not None:
+				roster_df.at[idx, 'Min'] = round(mean_minutes, 1)
 	
 	return roster_df
