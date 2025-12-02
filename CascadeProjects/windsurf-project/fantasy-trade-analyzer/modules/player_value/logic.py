@@ -163,6 +163,7 @@ def _build_player_value_profiles_from_db(
 		)
 
 		season_profiles: List[Dict[str, Any]] = []
+		player_name_db_latest: Optional[str] = None
 		for meta_row in season_metas:
 			season = meta_row.get("season")
 			status = meta_row.get("status", "success")
@@ -183,6 +184,8 @@ def _build_player_value_profiles_from_db(
 				continue
 
 			records, status_db, player_name_db = loaded
+			if player_name_db:
+				player_name_db_latest = player_name_db
 			if status_db == "no_games_played" or not records:
 				continue
 
@@ -194,7 +197,7 @@ def _build_player_value_profiles_from_db(
 			season_profiles.append(profile)
 
 		row = _aggregate_player_season_profiles(
-			player_name=player_name_db or player_name,
+			player_name=player_name_db_latest or player_name,
 			player_code=player_code,
 			season_profiles=season_profiles,
 			min_seasons=min_seasons,

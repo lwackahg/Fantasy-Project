@@ -393,6 +393,89 @@ def get_league_player_seasons(league_id: str) -> List[dict]:
 	return result
 
 
+def get_league_player_season_stats(league_id: str) -> List[dict]:
+	"""Return season-level stats for all players in a league from the DB.
+
+	Each dict contains: player_code, player_name, season, and columns from
+	player_season_stats such as games_played, mean_fpts, cv_percent, etc.
+	"""
+	init_schema()
+	with _get_connection() as conn:
+		conn.execute("PRAGMA foreign_keys = ON;")
+		cur = conn.cursor()
+		cur.execute(
+			"""
+			SELECT
+				ps.player_code,
+				ps.player_name,
+				ps.season,
+				pss.games_played,
+				pss.mean_fpts,
+				pss.median_fpts,
+				pss.std_dev,
+				pss.cv_percent,
+				pss.min_fpts,
+				pss.max_fpts,
+				pss.range,
+				pss.boom_games,
+				pss.bust_games,
+				pss.boom_rate,
+				pss.bust_rate,
+				pss.mean_minutes,
+				pss.fppm_mean
+			FROM player_seasons ps
+			JOIN player_season_stats pss ON pss.player_season_id = ps.id
+			WHERE ps.league_id = ? AND ps.status = 'success';
+			""",
+			(league_id,),
+		)
+		rows = cur.fetchall()
+
+	result: List[dict] = []
+	for (
+		player_code,
+		player_name,
+		season,
+		games_played,
+		mean_fpts,
+		median_fpts,
+		std_dev,
+		cv_percent,
+		min_fpts,
+		max_fpts,
+		value_range,
+		boom_games,
+		bust_games,
+		boom_rate,
+		bust_rate,
+		mean_minutes,
+		fppm_mean,
+	) in rows:
+		result.append(
+			{
+				"player_code": player_code,
+				"player_name": player_name,
+				"season": season,
+				"games_played": games_played,
+				"mean_fpts": mean_fpts,
+				"median_fpts": median_fpts,
+				"std_dev": std_dev,
+				"cv_percent": cv_percent,
+				"min_fpts": min_fpts,
+				"max_fpts": max_fpts,
+				"range": value_range,
+				"boom_games": boom_games,
+				"bust_games": bust_games,
+				"boom_rate": boom_rate,
+				"bust_rate": bust_rate,
+				"mean_minutes": mean_minutes,
+				"fppm_mean": fppm_mean,
+			}
+		)
+
+	return result
+
+
 def get_league_available_seasons(league_id: str) -> List[str]:
 	"""Return all distinct seasons for a league, newest first."""
 	init_schema()

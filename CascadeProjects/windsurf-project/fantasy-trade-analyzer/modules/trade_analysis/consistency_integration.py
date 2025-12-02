@@ -5,6 +5,7 @@ from typing import Dict, Optional
 from functools import lru_cache
 import pandas as pd
 from modules.player_game_log_scraper.logic import calculate_variability_stats
+from modules.player_game_log_scraper import db_store
 
 CONSISTENCY_VERY_MAX_CV = 25.0
 CONSISTENCY_MODERATE_MAX_CV = 40.0
@@ -121,8 +122,69 @@ def load_all_player_consistency(league_id: str) -> Dict[str, Dict]:
 	
 	return all_consistency
 
-
 def build_league_consistency_index(league_id: str) -> Dict[str, Dict]:
+	"""Build a league-wide consistency index, preferring DB-backed stats.
+
+	Tries player_season_stats in the SQLite DB first and falls back to the
+	JSON cache files only if no DB-backed stats are available.
+	"""
+	try:
+		last_updated = db_store.get_league_last_updated(league_id)
+	except Exception:
+		last_updated = None
+	return _build_league_consistency_index_cached(league_id, last_updated)
+
+
+@lru_cache(maxsize=32)
+def _build_league_consistency_index_cached(league_id: str, last_updated: Optional[str]) -> Dict[str, Dict]:
+	all_consistency: Dict[str, Dict] = {}
+
+	# First try to build from DB-backed season stats.
+	try:
+		rows = db_store.get_league_player_season_stats(league_id)
+	except Exception:
+		rows = []
+	if rows:
+		best_by_player: Dict[str, Dict] = {}
+		for row in rows:
+			player_name = row.get('player_name') or ''
+			if not player_name:
+				continue
+			season_str = str(row.get('season', '')).strip()
+			existing = best_by_player.get(player_name)
+			if existing is None or season_str > str(existing.get('season', '')):
+				best_by_player[player_name] = {
+					'season': season_str,
+					'stats': row,
+				}
+		for player_name, meta in best_by_player.items():
+			stats_row = meta.get('stats') or {}
+			mean_fpts = stats_row.get('mean_fpts')
+			if mean_fpts is None:
+				continue
+			cv = stats_row.get('cv_percent') or 0.0
+			all_consistency[player_name] = {
+				'player_name': player_name,
+				'games_played': stats_row.get('games_played') or 0,
+				'mean_fpts': mean_fpts,
+				'median_fpts': stats_row.get('median_fpts'),
+				'std_dev': stats_row.get('std_dev'),
+				'cv_percent': cv,
+				'min_fpts': stats_row.get('min_fpts'),
+				'max_fpts': stats_row.get('max_fpts'),
+				'range': stats_row.get('range'),
+				'boom_games': stats_row.get('boom_games'),
+				'boom_rate': stats_row.get('boom_rate'),
+				'bust_games': stats_row.get('bust_games'),
+				'bust_rate': stats_row.get('bust_rate'),
+				'consistency_tier': get_consistency_tier(cv),
+				'mean_minutes': stats_row.get('mean_minutes'),
+				'fppm_mean': stats_row.get('fppm_mean'),
+			}
+		if all_consistency:
+			return all_consistency
+	
+	# Fallback: build from JSON cache if DB stats are unavailable.
 	cache_dir = get_consistency_cache_directory()
 	cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
 
@@ -145,7 +207,6 @@ def build_league_consistency_index(league_id: str) -> Dict[str, Dict]:
 		except Exception:
 			continue
 
-	all_consistency: Dict[str, Dict] = {}
 	for player_name, meta in best_by_player.items():
 		cache_data = meta.get('data') or {}
 		game_log = cache_data.get('data', cache_data.get('game_log', []))
@@ -164,7 +225,6 @@ def build_league_consistency_index(league_id: str) -> Dict[str, Dict]:
 		bust_games = len(fpts[fpts < bust_threshold])
 		total_games = len(fpts)
 
-		# Derive minutes-based metrics when MIN data is available in the game log.
 		mean_minutes = None
 		fppm_mean = None
 		try:
@@ -190,7 +250,6 @@ def build_league_consistency_index(league_id: str) -> Dict[str, Dict]:
 			'bust_games': bust_games,
 			'bust_rate': (bust_games / total_games * 100) if total_games > 0 else 0,
 			'consistency_tier': get_consistency_tier(cv),
-			# Optional minutes-based fields for downstream consumers.
 			'mean_minutes': mean_minutes,
 			'fppm_mean': fppm_mean,
 		}
@@ -220,13 +279,14 @@ def enrich_roster_with_consistency(roster_df: pd.DataFrame, league_id: str, cons
 		roster_df['Min'] = None
 	
 	index = consistency_index or {}
+	use_index_only = consistency_index is not None
 	
 	for idx, row in roster_df.iterrows():
 		player_name = row['Player']
 		consistency = None
 		if index and player_name in index:
 			consistency = index[player_name]
-		else:
+		elif not use_index_only:
 			consistency = load_player_consistency(player_name, league_id)
 		
 		if consistency:

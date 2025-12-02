@@ -51,6 +51,12 @@ st.title("🎯 Trade Target Finder")
 st.caption("Find actionable trade targets to gain competitive advantages")
 
 
+@st.cache_data(show_spinner=False)
+def _get_league_stats_cached(df: pd.DataFrame):
+	"""Cached wrapper around calculate_league_stats to avoid recomputing on every rerun."""
+	return calculate_league_stats(df)
+
+
 # =============================================================================
 # Data Loading
 # =============================================================================
@@ -76,16 +82,20 @@ def get_league_id() -> str:
 
 
 def enrich_with_consistency(df: pd.DataFrame) -> pd.DataFrame:
-    """Add CV% and consistency data to DataFrame."""
-    league_id = get_league_id()
-    if not league_id or df.empty:
-        return df
-    
-    # Build consistency index once
-    if 'consistency_index' not in st.session_state:
-        st.session_state.consistency_index = build_league_consistency_index(league_id)
-    
-    return enrich_roster_with_consistency(df, league_id, st.session_state.consistency_index)
+	"""Add CV% and consistency data to DataFrame."""
+	league_id = get_league_id()
+	if not league_id or df.empty:
+		return df
+	
+	with st.spinner("Loading consistency metrics for this league (one-time per league)..."):
+		progress = st.progress(0)
+		progress.progress(10)
+		consistency_index = build_league_consistency_index(league_id)
+		progress.progress(70)
+		result_df = enrich_roster_with_consistency(df, league_id, consistency_index)
+		progress.progress(100)
+	
+	return result_df
 
 
 # =============================================================================
@@ -99,12 +109,17 @@ if df.empty:
     st.info("Go to **Trade Suggestions** or **Trade Analysis** and load your league data.")
     st.stop()
 
-# Enrich with consistency data
+# Optional consistency enrichment (can be heavy on first load)
 league_id = get_league_id()
-if league_id:
-    df = enrich_with_consistency(df)
+include_consistency = st.checkbox(
+	"Include consistency metrics (CV%, Boom/Bust, Min/G)",
+	value=False,
+	help="Enrich players with game-log-based consistency; may take longer on first load.",
+)
+if include_consistency and league_id:
+	df = enrich_with_consistency(df)
 
-league_means, league_stds = calculate_league_stats(df)
+league_means, league_stds = _get_league_stats_cached(df)
 fpg_col = _get_fpg_column(df)
 
 
@@ -207,20 +222,35 @@ with tab1:
         
         st.markdown("---")
         
-        # Find similar players
-        similar = find_similar_players(
-            target_player, df, league_means, league_stds,
-            n=n_results,
-            exclude_same_team=exclude_same_team,
-            position_filter=pos_filter,
-            min_fpg=min_fpg
-        )
+        run_search = st.button("🔍 Find Similar Players", type="primary", key="find_trade_targets")
+        similar = None
+        effective_target_fpg = target_fpg
+        
+        if run_search:
+            with st.spinner("Finding similar players..."):
+                similar = find_similar_players(
+                    target_player, df, league_means, league_stds,
+                    n=n_results,
+                    exclude_same_team=exclude_same_team,
+                    position_filter=pos_filter,
+                    min_fpg=min_fpg,
+                )
+            st.session_state["trade_target_finder_results"] = {
+                "target_player": target_player,
+                "target_fpg": target_fpg,
+                "similar": similar,
+            }
+        else:
+            stored = st.session_state.get("trade_target_finder_results")
+            if stored and stored.get("target_player") == target_player:
+                similar = stored.get("similar")
+                effective_target_fpg = stored.get("target_fpg", target_fpg)
         
         if similar:
             results = []
             for name, score, row in similar:
                 fpg = _get_fpg_value(row, 0)
-                fpg_diff = fpg - target_fpg
+                fpg_diff = fpg - effective_target_fpg
                 cv = row.get('CV%', None)
                 mins = row.get('Min', row.get('MPG', None))
                 gp = row.get('GP', 0)
@@ -250,8 +280,10 @@ with tab1:
             st.dataframe(results_df, hide_index=True, use_container_width=True)
             
             st.caption("**Similarity** = how close their production profile is. **Trade Angle** = upgrade/downgrade/lateral move.")
-        else:
+        elif run_search:
             st.info("No similar players found with current filters. Try widening the FP/G range.")
+        else:
+            st.info("Adjust filters and click 'Find Similar Players' to see suggested targets.")
 
 
 # =============================================================================

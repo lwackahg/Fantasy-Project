@@ -6,6 +6,7 @@ Based on fantrax_downloader but modified to fetch historical seasons.
 import os
 import time
 import requests
+import concurrent.futures
 from datetime import datetime, timedelta
 from pathlib import Path
 from modules.fantrax_downloader.logic import get_chrome_driver, login_to_fantrax, kill_chromedriver_processes
@@ -87,14 +88,49 @@ def download_historical_ytd(league_id: str, season_label: str, season_code: str,
 		csv_filename = f"Fantrax-Players-{league_name}-YTD-{season_label}.csv"
 		download_path = DOWNLOAD_DIR / csv_filename
 		
-		# Download using session with cookies
-		cookies = driver.get_cookies()
+		# Download using session with cookies. Wrap get_cookies in a short, hard timeout
+		# so a dead Chrome driver does not hang or raise noisy connection errors.
+		def _get_cookies_safe():
+			return driver.get_cookies()
+		
+		cookies_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+		try:
+			future = cookies_executor.submit(_get_cookies_safe)
+			cookies = future.result(timeout=5)
+		except Exception as e:
+			msg = f"{season_label}: Error: Chrome driver died (cookies) - {e}"
+			print(msg)
+			return False, msg, ""
+		finally:
+			cookies_executor.shutdown(wait=False)
+		
 		session = requests.Session()
 		for cookie in cookies:
 			session.cookies.set(cookie['name'], cookie['value'])
 		
 		print(f'Downloading {season_label} YTD ({season_code})...')
-		resp = session.get(csv_url)
+		
+		# Use a worker thread with a hard wall-clock timeout, mirroring the
+		# protections in the main fantrax_downloader.
+		HARD_TIMEOUT_SECONDS = 15
+		
+		def _do_request():
+			return session.get(csv_url, timeout=10)
+		
+		executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+		try:
+			future = executor.submit(_do_request)
+			resp = future.result(timeout=HARD_TIMEOUT_SECONDS)
+		except concurrent.futures.TimeoutError:
+			msg = f"{season_label}: Error: Download timed out after {HARD_TIMEOUT_SECONDS}s"
+			print(msg)
+			return False, msg, ""
+		except requests.exceptions.RequestException as e:
+			msg = f"{season_label}: Error: Exception while downloading CSV: {e}"
+			print(msg)
+			return False, msg, ""
+		finally:
+			executor.shutdown(wait=False)
 		
 		if resp.status_code == 200 and resp.content:
 			with open(download_path, 'wb') as f:
@@ -138,11 +174,31 @@ def download_all_historical_seasons(league_id: str, seasons_to_download: list = 
 		return ["No valid seasons selected"]
 	
 	messages = []
-	driver = get_chrome_driver(str(DOWNLOAD_DIR))
+	driver = None
+	
+	# Robust login with limited retries, so a dead driver or transient failure
+	# does not crash Streamlit with a MaxRetryError.
+	max_login_attempts = 2
+	for attempt in range(1, max_login_attempts + 1):
+		try:
+			driver = get_chrome_driver(str(DOWNLOAD_DIR))
+			login_to_fantrax(driver, FANTRAX_USERNAME, FANTRAX_PASSWORD)
+			break
+		except Exception as e:
+			messages.append(f"Login attempt {attempt} failed: {e}")
+			if driver is not None:
+				try:
+					driver.quit()
+				except Exception:
+					pass
+				driver = None
+			kill_chromedriver_processes(also_chrome=True)
+			if attempt == max_login_attempts:
+				# Give up early; callers will see the aggregated messages.
+				return messages
+			time.sleep(2)
 	
 	try:
-		login_to_fantrax(driver, FANTRAX_USERNAME, FANTRAX_PASSWORD)
-		
 		total = len(seasons)
 		for idx, (season_label, season_code) in enumerate(seasons, 1):
 			if progress_callback:
@@ -158,7 +214,11 @@ def download_all_historical_seasons(league_id: str, seasons_to_download: list = 
 				time.sleep(1)
 	
 	finally:
-		driver.quit()
+		if driver is not None:
+			try:
+				driver.quit()
+			except Exception:
+				pass
 		kill_chromedriver_processes(also_chrome=True)
 	
 	return messages

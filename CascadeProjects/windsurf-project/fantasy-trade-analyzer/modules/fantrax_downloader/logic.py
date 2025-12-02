@@ -111,9 +111,13 @@ def is_driver_alive(driver) -> bool:
 		# Don't wait for a potentially stuck worker thread; just tear down.
 		executor.shutdown(wait=False)
 
-def download_players_csv(driver, start_date=None, end_date=None, league_id=None):
+def download_players_csv(driver, start_date=None, end_date=None, league_id=None, range_label=None):
     """
     Downloads player stats CSV for a given date range and league using proven logic.
+    
+    Args:
+        range_label: Optional label to use in filename (e.g., '60', '30', '14', '7').
+                     If not provided, uses calculated days or 'YTD'.
     """
     if not start_date:
         start_date = DEFAULT_START
@@ -159,7 +163,11 @@ def download_players_csv(driver, start_date=None, end_date=None, league_id=None)
         return re.sub(r"[^A-Za-z0-9_]+", "_", name.strip().replace(" ", "_"))
 
     league_name = sanitize_name(get_league_name_map().get(league_id, league_id))
-    range_name = 'YTD' if timeframe == 'YEAR_TO_DATE' else f"{days}"
+    # Use provided range_label if available, otherwise fall back to calculated days or 'YTD'
+    if range_label:
+        range_name = range_label
+    else:
+        range_name = 'YTD' if timeframe == 'YEAR_TO_DATE' else f"{days}"
     csv_filename = f"Fantrax-Players-{league_name}-({range_name}).csv"
     download_path = os.path.join(DOWNLOAD_DIR, csv_filename)
 
@@ -245,12 +253,13 @@ def download_all_ranges(league_id: str, progress_callback=None):
 			calculated_start = datetime.strptime(end_date, "%Y-%m-%d") - timedelta(days=days_back - 1)
 			return max(calculated_start.date(), season_start).strftime("%Y-%m-%d")
 
+		# Each tuple: (display_name, start_date, end_date, requested_days, range_label_for_filename)
 		ranges = [
-			('YTD', (DEFAULT_START, DEFAULT_END, 0)),
-			('60 days', (get_start_date(60), end_date, 60)),
-			('30 days', (get_start_date(30), end_date, 30)),
-			('14 days', (get_start_date(14), end_date, 14)),
-			('7 days', (get_start_date(7), end_date, 7)),
+			('YTD', DEFAULT_START, DEFAULT_END, 0, 'YTD'),
+			('60 days', get_start_date(60), end_date, 60, '60'),
+			('30 days', get_start_date(30), end_date, 30, '30'),
+			('14 days', get_start_date(14), end_date, 14, '14'),
+			('7 days', get_start_date(7), end_date, 7, '7'),
 		]
 
 		# Helper to compute league name for constructing fallback filenames
@@ -267,7 +276,7 @@ def download_all_ranges(league_id: str, progress_callback=None):
 
 		total_ranges = len(ranges)
 		max_attempts = 2
-		for i, (name, (start, end, requested_days)) in enumerate(ranges):
+		for i, (name, start, end, requested_days, range_label) in enumerate(ranges):
 			for attempt in range(1, max_attempts + 1):
 				if progress_callback:
 					progress_label = f"Downloading {name} (attempt {attempt}/{max_attempts})"
@@ -284,7 +293,7 @@ def download_all_ranges(league_id: str, progress_callback=None):
 					except Exception as e:
 						messages.append(f"{name}: Proactive restart failed ({e}). Continuing anyway.")
 				
-				success, msg, path, actual_days = download_players_csv(driver, start, end, league_id)
+				success, msg, path, actual_days = download_players_csv(driver, start, end, league_id, range_label)
 				
 				# Self-healing: If driver died, restart it and retry immediately
 				if not success and "Chrome driver died" in msg:
@@ -313,7 +322,7 @@ def download_all_ranges(league_id: str, progress_callback=None):
 					# If this was the last attempt, we might want one extra bonus attempt?
 					if attempt == max_attempts:
 						# Give it one bonus attempt since this wasn't a download failure but a crash
-						success, msg, path, actual_days = download_players_csv(driver, start, end, league_id)
+						success, msg, path, actual_days = download_players_csv(driver, start, end, league_id, range_label)
 						messages.append(f"{name} (bonus attempt): {msg}")
 
 				else:
