@@ -3,8 +3,30 @@
     "player_code": "06cbx",
     "league_id": "ifa1anexmdgtlk9s",
     "season": "2025-26",
-    "timestamp": 1764614217.4125662,
+    "timestamp": 1764688024.0268729,
     "data": [
+        {
+            "Date": "Dec 1",
+            "Team": "MIA",
+            "Opp": "LAC",
+            "Score": "W 140-123",
+            "FPts": 16,
+            "FG-": "8.0",
+            "3PTM": 0,
+            "FT-": "0",
+            "PTS": 4,
+            "OREB": "1",
+            "REB": 4,
+            "AST": 5,
+            "ST": 0,
+            "BLK": 1,
+            "TO": 2,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0",
+            "MIN": 20.6
+        },
         {
             "Date": "Nov 26",
             "Team": "MIA",
@@ -91,7 +113,7 @@
             "EJ": "0",
             "3D": "0",
             "2D": "0",
-            "MIN": 23.95
+            "MIN": 23.966666666666665
         },
         {
             "Date": "Nov 19",

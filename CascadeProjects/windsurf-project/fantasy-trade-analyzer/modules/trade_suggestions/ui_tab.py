@@ -78,7 +78,18 @@ def display_trade_suggestions_tab():
 	with col2:
 		trade_patterns = st.multiselect(
 			"Trade Patterns",
-			options=['1-for-1', '2-for-1', '1-for-2', '2-for-2', '3-for-1', '1-for-3', '3-for-2', '2-for-3', '3-for-3'],
+			options=[
+				'1-for-1',
+				'2-for-1', '1-for-2',
+				'2-for-2',
+				'3-for-1', '1-for-3',
+				'3-for-2', '2-for-3',
+				'3-for-3',
+				'4-for-1', '1-for-4',
+				'4-for-2', '2-for-4',
+				'4-for-3', '3-for-4',
+				'4-for-4',
+			],
 			default=['1-for-1', '2-for-1', '1-for-2', '2-for-2'],
 			help="Select which trade patterns to consider",
 			key="tab_trade_patterns",
@@ -148,6 +159,12 @@ def display_trade_suggestions_tab():
 				help="Only show trades where at least one of these players is included on your side",
 				key="tab_include_players",
 			)
+			require_all_include_players = st.checkbox(
+				"Require ALL selected players in trade",
+				value=False,
+				help="If checked, ALL players selected above must be in the trade package (not just one)",
+				key="tab_require_all_include",
+			)
 
 			other_players = sorted(
 				p
@@ -187,6 +204,7 @@ def display_trade_suggestions_tab():
 				exclude_teams=exclude_teams if exclude_teams else None,
 				target_opposing_players=target_opposing_players if target_opposing_players else None,
 				exclude_opposing_players=exclude_opposing_players if exclude_opposing_players else None,
+				require_all_include_players=require_all_include_players,
 			)
 
 			if not suggestions:

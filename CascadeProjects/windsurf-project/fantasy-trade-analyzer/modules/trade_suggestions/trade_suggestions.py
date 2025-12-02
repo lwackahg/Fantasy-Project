@@ -52,6 +52,13 @@ from .trade_suggestions_search import (
 	_find_1_for_3_trades,
 	_find_2_for_3_trades,
 	_find_3_for_3_trades,
+	_find_4_for_1_trades,
+	_find_4_for_2_trades,
+	_find_4_for_3_trades,
+	_find_4_for_4_trades,
+	_find_1_for_4_trades,
+	_find_2_for_4_trades,
+	_find_3_for_4_trades,
 )
 
 
@@ -174,6 +181,34 @@ def estimate_trade_search_complexity(
 				if len_y < 3 or len_t < 3:
 					continue
 				combos = math.comb(len_y, 3) * math.comb(len_t, 3)
+			elif pattern == '4-for-1':
+				if len_y < 4:
+					continue
+				combos = math.comb(len_y, 4) * len_t
+			elif pattern == '1-for-4':
+				if len_t < 4:
+					continue
+				combos = len_y * math.comb(len_t, 4)
+			elif pattern == '4-for-2':
+				if len_y < 4 or len_t < 2:
+					continue
+				combos = math.comb(len_y, 4) * math.comb(len_t, 2)
+			elif pattern == '2-for-4':
+				if len_y < 2 or len_t < 4:
+					continue
+				combos = math.comb(len_y, 2) * math.comb(len_t, 4)
+			elif pattern == '4-for-3':
+				if len_y < 4 or len_t < 3:
+					continue
+				combos = math.comb(len_y, 4) * math.comb(len_t, 3)
+			elif pattern == '3-for-4':
+				if len_y < 3 or len_t < 4:
+					continue
+				combos = math.comb(len_y, 3) * math.comb(len_t, 4)
+			elif pattern == '4-for-4':
+				if len_y < 4 or len_t < 4:
+					continue
+				combos = math.comb(len_y, 4) * math.comb(len_t, 4)
 			else:
 				continue
 
@@ -188,6 +223,7 @@ def estimate_trade_search_complexity(
 			st.write(f"Estimated combinations for {team_name}: {team_ops}")
 
 	return total_ops
+
 
 def calculate_exponential_value(fpts: float) -> float:
 	"""
@@ -402,6 +438,7 @@ def find_trade_suggestions(
 	target_opposing_players: List[str] = None,
 	exclude_opposing_players: List[str] = None,
 	player_fpts_overrides: Dict[str, float] = None,
+	require_all_include_players: bool = False,
 ) -> List[Dict]:
 	"""
 	Find optimal trade suggestions based on exponential value calculations.
@@ -531,6 +568,8 @@ def find_trade_suggestions(
 	if est_ops > MAX_COMPLEXITY_OPS and len(effective_patterns) > 1:
 		# Drop the most combinatorially expensive patterns first until we are under budget
 		pattern_priority = [
+			'4-for-4', '3-for-4', '4-for-3',
+			'2-for-4', '4-for-2', '1-for-4', '4-for-1',
 			'3-for-3', '2-for-3', '3-for-2', '1-for-3',
 			'3-for-1', '1-for-2', '2-for-2', '2-for-1', '1-for-1',
 		]
@@ -606,6 +645,7 @@ def find_trade_suggestions(
 						opp_baseline_core,
 						league_tiers,
 						target_opposing_players,
+						require_all_include_players,
 					)
 				)
 			elif pattern == '2-for-1':
@@ -623,6 +663,7 @@ def find_trade_suggestions(
 						opp_baseline_core,
 						league_tiers,
 						target_opposing_players,
+						require_all_include_players,
 					)
 				)
 			elif pattern == '1-for-2':
@@ -640,6 +681,7 @@ def find_trade_suggestions(
 						opp_baseline_core,
 						league_tiers,
 						target_opposing_players,
+						require_all_include_players,
 					)
 				)
 			elif pattern == '2-for-2':
@@ -657,6 +699,7 @@ def find_trade_suggestions(
 						opp_baseline_core,
 						league_tiers,
 						target_opposing_players,
+						require_all_include_players,
 					)
 				)
 			elif pattern == '3-for-1':
@@ -674,6 +717,7 @@ def find_trade_suggestions(
 						opp_baseline_core,
 						league_tiers,
 						target_opposing_players,
+						require_all_include_players,
 					)
 				)
 			elif pattern == '1-for-3':
@@ -691,6 +735,7 @@ def find_trade_suggestions(
 						opp_baseline_core,
 						league_tiers,
 						target_opposing_players,
+						require_all_include_players,
 					)
 				)
 			elif pattern == '3-for-2':
@@ -708,6 +753,7 @@ def find_trade_suggestions(
 						opp_baseline_core,
 						league_tiers,
 						target_opposing_players,
+						require_all_include_players,
 					)
 				)
 			elif pattern == '2-for-3':
@@ -725,6 +771,7 @@ def find_trade_suggestions(
 						opp_baseline_core,
 						league_tiers,
 						target_opposing_players,
+						require_all_include_players,
 					)
 				)
 			elif pattern == '3-for-3':
@@ -742,9 +789,136 @@ def find_trade_suggestions(
 						opp_baseline_core,
 						league_tiers,
 						target_opposing_players,
+						require_all_include_players,
 					)
 				)
-	
+			elif pattern == '4-for-1':
+				suggestions.extend(
+					_find_4_for_1_trades(
+						your_trade_team,
+						team_df,
+						team_name,
+						min_value_gain,
+						your_full_team,
+						core_size,
+						baseline_core_value,
+						include_players,
+						opp_full_team,
+						opp_baseline_core,
+						league_tiers,
+						target_opposing_players,
+						require_all_include_players,
+					)
+				)
+			elif pattern == '4-for-2':
+				suggestions.extend(
+					_find_4_for_2_trades(
+						your_trade_team,
+						team_df,
+						team_name,
+						min_value_gain,
+						your_full_team,
+						core_size,
+						baseline_core_value,
+						include_players,
+						opp_full_team,
+						opp_baseline_core,
+						league_tiers,
+						target_opposing_players,
+						require_all_include_players,
+					)
+				)
+			elif pattern == '4-for-3':
+				suggestions.extend(
+					_find_4_for_3_trades(
+						your_trade_team,
+						team_df,
+						team_name,
+						min_value_gain,
+						your_full_team,
+						core_size,
+						baseline_core_value,
+						include_players,
+						opp_full_team,
+						opp_baseline_core,
+						league_tiers,
+						target_opposing_players,
+						require_all_include_players,
+					)
+				)
+			elif pattern == '4-for-4':
+				suggestions.extend(
+					_find_4_for_4_trades(
+						your_trade_team,
+						team_df,
+						team_name,
+						min_value_gain,
+						your_full_team,
+						core_size,
+						baseline_core_value,
+						include_players,
+						opp_full_team,
+						opp_baseline_core,
+						league_tiers,
+						target_opposing_players,
+						require_all_include_players,
+					)
+				)
+			elif pattern == '1-for-4':
+				suggestions.extend(
+					_find_1_for_4_trades(
+						your_trade_team,
+						team_df,
+						team_name,
+						min_value_gain,
+						your_full_team,
+						core_size,
+						baseline_core_value,
+						include_players,
+						opp_full_team,
+						opp_baseline_core,
+						league_tiers,
+						target_opposing_players,
+						require_all_include_players,
+					)
+				)
+			elif pattern == '2-for-4':
+				suggestions.extend(
+					_find_2_for_4_trades(
+						your_trade_team,
+						team_df,
+						team_name,
+						min_value_gain,
+						your_full_team,
+						core_size,
+						baseline_core_value,
+						include_players,
+						opp_full_team,
+						opp_baseline_core,
+						league_tiers,
+						target_opposing_players,
+						require_all_include_players,
+					)
+				)
+			elif pattern == '3-for-4':
+				suggestions.extend(
+					_find_3_for_4_trades(
+						your_trade_team,
+						team_df,
+						team_name,
+						min_value_gain,
+						your_full_team,
+						core_size,
+						baseline_core_value,
+						include_players,
+						opp_full_team,
+						opp_baseline_core,
+						league_tiers,
+						target_opposing_players,
+						require_all_include_players,
+					)
+				)
+		
 	# Sort by value gain first
 	suggestions.sort(key=lambda x: x['value_gain'], reverse=True)
 

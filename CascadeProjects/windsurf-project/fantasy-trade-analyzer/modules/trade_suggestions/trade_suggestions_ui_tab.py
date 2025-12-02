@@ -46,9 +46,22 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
         f"Your core FP/G changes by ~{core_ppg_change:+.2f} across your top {int(core_size_approx)} players"
     )
 
+    # Build a player -> Value lookup from all rosters
+    value_lookup = {}
+    for team_df in rosters_by_team.values():
+        if team_df is None or team_df.empty or "Player" not in team_df.columns:
+            continue
+        if "Value" in team_df.columns:
+            for _, row in team_df.iterrows():
+                pname = row.get("Player")
+                pval = row.get("Value")
+                if pname and pval is not None and not pd.isna(pval):
+                    value_lookup[pname] = pval
+
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("### 📤 You Give")
+        give_values = [value_lookup.get(p) for p in suggestion["you_give"]]
         give_df = pd.DataFrame(
             {
                 "Player": suggestion["you_give"],
@@ -56,11 +69,14 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
                 "CV%": suggestion["your_cv"],
             }
         )
-        st.dataframe(give_df, hide_index=True, width="stretch")
+        if any(v is not None for v in give_values):
+            give_df["Value"] = give_values
+        st.dataframe(give_df, hide_index=True, use_container_width=True)
         your_avg_fpts = sum(suggestion["your_fpts"]) / max(len(suggestion["your_fpts"]), 1)
         st.caption(f"Package avg: {your_avg_fpts:.1f} FP/G")
     with col2:
         st.markdown("### 📥 You Get")
+        get_values = [value_lookup.get(p) for p in suggestion["you_get"]]
         get_df = pd.DataFrame(
             {
                 "Player": suggestion["you_get"],
@@ -68,7 +84,9 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
                 "CV%": suggestion["their_cv"],
             }
         )
-        st.dataframe(get_df, hide_index=True, width="stretch")
+        if any(v is not None for v in get_values):
+            get_df["Value"] = get_values
+        st.dataframe(get_df, hide_index=True, use_container_width=True)
         their_avg_fpts = sum(suggestion["their_fpts"]) / max(len(suggestion["their_fpts"]), 1)
         st.caption(f"Package avg: {their_avg_fpts:.1f} FP/G")
 
@@ -846,6 +864,13 @@ def display_trade_suggestions_tab():
                 "3-for-2",
                 "2-for-3",
                 "3-for-3",
+                "4-for-1",
+                "1-for-4",
+                "4-for-2",
+                "2-for-4",
+                "4-for-3",
+                "3-for-4",
+                "4-for-4",
             ],
             default=["1-for-1", "2-for-1", "1-for-2", "2-for-2"],
             help="Select which trade patterns to consider",
@@ -946,6 +971,12 @@ def display_trade_suggestions_tab():
                 options=sorted(your_team_df["Player"].tolist()),
                 help="Only show trades where at least one of these players is included on your side",
                 key="tab_include_players",
+            )
+            require_all_include_players = st.checkbox(
+                "Require ALL selected players in trade",
+                value=False,
+                help="If checked, ALL players selected above must be in the trade package (not just one)",
+                key="tab_require_all_include",
             )
 
             other_players = sorted(
@@ -1070,6 +1101,7 @@ def display_trade_suggestions_tab():
                 target_opposing_players=target_opposing_players if target_opposing_players else None,
                 exclude_opposing_players=exclude_opposing_players if exclude_opposing_players else None,
                 player_fpts_overrides=player_fpts_overrides if "player_fpts_overrides" in locals() and player_fpts_overrides else None,
+                require_all_include_players=require_all_include_players,
             )
 
             if not suggestions:
