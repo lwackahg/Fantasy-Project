@@ -451,13 +451,61 @@ def display_trade_results(analysis_results: Dict[str, Dict[str, Any]], key_suffi
 
 def _display_trade_impact_section(results: Dict[str, Any], time_ranges: List[str]):
     """Display the main trade impact analysis section for a single team tab."""
-    with st.expander("Trade Impact Analysis", expanded=True):
+    
+    # Calculate common metrics needed for insights
+    ytd_pre = results.get('pre_trade_metrics', {}).get('YTD', {})
+    ytd_post = results.get('post_trade_metrics', {}).get('YTD', {})
+    ytd_pre_consistency = results.get('pre_trade_consistency', {}).get('YTD', {})
+    ytd_post_consistency = results.get('post_trade_consistency', {}).get('YTD', {})
+    
+    has_ytd = bool(ytd_pre and ytd_post)
+
+    # Create Tabs
+    tabs = st.tabs([
+        "💡 Insights",
+        "📊 Deep Dive",
+        "🏗️ Roster Impact",
+        "🔬 Advanced Analysis", 
+        "👥 Player Comparison"
+    ])
+    
+    # Tab 1: Insights (Overall Assessment)
+    with tabs[0]:
+        if has_ytd:
+             _render_overall_assessment(results, ytd_pre, ytd_post, ytd_pre_consistency, ytd_post_consistency)
+        else:
+            st.info("Insufficient data for insights.")
+
+    # Tab 2: Deep Dive (Metrics Table, Trends, Charts)
+    with tabs[1]:
         _display_trade_metrics_table(results, time_ranges)
-        st.write("---")
-        _display_trade_insights(results, time_ranges)
-        st.write("---")
+        st.markdown("---")
+        if has_ytd:
+             _render_trend_analysis(results, time_ranges)
+        st.markdown("---")
         _display_performance_visualizations(results, time_ranges)
+
+    # Tab 3: Roster Impact
+    with tabs[2]:
         _display_roster_details(results, time_ranges)
+
+    # Tab 4: Advanced Analysis (Stats, Monte Carlo)
+    with tabs[3]:
+        if has_ytd:
+            _display_statistical_analysis(results, time_ranges, ytd_pre, ytd_post)
+            st.markdown("---")
+            _display_monte_carlo_simulation(results)
+        else:
+             st.info("Insufficient data for advanced analysis.")
+
+    # Tab 5: Player Comparison
+    with tabs[4]:
+        outgoing = results.get('outgoing_players', [])
+        incoming = results.get('incoming_players', [])
+        if outgoing and incoming:
+            _display_player_comparison(outgoing, incoming, results)
+        else:
+            st.info("No player comparison data available")
 
 def _display_trade_overview(results: Dict[str, Any], key_suffix: str = ""):
     st.title("Trade Overview")
@@ -557,7 +605,7 @@ def _display_performance_visualizations(results: Dict[str, Any], time_ranges: Li
         })
 
         fig = _create_performance_chart(metric_data, display_name)
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
     
 
 def _display_styled_roster(title: str, roster_data: List[Dict[str, Any]], players_to_highlight: List[str], highlight_color: str):
@@ -688,23 +736,8 @@ def _display_traded_players_game_logs(results: Dict[str, Any], key_suffix: str =
                 else:
                     st.info(f"No game log data available for {player_name}. Run Bulk Scrape in Admin Tools to populate cache.")
 
-def _display_trade_insights(results: Dict[str, Any], time_ranges: List[str]):
-    """Display comprehensive trade insights and recommendations."""
-    import numpy as np
-    from scipy import stats as scipy_stats
-    
-    st.markdown("### 🎯 Trade Insights & Analysis")
-    
-    # Get YTD data for primary analysis
-    ytd_pre = results.get('pre_trade_metrics', {}).get('YTD', {})
-    ytd_post = results.get('post_trade_metrics', {}).get('YTD', {})
-    ytd_pre_consistency = results.get('pre_trade_consistency', {}).get('YTD', {})
-    ytd_post_consistency = results.get('post_trade_consistency', {}).get('YTD', {})
-    
-    if not ytd_pre or not ytd_post:
-        st.info("Insufficient data for trade insights")
-        return
-    
+def _render_overall_assessment(results, ytd_pre, ytd_post, ytd_pre_consistency, ytd_post_consistency):
+    """Render overall trade assessment and key metrics."""
     # Calculate changes
     fpg_change = ytd_post['mean_fpg'] - ytd_pre['mean_fpg']
     total_change = ytd_post['total_fpts'] - ytd_pre['total_fpts']
@@ -722,185 +755,167 @@ def _display_trade_insights(results: Dict[str, Any], time_ranges: List[str]):
     sharpe_ratio_post = (ytd_post['mean_fpg'] / ytd_post['std_dev']) if ytd_post['std_dev'] > 0 else 0
     sharpe_change = sharpe_ratio_post - sharpe_ratio_pre
     
-    # Overall trade assessment with collapsible sections
-    with st.expander("📊 Overall Assessment & Key Metrics", expanded=True):
-        col1, col2, col3 = st.columns([2, 1, 1])
+    st.markdown("### 📊 Overall Assessment & Key Metrics")
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        # Determine trade verdict
+        production_verdict = "✅ Gain" if fpg_change > 0 else "❌ Loss" if fpg_change < 0 else "➖ Neutral"
+        consistency_verdict = "✅ More Consistent" if cv_change < 0 else "❌ Less Consistent" if cv_change > 0 else "➖ No Change"
         
-        with col1:
-            # Determine trade verdict
-            production_verdict = "✅ Gain" if fpg_change > 0 else "❌ Loss" if fpg_change < 0 else "➖ Neutral"
-            consistency_verdict = "✅ More Consistent" if cv_change < 0 else "❌ Less Consistent" if cv_change > 0 else "➖ No Change"
-            
-            assessment_text = f"""
-            **Production Impact:** {production_verdict} ({fpg_change:+.1f} FP/G, {percent_change:+.1f}%)
-            
-            **Consistency Impact:** {consistency_verdict} ({cv_change:+.1f}% CV)
-            
-            **Total Points Impact:** {total_change:+.0f} FPts over the season
-            
-            **Risk-Adjusted Return (Sharpe):** {sharpe_change:+.2f}
-            """
-            
-            st.markdown(assessment_text)
-            
-            _render_friend_value_lens(results)
-            
-            # Trade recommendation
-            small_production = abs(fpg_change) < 1.0 and abs(percent_change) < 5.0
-            small_consistency = abs(cv_change) < 3.0
+        assessment_text = f"""
+        **Production Impact:** {production_verdict} ({fpg_change:+.1f} FP/G, {percent_change:+.1f}%)
+        
+        **Consistency Impact:** {consistency_verdict} ({cv_change:+.1f}% CV)
+        
+        **Total Points Impact:** {total_change:+.0f} FPts over the season
+        
+        **Risk-Adjusted Return (Sharpe):** {sharpe_change:+.2f}
+        """
+        
+        st.markdown(assessment_text)
+        
+        _render_friend_value_lens(results)
+        
+        # Trade recommendation
+        small_production = abs(fpg_change) < 1.0 and abs(percent_change) < 5.0
+        small_consistency = abs(cv_change) < 3.0
 
-            if small_production and small_consistency:
-                st.info("🟡 **Marginal Trade** - Minimal impact either way")
-            elif fpg_change > 3 and cv_change < 5:
-                st.success("🟢 **Strong Trade** - Significant production gain with acceptable consistency impact")
-            elif fpg_change > 1.5 and cv_change < 0:
-                st.success("🟢 **Excellent Trade** - Production gain AND improved consistency")
-            elif fpg_change > 0 and cv_change < 10:
-                st.info("🟡 **Decent Trade** - Production gain but slight consistency loss")
-            elif fpg_change < -2:
-                st.error("🔴 **Poor Trade** - Significant production loss")
-            elif cv_change > 10:
-                st.warning("🟠 **Risky Trade** - Major consistency loss, high volatility")
-            else:
-                st.info("🟡 **Marginal Trade** - Mixed signals or minimal net impact")
+        if small_production and small_consistency:
+            st.info("🟡 **Marginal Trade** - Minimal impact either way")
+        elif fpg_change > 3 and cv_change < 5:
+            st.success("🟢 **Strong Trade** - Significant production gain with acceptable consistency impact")
+        elif fpg_change > 1.5 and cv_change < 0:
+            st.success("🟢 **Excellent Trade** - Production gain AND improved consistency")
+        elif fpg_change > 0 and cv_change < 10:
+            st.info("🟡 **Decent Trade** - Production gain but slight consistency loss")
+        elif fpg_change < -2:
+            st.error("🔴 **Poor Trade** - Significant production loss")
+        elif cv_change > 10:
+            st.warning("🟠 **Risky Trade** - Major consistency loss, high volatility")
+        else:
+            st.info("🟡 **Marginal Trade** - Mixed signals or minimal net impact")
+    
+    with col2:
+        st.markdown("**Production**")
+        st.metric("FP/G Change", f"{fpg_change:+.1f}")
+        st.metric("Median Change", f"{median_change:+.1f}")
+        st.metric("% Change", f"{percent_change:+.1f}%")
+    
+    with col3:
+        st.markdown("**Risk**")
+        st.metric(
+            "Core FP/G Spread",
+            f"{std_change:+.1f}",
+            delta_color="inverse",
+            help="Std dev of FP/G across your top players; higher = a more top-heavy core.",
+        )
+        if cv_change != 0:
+            st.metric(
+                "Avg Player CV%",
+                f"{cv_change:+.1f}%",
+                delta_color="inverse",
+                help="Average game-to-game CV% across your top players; lower = more stable scoring.",
+            )
+        st.metric("Sharpe", f"{sharpe_change:+.2f}")
+        if std_change != 0 and cv_change != 0:
+            st.caption(
+                "Std Dev measures absolute swing in points; CV% measures volatility relative to your average. "
+                "It's possible for Std Dev to increase while CV% improves if your new core scores more but stays relatively stable."
+            )
+
+def _render_trend_analysis(results, time_ranges):
+    """Render trend analysis across time ranges."""
+    st.markdown("### 📉 Trend Analysis Across Time Ranges")
+    trend_data = []
+    for time_range in time_ranges:
+        pre = results.get('pre_trade_metrics', {}).get(time_range, {})
+        post = results.get('post_trade_metrics', {}).get(time_range, {})
+        if pre and post:
+            trend_data.append({
+                'Time Range': time_range,
+                'FP/G Change': post['mean_fpg'] - pre['mean_fpg'],
+                'Total FPts Change': post['total_fpts'] - pre['total_fpts'],
+                'Core Spread Change': post['std_dev'] - pre['std_dev']
+            })
+    
+    if trend_data:
+        trend_df = pd.DataFrame(trend_data)
+        
+        # Create multi-metric trend visualization
+        import plotly.graph_objects as go
+        from plotly.subplots import make_subplots
+        
+        fig_trend = make_subplots(
+            rows=2, cols=1,
+            subplot_titles=("Production Change", "Risk Change (Core Spread)"),
+            vertical_spacing=0.15
+        )
+        
+        # Production trend
+        fig_trend.add_trace(
+            go.Scatter(
+                x=trend_df['Time Range'],
+                y=trend_df['FP/G Change'],
+                mode='lines+markers',
+                name='FP/G Change',
+                line=dict(color='#1f77b4', width=3),
+                marker=dict(size=10),
+                fill='tozeroy',
+                fillcolor='rgba(31, 119, 180, 0.2)'
+            ),
+            row=1, col=1
+        )
+        
+        # Risk trend
+        fig_trend.add_trace(
+            go.Scatter(
+                x=trend_df['Time Range'],
+                y=trend_df['Core Spread Change'],
+                mode='lines+markers',
+                name='Core Spread Change',
+                line=dict(color='#ff7f0e', width=3),
+                marker=dict(size=10),
+                fill='tozeroy',
+                fillcolor='rgba(255, 127, 14, 0.2)'
+            ),
+            row=2, col=1
+        )
+        
+        fig_trend.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5, row=1, col=1)
+        fig_trend.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5, row=2, col=1)
+        
+        fig_trend.update_xaxes(title_text="Time Range", row=2, col=1)
+        fig_trend.update_yaxes(title_text="FP/G Change", row=1, col=1)
+        fig_trend.update_yaxes(title_text="Core Spread Change (Std Dev across players)", row=2, col=1)
+        
+        fig_trend.update_layout(height=500, showlegend=False)
+        
+        st.plotly_chart(fig_trend, use_container_width=True)
+        
+        # Trend interpretation
+        recent_trend = trend_df.iloc[-1]['FP/G Change']
+        long_term_trend = trend_df.iloc[0]['FP/G Change']
+        
+        # Calculate trend consistency (variance of changes)
+        trend_variance = np.var(trend_df['FP/G Change'])
+        trend_consistency = "High" if trend_variance < 1 else "Moderate" if trend_variance < 4 else "Low"
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if recent_trend > 0 and long_term_trend > 0:
+                st.success("✅ **Consistent Positive Impact** - Trade improves production across all time ranges")
+            elif recent_trend > 0 and long_term_trend < 0:
+                st.warning("⚠️ **Recent Surge** - Players performing better recently, but long-term data suggests caution")
+            elif recent_trend < 0 and long_term_trend > 0:
+                st.warning("⚠️ **Recent Slump** - Players in recent downturn, but long-term data is positive")
+            elif recent_trend < 0 and long_term_trend < 0:
+                st.error("❌ **Consistent Negative Impact** - Trade hurts production across all time ranges")
         
         with col2:
-            st.markdown("**Production**")
-            st.metric("FP/G Change", f"{fpg_change:+.1f}")
-            st.metric("Median Change", f"{median_change:+.1f}")
-            st.metric("% Change", f"{percent_change:+.1f}%")
-        
-        with col3:
-            st.markdown("**Risk**")
-            st.metric(
-                "Core FP/G Spread",
-                f"{std_change:+.1f}",
-                delta_color="inverse",
-                help="Std dev of FP/G across your top players; higher = a more top-heavy core.",
-            )
-            if cv_change != 0:
-                st.metric(
-                    "Avg Player CV%",
-                    f"{cv_change:+.1f}%",
-                    delta_color="inverse",
-                    help="Average game-to-game CV% across your top players; lower = more stable scoring.",
-                )
-            st.metric("Sharpe", f"{sharpe_change:+.2f}")
-            if std_change != 0 and cv_change != 0:
-                st.caption(
-                    "Std Dev measures absolute swing in points; CV% measures volatility relative to your average. "
-                    "It's possible for Std Dev to increase while CV% improves if your new core scores more but stays relatively stable."
-                )
-    
-    # Time range trend analysis - collapsible
-    with st.expander("📉 Trend Analysis Across Time Ranges", expanded=False):
-        trend_data = []
-        for time_range in time_ranges:
-            pre = results.get('pre_trade_metrics', {}).get(time_range, {})
-            post = results.get('post_trade_metrics', {}).get(time_range, {})
-            if pre and post:
-                trend_data.append({
-                    'Time Range': time_range,
-                    'FP/G Change': post['mean_fpg'] - pre['mean_fpg'],
-                    'Total FPts Change': post['total_fpts'] - pre['total_fpts'],
-                    'Core Spread Change': post['std_dev'] - pre['std_dev']
-                })
-        
-        if trend_data:
-            trend_df = pd.DataFrame(trend_data)
-            
-            # Create multi-metric trend visualization
-            import plotly.graph_objects as go
-            from plotly.subplots import make_subplots
-            
-            fig_trend = make_subplots(
-                rows=2, cols=1,
-                subplot_titles=("Production Change", "Risk Change (Core Spread)"),
-                vertical_spacing=0.15
-            )
-            
-            # Production trend
-            fig_trend.add_trace(
-                go.Scatter(
-                    x=trend_df['Time Range'],
-                    y=trend_df['FP/G Change'],
-                    mode='lines+markers',
-                    name='FP/G Change',
-                    line=dict(color='#1f77b4', width=3),
-                    marker=dict(size=10),
-                    fill='tozeroy',
-                    fillcolor='rgba(31, 119, 180, 0.2)'
-                ),
-                row=1, col=1
-            )
-            
-            # Risk trend
-            fig_trend.add_trace(
-                go.Scatter(
-                    x=trend_df['Time Range'],
-                    y=trend_df['Core Spread Change'],
-                    mode='lines+markers',
-                    name='Core Spread Change',
-                    line=dict(color='#ff7f0e', width=3),
-                    marker=dict(size=10),
-                    fill='tozeroy',
-                    fillcolor='rgba(255, 127, 14, 0.2)'
-                ),
-                row=2, col=1
-            )
-            
-            fig_trend.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5, row=1, col=1)
-            fig_trend.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5, row=2, col=1)
-            
-            fig_trend.update_xaxes(title_text="Time Range", row=2, col=1)
-            fig_trend.update_yaxes(title_text="FP/G Change", row=1, col=1)
-            fig_trend.update_yaxes(title_text="Core Spread Change (Std Dev across players)", row=2, col=1)
-            
-            fig_trend.update_layout(height=500, showlegend=False)
-            
-            st.plotly_chart(fig_trend, width='stretch')
-            
-            # Trend interpretation
-            recent_trend = trend_df.iloc[-1]['FP/G Change']
-            long_term_trend = trend_df.iloc[0]['FP/G Change']
-            
-            # Calculate trend consistency (variance of changes)
-            trend_variance = np.var(trend_df['FP/G Change'])
-            trend_consistency = "High" if trend_variance < 1 else "Moderate" if trend_variance < 4 else "Low"
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if recent_trend > 0 and long_term_trend > 0:
-                    st.success("✅ **Consistent Positive Impact** - Trade improves production across all time ranges")
-                elif recent_trend > 0 and long_term_trend < 0:
-                    st.warning("⚠️ **Recent Surge** - Players performing better recently, but long-term data suggests caution")
-                elif recent_trend < 0 and long_term_trend > 0:
-                    st.warning("⚠️ **Recent Slump** - Players in recent downturn, but long-term data is positive")
-                elif recent_trend < 0 and long_term_trend < 0:
-                    st.error("❌ **Consistent Negative Impact** - Trade hurts production across all time ranges")
-            
-            with col2:
-                st.metric("Trend Consistency", trend_consistency, help="How consistent is the impact across time ranges")
-                st.metric("Recent (7d) Impact", f"{recent_trend:+.1f} FP/G")
-                st.metric("Long-term (YTD) Impact", f"{long_term_trend:+.1f} FP/G")
-    
-    # Statistical significance testing
-    with st.expander("🔬 Statistical Analysis & Significance", expanded=False):
-        _display_statistical_analysis(results, time_ranges, ytd_pre, ytd_post)
-    
-    # Monte Carlo simulation
-    with st.expander("🎲 Monte Carlo Simulation", expanded=False):
-        _display_monte_carlo_simulation(results)
-    
-    # Player-by-player comparison - collapsible
-    with st.expander("👥 Player-by-Player Comparison", expanded=False):
-        outgoing = results.get('outgoing_players', [])
-        incoming = results.get('incoming_players', [])
-        
-        if outgoing and incoming:
-            _display_player_comparison(outgoing, incoming, results)
-        else:
-            st.info("No player comparison data available")
+            st.metric("Trend Consistency", trend_consistency, help="How consistent is the impact across time ranges")
+            st.metric("Recent (7d) Impact", f"{recent_trend:+.1f} FP/G")
+            st.metric("Long-term (YTD) Impact", f"{long_term_trend:+.1f} FP/G")
 
 
 def _render_friend_value_lens(results: Dict[str, Any]) -> None:
@@ -1001,14 +1016,17 @@ def _render_friend_value_lens(results: Dict[str, Any]) -> None:
                     f"for a {floor_label} → **not auto-veto** by that rule."
                 )
 
+    def _clean_name(n):
+        return n.strip("'").strip("`")
+
     lines = []
     lines.append("**Friend dollar-value lens (YTD):**")
     if outgoing_items:
-        parts = ", ".join(f"`{name}` (${dollars:.1f})" for name, dollars in outgoing_items)
-        lines.append(f"Outgoing package: {parts} → **total ${outgoing_total:.1f}**")
+        parts = ", ".join(f"`{_clean_name(name)}` (\${dollars:.1f})" for name, dollars in outgoing_items)
+        lines.append(f"Outgoing package: {parts} → **total \${outgoing_total:.1f}**")
     if incoming_items:
-        parts = ", ".join(f"`{name}` (${dollars:.1f})" for name, dollars in incoming_items)
-        lines.append(f"Incoming package: {parts} → **total ${incoming_total:.1f}**")
+        parts = ", ".join(f"`{_clean_name(name)}` (\${dollars:.1f})" for name, dollars in incoming_items)
+        lines.append(f"Incoming package: {parts} → **total \${incoming_total:.1f}**")
     if ratio_text:
         lines.append(ratio_text)
     if verdict_text:
@@ -1088,7 +1106,7 @@ def _display_statistical_analysis(results, time_ranges, ytd_pre, ytd_post):
     fig_dist.update_layout(height=400, showlegend=False)
     fig_dist.update_yaxes(title_text="Fantasy Points per Game")
     
-    st.plotly_chart(fig_dist, width='stretch')
+    st.plotly_chart(fig_dist, use_container_width=True)
     
     st.caption("**Box plots** show the distribution of expected performance. The box represents the middle 50% of outcomes, with the line showing the median.")
 

@@ -30,21 +30,21 @@ from modules.trade_suggestions.similarity_viz import (
     render_player_comparison_radar,
     render_multi_player_radar,
 )
+from modules.trade_suggestions.ui_components import (
+    render_trade_summary_metrics,
+    render_player_tables,
+    render_impact_chart,
+    render_trade_verdict,
+    render_trade_reasoning,
+    render_talking_points,
+)
 
 CODE_BY_MANAGER = {v: k for k, v in TEAM_MAPPINGS.items()}
 
 def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name, yoy_index=None):
-    """Display a single trade suggestion with detailed impact metrics."""
-    core_size_approx = 8.0
-    min_games = 25
+    """Display a single trade suggestion with clean, organized UI."""
     weekly_core_fp_change = suggestion["value_gain"]
-    core_ppg_change = weekly_core_fp_change / min_games
     opp_weekly_core_fp_change = suggestion.get("opp_core_gain", 0)
-
-    st.markdown(f"### 🔄 Trade Impact: **{weekly_core_fp_change:+.1f} weekly core FP** for you")
-    st.caption(
-        f"Your core FP/G changes by ~{core_ppg_change:+.2f} across your top {int(core_size_approx)} players"
-    )
 
     # Build a player -> Value lookup from all rosters
     value_lookup = {}
@@ -58,569 +58,403 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
                 if pname and pval is not None and not pd.isna(pval):
                     value_lookup[pname] = pval
 
+    # =========================================================================
+    # SECTION 1: Key Metrics Row (always visible)
+    # =========================================================================
+    render_trade_summary_metrics(suggestion, key_prefix=f"trade_{rank}")
+    
+    # =========================================================================
+    # SECTION 2: Player Tables (always visible)
+    # =========================================================================
+    render_player_tables(suggestion, value_lookup, key_prefix=f"trade_{rank}")
+    
+    # =========================================================================
+    # SECTION 3: Verdict & Impact Chart
+    # =========================================================================
+    col_verdict, col_chart = st.columns([1, 2])
+    with col_verdict:
+        render_trade_verdict(suggestion)
+    with col_chart:
+        render_impact_chart(suggestion, key_prefix=f"trade_{rank}")
+    
+    # =========================================================================
+    # SECTION 4: Tabbed Analysis (replaces nested expanders)
+    # =========================================================================
+    analysis_tabs = st.tabs([
+        "💡 Why It Works",
+        "🗣️ Pitch to Opponent",
+        "📊 Deep Dive",
+        "� Roster Impact",
+        "🔬 Advanced Analysis",
+    ])
+    
+    # --- Tab 1: Why It Works ---
+    with analysis_tabs[0]:
+        render_trade_reasoning(suggestion)
+        _render_recent_form_section(suggestion, rosters_by_team)
+    
+    # --- Tab 2: Pitch to Opponent ---
+    with analysis_tabs[1]:
+        render_talking_points(suggestion)
+        _render_yoy_pitch_points(suggestion, yoy_index)
+    
+    # --- Tab 3: Deep Dive ---
+    with analysis_tabs[2]:
+        _render_deep_dive_metrics(suggestion)
+        _render_trade_framework(suggestion)
+    
+    # --- Tab 4: Roster Impact ---
+    with analysis_tabs[3]:
+        _render_roster_snapshot(suggestion, rosters_by_team, your_team_name)
+    
+    # --- Tab 5: Advanced Analysis ---
+    with analysis_tabs[4]:
+        _render_similarity_analysis(suggestion, rosters_by_team, rank)
+        _render_full_trade_analysis_button(suggestion, your_team_name, rank)
+
+
+# =============================================================================
+# HELPER FUNCTIONS FOR TRADE DISPLAY TABS
+# =============================================================================
+
+def _render_recent_form_section(suggestion, rosters_by_team):
+    """Render recent form trends for players in the trade."""
+    st.markdown("##### 📆 Recent Form (vs YTD)")
+    
+    player_index = {}
+    for team_df in rosters_by_team.values():
+        if team_df is None or team_df.empty or "Player" not in team_df.columns:
+            continue
+        for _, row in team_df.iterrows():
+            name = row.get("Player")
+            if name and name not in player_index:
+                player_index[name] = row
+
+    def _build_trend_line(player_name, is_outgoing):
+        row = player_index.get(player_name)
+        if row is None:
+            return None
+        base = row.get("Mean FPts")
+        if base is None or pd.isna(base):
+            return None
+        spans = [("L7", "L7 FPts"), ("L14", "L14 FPts"), ("L30", "L30 FPts")]
+        for label, col in spans:
+            if col in row.index:
+                val = row.get(col)
+                if val is None or pd.isna(val):
+                    continue
+                delta = float(val) - float(base)
+                if abs(delta) >= 3.0:
+                    icon = "�" if delta > 0 else "📉"
+                    side = "give" if is_outgoing else "get"
+                    return f"{icon} **{player_name}** ({side}) — {label}: {val:.1f} vs YTD {base:.1f} ({delta:+.1f})"
+        return None
+
+    lines = []
+    for name in suggestion["you_give"]:
+        text = _build_trend_line(name, is_outgoing=True)
+        if text:
+            lines.append(text)
+    for name in suggestion["you_get"]:
+        text = _build_trend_line(name, is_outgoing=False)
+        if text:
+            lines.append(text)
+    
+    if lines:
+        for line in lines:
+            st.markdown(line)
+    else:
+        st.caption("No significant recent swings (±3 FP/G) vs YTD")
+
+
+def _render_yoy_pitch_points(suggestion, yoy_index):
+    """Render YoY-based pitch points."""
+    if not yoy_index:
+        return
+    
+    # Sell-high candidates you're sending
+    yoy_sell_high = []
+    for name in suggestion.get("you_give", []):
+        info = yoy_index.get(name)
+        if not info:
+            continue
+        delta = info.get("delta")
+        if delta is None or pd.isna(delta) or delta < 5.0:
+            continue
+        prev_fp = info.get("prev")
+        curr_fp = info.get("curr")
+        if prev_fp is None or curr_fp is None:
+            continue
+        yoy_sell_high.append((name, prev_fp, curr_fp, delta))
+    
+    if yoy_sell_high:
+        st.markdown("##### 📈 YoY Sell-High Candidates (you're sending)")
+        for name, prev, curr, delta in yoy_sell_high:
+            st.markdown(f"- **{name}**: {prev:.1f} → {curr:.1f} FP/G (+{delta:.1f})")
+    
+    # Buy-low candidates you're receiving
+    yoy_buy_low = []
+    for name in suggestion.get("you_get", []):
+        info = yoy_index.get(name)
+        if not info:
+            continue
+        delta = info.get("delta")
+        if delta is None or pd.isna(delta) or delta > -5.0:
+            continue
+        prev_fp = info.get("prev")
+        curr_fp = info.get("curr")
+        if prev_fp is None or curr_fp is None:
+            continue
+        yoy_buy_low.append((name, prev_fp, curr_fp, delta))
+    
+    if yoy_buy_low:
+        st.markdown("##### 📉 YoY Buy-Low Candidates (you're receiving)")
+        for name, prev, curr, delta in yoy_buy_low:
+            st.markdown(f"- **{name}**: {prev:.1f} → {curr:.1f} FP/G ({delta:.1f})")
+
+
+def _render_deep_dive_metrics(suggestion):
+    """Render detailed metrics comparison."""
+    your_fpts = suggestion.get("your_fpts", [])
+    their_fpts = suggestion.get("their_fpts", [])
+    your_cv = suggestion.get("your_cv", [])
+    their_cv = suggestion.get("their_cv", [])
+    
+    your_avg_fpts = sum(your_fpts) / max(len(your_fpts), 1) if your_fpts else 0
+    their_avg_fpts = sum(their_fpts) / max(len(their_fpts), 1) if their_fpts else 0
+    your_avg_cv = sum(your_cv) / max(len(your_cv), 1) if your_cv else 0
+    their_avg_cv = sum(their_cv) / max(len(their_cv), 1) if their_cv else 0
+    
+    fpts_diff = their_avg_fpts - your_avg_fpts
+    cv_diff = their_avg_cv - your_avg_cv
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Your Avg FP/G", f"{your_avg_fpts:.1f}")
+        st.metric("Your Avg CV%", f"{your_avg_cv:.1f}%")
+    with col2:
+        st.metric("Their Avg FP/G", f"{their_avg_fpts:.1f}")
+        st.metric("Their Avg CV%", f"{their_avg_cv:.1f}%")
+    with col3:
+        st.metric("FP/G Change", f"{fpts_diff:+.1f}")
+        st.metric("CV% Change", f"{cv_diff:+.1f}%", help="Negative = more consistent")
+    
+    # Risk assessment
+    if your_avg_cv < CONSISTENCY_VERY_MAX_CV:
+        your_risk = "Low"
+    elif your_avg_cv <= CONSISTENCY_MODERATE_MAX_CV:
+        your_risk = "Moderate"
+    else:
+        your_risk = "High"
+    
+    if their_avg_cv < CONSISTENCY_VERY_MAX_CV:
+        their_risk = "Low"
+    elif their_avg_cv <= CONSISTENCY_MODERATE_MAX_CV:
+        their_risk = "Moderate"
+    else:
+        their_risk = "High"
+    
+    st.caption(f"Risk profile: You ({your_risk}) → Them ({their_risk})")
+
+
+def _render_trade_framework(suggestion):
+    """Render strategic trade framework analysis."""
+    value_gain = suggestion.get("value_gain", 0)
+    pattern = suggestion.get("pattern", "")
+    
+    your_fpts = suggestion.get("your_fpts", [])
+    their_fpts = suggestion.get("their_fpts", [])
+    your_cv = suggestion.get("your_cv", [])
+    their_cv = suggestion.get("their_cv", [])
+    
+    your_avg_fpts = sum(your_fpts) / max(len(your_fpts), 1) if your_fpts else 0
+    their_avg_fpts = sum(their_fpts) / max(len(their_fpts), 1) if their_fpts else 0
+    your_avg_cv = sum(your_cv) / max(len(your_cv), 1) if your_cv else 0
+    their_avg_cv = sum(their_cv) / max(len(their_cv), 1) if their_cv else 0
+    
+    fpts_diff = their_avg_fpts - your_avg_fpts
+    cv_diff = their_avg_cv - your_avg_cv
+    
+    st.markdown("##### 📦 Package Analysis")
+    if fpts_diff > 5:
+        st.success(f"**FP/G Advantage**: +{fpts_diff:.1f} FP/G in what you receive")
+    elif fpts_diff < -5:
+        st.warning(f"**FP/G Tax**: Paying {abs(fpts_diff):.1f} FP/G for roster fit")
+    else:
+        st.info(f"**Balanced**: ~{abs(fpts_diff):.1f} FP/G difference")
+    
+    if cv_diff < -5:
+        st.success(f"**Consistency Upgrade**: CV% drops by {abs(cv_diff):.1f}%")
+    elif cv_diff > 5:
+        st.warning(f"**More Volatile**: CV% rises by {cv_diff:.1f}%")
+    
+    st.markdown("##### 🏗️ Roster Impact")
+    if pattern in ("2-for-1", "3-for-1", "4-for-1"):
+        st.info(f"**Consolidation**: {pattern.split('-')[0]} pieces → 1 stronger player. Opens roster spot(s).")
+    elif pattern in ("1-for-2", "1-for-3", "1-for-4"):
+        st.info(f"**Depth Play**: 1 player → {pattern.split('-')[2]} pieces. More bodies for streaming.")
+
+
+def _render_roster_snapshot(suggestion, rosters_by_team, your_team_name):
+    """Render before/after roster comparison."""
+    your_roster = rosters_by_team.get(your_team_name)
+    opp_roster = rosters_by_team.get(suggestion["team"])
+    
+    if your_roster is None or your_roster.empty or opp_roster is None or opp_roster.empty:
+        st.caption("Roster data not available for before/after view.")
+        return
+
+    your_before = your_roster.copy()
+    opp_before = opp_roster.copy()
+
+    # Build after rosters
+    if "Player" in your_before.columns:
+        your_after = your_before[~your_before["Player"].isin(suggestion["you_give"])].copy()
+    else:
+        your_after = your_before.copy()
+    
+    incoming_dfs = []
+    if "Player" in opp_before.columns:
+        for player in suggestion["you_get"]:
+            src = opp_before[opp_before["Player"] == player]
+            if src.empty and "Player" in your_before.columns:
+                src = your_before[your_before["Player"] == player]
+            if not src.empty:
+                incoming_dfs.append(src)
+    if incoming_dfs:
+        your_after = pd.concat([your_after] + incoming_dfs, ignore_index=True)
+
+    def _prepare_roster(df, highlight_out, highlight_in):
+        if df is None or df.empty:
+            return pd.DataFrame()
+        view = df.copy()
+        if "Player" in view.columns:
+            def _status(p):
+                if p in highlight_out:
+                    return "🔴 OUT"
+                if p in highlight_in:
+                    return "🟢 IN"
+                return ""
+            view["Status"] = view["Player"].apply(_status)
+        for sort_col in ["Mean FPts", "FP/G"]:
+            if sort_col in view.columns:
+                view = view.sort_values(sort_col, ascending=False)
+                break
+        if len(view) > 8:
+            view = view.head(8)
+        cols = [c for c in ["Player", "Mean FPts", "Status"] if c in view.columns]
+        return view[cols] if cols else view
+
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("### 📤 You Give")
-        give_values = [value_lookup.get(p) for p in suggestion["you_give"]]
-        give_df = pd.DataFrame(
-            {
-                "Player": suggestion["you_give"],
-                "FP/G": suggestion["your_fpts"],
-                "CV%": suggestion["your_cv"],
-            }
-        )
-        if any(v is not None for v in give_values):
-            give_df["Value"] = give_values
-        st.dataframe(give_df, hide_index=True, use_container_width=True)
-        your_avg_fpts = sum(suggestion["your_fpts"]) / max(len(suggestion["your_fpts"]), 1)
-        st.caption(f"Package avg: {your_avg_fpts:.1f} FP/G")
+        st.markdown(f"**Your Team** (Top 8)")
+        st.caption("Before")
+        st.dataframe(_prepare_roster(your_before, suggestion["you_give"], []), hide_index=True, use_container_width=True)
+        st.caption("After")
+        st.dataframe(_prepare_roster(your_after, [], suggestion["you_get"]), hide_index=True, use_container_width=True)
+    
     with col2:
-        st.markdown("### 📥 You Get")
-        get_values = [value_lookup.get(p) for p in suggestion["you_get"]]
-        get_df = pd.DataFrame(
-            {
-                "Player": suggestion["you_get"],
-                "FP/G": suggestion["their_fpts"],
-                "CV%": suggestion["their_cv"],
-            }
-        )
-        if any(v is not None for v in get_values):
-            get_df["Value"] = get_values
-        st.dataframe(get_df, hide_index=True, use_container_width=True)
-        their_avg_fpts = sum(suggestion["their_fpts"]) / max(len(suggestion["their_fpts"]), 1)
-        st.caption(f"Package avg: {their_avg_fpts:.1f} FP/G")
+        st.markdown(f"**{suggestion['team']}** (Top 8)")
+        st.caption("Before")
+        st.dataframe(_prepare_roster(opp_before, suggestion["you_get"], []), hide_index=True, use_container_width=True)
 
-    st.markdown("---")
-    st.markdown("#### 📊 Weekly Core FP Impact")
-    fig = go.Figure()
-    fig.add_trace(
-        go.Bar(
-            name="Your Change",
-            x=["Weekly Core FP"],
-            y=[weekly_core_fp_change],
-            marker_color="#4CAF50",
-            text=[f"{weekly_core_fp_change:+.1f}"],
-            textposition="outside",
-        )
-    )
-    fig.add_trace(
-        go.Bar(
-            name="Opponent Change",
-            x=["Weekly Core FP"],
-            y=[opp_weekly_core_fp_change],
-            marker_color="#FF9800" if opp_weekly_core_fp_change < 0 else "#2196F3",
-            text=[f"{opp_weekly_core_fp_change:+.1f}"],
-            textposition="outside",
-        )
-    )
-    fig.update_layout(
-        barmode="group",
-        height=300,
-        showlegend=True,
-        yaxis_title="Weekly Core FP Change",
-    )
-    st.plotly_chart(fig, width="stretch", key=f"trade_value_chart_{rank}")
 
-    if weekly_core_fp_change > 30:
-        st.success("🟢 **Excellent Trade** - Major weekly core FP upgrade!")
-    elif weekly_core_fp_change > 15:
-        st.success("🟢 **Strong Trade** - Solid weekly core FP gain")
-    elif weekly_core_fp_change > 5:
-        st.info("🟡 **Decent Trade** - Modest weekly core FP improvement")
-    elif weekly_core_fp_change >= 0:
-        st.info("🟡 **Marginal Trade** - Small weekly core FP gain")
-    elif weekly_core_fp_change > -5:
-        st.info("🟠 **Trade-Off:** Small weekly core FP loss – may be worth it if you gain consistency or positional fit")
-    else:
-        st.warning("🔴 **Core FP Loss:** You give up weekly core FP – only pursue if other factors clearly outweigh the downgrade")
-
-    if opp_weekly_core_fp_change < -15:
-        st.warning("⚠️ **Opponent loses significant core FP** - they may not accept")
-    elif opp_weekly_core_fp_change < -5:
-        st.info("ℹ️ **Opponent loses some core FP** - negotiate carefully")
-    elif opp_weekly_core_fp_change > 0:
-        st.success("✅ **Win-win trade** - opponent also gains core FP")
-
-    # Aggregate averages for reuse across sections
-    your_avg_cv = sum(suggestion["your_cv"]) / max(len(suggestion["your_cv"]), 1)
-    their_avg_cv = sum(suggestion["their_cv"]) / max(len(suggestion["their_cv"]), 1)
-    fpts_diff = their_avg_fpts - your_avg_fpts
-    cv_change = their_avg_cv - your_avg_cv
-
-    # Short narrative summary
-    st.markdown("#### 💡 Why this trade works")
-    reasons = []
-    if weekly_core_fp_change > 0:
-        reasons.append(
-            f"📈 Core upgrade: your top ~{int(core_size_approx)} players gain ~{core_ppg_change:.2f} FP/G "
-            f"({weekly_core_fp_change:+.1f} weekly core FP)."
-        )
-    elif weekly_core_fp_change < 0:
-        if weekly_core_fp_change > -5 and cv_change < -5:
-            reasons.append(
-                f"🧩 Consistency trade-off: your core gives up ~{abs(core_ppg_change):.2f} FP/G "
-                f"({weekly_core_fp_change:.1f} weekly core FP) in exchange for a more stable, less volatile roster."
-            )
-        else:
-            reasons.append(
-                f"📉 Core downgrade: your top ~{int(core_size_approx)} players lose ~{abs(core_ppg_change):.2f} FP/G "
-                f"({weekly_core_fp_change:.1f} weekly core FP)."
-            )
-    else:
-        reasons.append(
-            f"⚖️ Core neutral: your top ~{int(core_size_approx)} players stay roughly flat (~{core_ppg_change:+.2f} FP/G, "
-            f"{weekly_core_fp_change:+.1f} weekly core FP)."
-        )
-
-    pattern = suggestion.get("pattern", "")
-    if pattern in ("2-for-1", "3-for-1"):
-        reasons.append("📦 Consolidation: trading depth for a stronger core piece.")
-    elif pattern in ("1-for-2", "1-for-3"):
-        reasons.append("📊 Depth play: turning one stud into multiple reliable starters.")
-
-    if fpts_diff > 3:
-        reasons.append(f"💰 Package FP/G tilts toward what you receive (+{fpts_diff:.1f} FP/G).")
-    elif fpts_diff < -3:
-        reasons.append(
-            f"⚖️ You give up some package FP/G ({fpts_diff:.1f}), but your core still strengthens."
-        )
-
-    if cv_change < -5:
-        reasons.append("🛡️ Risk reduction: your roster becomes noticeably more consistent.")
-    elif cv_change > 5:
-        reasons.append("🎲 Higher variance: more upside but a shakier floor.")
-
-    for line in reasons:
-        st.markdown(line)
-    if not reasons:
-        st.caption("Balanced value-based tweak to your core roster.")
-    with st.expander("🔬 Deep Dive (compact)", expanded=False):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Your Avg FP/G", f"{your_avg_fpts:.1f}")
-            st.metric("Your Avg CV%", f"{your_avg_cv:.1f}%")
-        with col2:
-            st.metric("Their Avg FP/G", f"{their_avg_fpts:.1f}")
-            st.metric("Their Avg CV%", f"{their_avg_cv:.1f}%")
-        with col3:
-            st.metric("FP/G Change", f"{fpts_diff:+.1f}")
-            st.metric("CV% Change", f"{cv_change:+.1f}%", help="Negative = more consistent")
-
-        if your_avg_cv < CONSISTENCY_VERY_MAX_CV:
-            your_risk = "Low"
-        elif your_avg_cv <= CONSISTENCY_MODERATE_MAX_CV:
-            your_risk = "Moderate"
-        else:
-            your_risk = "High"
-        if their_avg_cv < CONSISTENCY_VERY_MAX_CV:
-            their_risk = "Low"
-        elif their_avg_cv <= CONSISTENCY_MODERATE_MAX_CV:
-            their_risk = "Moderate"
-        else:
-            their_risk = "High"
-        st.caption(f"Your risk level: {your_risk} • Their risk level: {their_risk}")
-
-    with st.expander("📆 Recent Form (YTD vs Last 7/14/30)", expanded=False):
-        player_index = {}
-        for team_df in rosters_by_team.values():
-            if team_df is None or team_df.empty or "Player" not in team_df.columns:
-                continue
-            for _, row in team_df.iterrows():
-                name = row.get("Player")
-                if name and name not in player_index:
-                    player_index[name] = row
-
-        def _build_trend_line(player_name, is_outgoing):
-            row = player_index.get(player_name)
-            if row is None:
-                return None
-            base = row.get("Mean FPts")
-            if base is None or pd.isna(base):
-                return None
-            spans = [
-                ("Last 7", "L7 FPts"),
-                ("Last 14", "L14 FPts"),
-                ("Last 30", "L30 FPts"),
-            ]
-            for label, col in spans:
-                if col in row.index:
-                    val = row.get(col)
-                    if val is None or pd.isna(val):
-                        continue
-                    delta = float(val) - float(base)
-                    if abs(delta) >= 3.0:
-                        direction = "📈" if delta > 0 else "📉"
-                        side = "you give" if is_outgoing else "you get"
-                        return f"{direction} {player_name} ({side}) — {label}: {val:.1f} vs YTD {base:.1f} ({delta:+.1f} FP/G)"
-            return None
-
-        lines = []
-        for name in suggestion["you_give"]:
-            text = _build_trend_line(name, is_outgoing=True)
-            if text:
-                lines.append(text)
-        for name in suggestion["you_get"]:
-            text = _build_trend_line(name, is_outgoing=False)
-            if text:
-                lines.append(text)
-        if lines:
-            for line in lines:
-                st.markdown(line)
-        else:
-            st.caption("No significant recent FP/G swings (±3 FP/G) vs YTD for players in this trade.")
-
-    st.markdown("#### 🗣️ Talking points for your opponent")
-    pitch_points = []
-    if opp_weekly_core_fp_change > 0:
-        pitch_points.append(
-            f"Emphasize that this actually **increases their weekly core FP** by ~{opp_weekly_core_fp_change:.1f}."
-        )
-    elif opp_weekly_core_fp_change > -10:
-        pitch_points.append(
-            f"Frame it as mostly a **fit / consolidation move** – their weekly core FP only changes by ~{opp_weekly_core_fp_change:.1f}."
-        )
-    opp_pkg_fp_advantage = your_avg_fpts - their_avg_fpts
-    if opp_pkg_fp_advantage > 2:
-        pitch_points.append(
-            f"From their side the package looks good: they gain about {opp_pkg_fp_advantage:.1f} FP/G in what they receive."
-        )
-    opp_cv_change = your_avg_cv - their_avg_cv
-    if opp_cv_change < -3:
-        pitch_points.append("Highlight that their roster becomes **more consistent overall** (lower Avg Player CV%).")
-    elif opp_cv_change > 3:
-        pitch_points.append("Pitch it as them taking on **more upside / boom-bust profiles** if they like variance.")
-    if pattern in ("1-for-2", "1-for-3"):
-        pitch_points.append("Sell it as a **depth play** for them: they turn one slot into multiple playable pieces.")
-    elif pattern in ("2-for-1", "3-for-1"):
-        pitch_points.append("Sell it as **consolidation**: they turn several pieces into one clear core starter and a free roster spot.")
-    if any("📈" in line and "(you give)" in line for line in lines):
-        pitch_points.append("Point out any 📈 lines under **You Give** – those show players you're sending who are on recent heaters vs YTD.")
-    if any("📉" in line and "(you get)" in line for line in lines):
-        pitch_points.append("Mention 📉 lines under **You Get** – those are their players who have been underperforming YTD that you're willing to buy low on.")
-    if yoy_index:
-        # YoY sell-high candidates you are sending (they receive)
-        yoy_sell_high = []
-        for name in suggestion.get("you_give", []):
-            info = yoy_index.get(name)
-            if not info:
-                continue
-            delta = info.get("delta")
-            if delta is None or pd.isna(delta) or delta < 5.0:
-                continue
-            prev_fp = info.get("prev")
-            curr_fp = info.get("curr")
-            if prev_fp is None or curr_fp is None or pd.isna(prev_fp) or pd.isna(curr_fp):
-                continue
-            yoy_sell_high.append((name, prev_fp, curr_fp, delta))
-        if yoy_sell_high:
-            label_parts = [
-                f"{n} ({prev:.1f}→{curr:.1f} FP/G)"
-                for n, prev, curr, d in yoy_sell_high
-            ]
-            pitch_points.append(
-                "You're offering them players in clear YoY upswing: "
-                + ", ".join(label_parts)
-                + ". Frame it as them adding established improvers while you reset around different pieces."
-            )
-        # YoY buy-low candidates you are receiving (their players)
-        yoy_buy_low = []
-        for name in suggestion.get("you_get", []):
-            info = yoy_index.get(name)
-            if not info:
-                continue
-            delta = info.get("delta")
-            if delta is None or pd.isna(delta) or delta > -5.0:
-                continue
-            prev_fp = info.get("prev")
-            curr_fp = info.get("curr")
-            if prev_fp is None or curr_fp is None or pd.isna(prev_fp) or pd.isna(curr_fp):
-                continue
-            yoy_buy_low.append((name, prev_fp, curr_fp, delta))
-        if yoy_buy_low:
-            label_parts = [
-                f"{n} ({prev:.1f}→{curr:.1f} FP/G)"
-                for n, prev, curr, d in yoy_buy_low
-            ]
-            pitch_points.append(
-                "You can present this as moving off potential regression risk: "
-                + ", ".join(label_parts)
-                + ". You're willing to take on the bounce-back gamble so they don't have to."
-            )
-    if pitch_points:
-        for text in pitch_points:
-            st.markdown(f"- {text}")
-    else:
-        st.caption("No obvious selling angles detected beyond core value; lean on team fit and positional needs.")
-
-    with st.expander("🎯 Trade Framework Analysis", expanded=False):
-        st.markdown("### Understanding this trade from multiple angles")
-        
-        st.markdown("#### 📦 Package-level comparison")
-        pkg_bullets = []
-        if fpts_diff > 5:
-            pkg_bullets.append(f"**Package FP/G advantage**: You're receiving players averaging **{fpts_diff:.1f} FP/G more** than what you're sending. On paper, the incoming package looks clearly stronger per roster slot.")
-        elif fpts_diff < -5:
-            pkg_bullets.append(f"**Package FP/G disadvantage**: You're giving up players averaging **{abs(fpts_diff):.1f} FP/G more** than what you're receiving. This is a consolidation/fit play where you're paying a package tax.")
-        else:
-            pkg_bullets.append(f"**Package FP/G roughly balanced**: The players you're sending and receiving are similar in per-slot production (~{abs(fpts_diff):.1f} FP/G difference).")
-        
-        if cv_change < -5:
-            pkg_bullets.append(f"**Consistency upgrade**: The incoming package is noticeably **more consistent** (CV% drops by {abs(cv_change):.1f}%). You're trading volatility for reliability.")
-        elif cv_change > 5:
-            pkg_bullets.append(f"**Consistency downgrade**: The incoming package is **more volatile** (CV% rises by {cv_change:.1f}%). You're adding boom-bust upside but a shakier floor.")
-        
-        for bullet in pkg_bullets:
-            st.markdown(f"- {bullet}")
-        
-        st.markdown("#### 🏗️ Roster construction impact")
-        roster_bullets = []
-        if weekly_core_fp_change > 20:
-            roster_bullets.append(f"**Major core upgrade**: Your top ~{int(core_size_approx)} players gain **+{weekly_core_fp_change:.1f} weekly core FP** (~+{core_ppg_change:.2f} FP/G per core slot). This significantly raises your team's ceiling.")
-        elif weekly_core_fp_change > 10:
-            roster_bullets.append(f"**Solid core upgrade**: Your core gains **+{weekly_core_fp_change:.1f} weekly FP** (~+{core_ppg_change:.2f} FP/G). Meaningful improvement to your starting lineup strength.")
-        elif weekly_core_fp_change > 0:
-            roster_bullets.append(f"**Modest core upgrade**: Your core gains **+{weekly_core_fp_change:.1f} weekly FP** (~+{core_ppg_change:.2f} FP/G). Small but positive improvement to your rotation.")
-        
-        if pattern in ("2-for-1", "3-for-1"):
-            roster_bullets.append(f"**Consolidation trade**: You're turning {pattern.split('-')[0]} rotation pieces into 1 stronger player. This raises your per-game ceiling but reduces depth. You'll need to fill the open roster spot(s) via waivers or trades.")
-        elif pattern in ("1-for-2", "1-for-3"):
-            roster_bullets.append(f"**Depth play**: You're turning 1 player into {pattern.split('-')[2]} pieces. This lowers your per-slot ceiling but gives you more bodies for streaming, injury insurance, and total season games.")
-        
-        for bullet in roster_bullets:
-            st.markdown(f"- {bullet}")
-        
-        st.markdown("#### ⚖️ Strategic trade-offs")
-        strategy_bullets = []
-        
-        if your_avg_fpts > 70 and their_avg_fpts < 65:
-            strategy_bullets.append("**Star-for-depth bet**: You're acquiring high-end talent at the cost of depth. This can win playoff weeks if your star performs, but leaves you vulnerable if they slump or get injured.")
-        elif your_avg_fpts < 65 and their_avg_fpts > 70:
-            strategy_bullets.append("**Depth-for-star bet**: You're giving up a high-end piece for multiple rotation players. This can stabilize your floor and total season production, but you lose the ceiling of a true difference-maker.")
-        
-        if abs(cv_change) > 5:
-            if cv_change < 0:
-                strategy_bullets.append(f"**Risk profile shift**: You're becoming **more consistent** (CV% drops {abs(cv_change):.1f}%). Better for risk-averse managers who want a stable floor, but you may sacrifice some explosive upside weeks.")
-            else:
-                strategy_bullets.append(f"**Risk profile shift**: You're becoming **more volatile** (CV% rises {cv_change:.1f}%). Better for managers chasing upside and willing to absorb boom-bust swings.")
-        
-        if opp_weekly_core_fp_change < -10:
-            strategy_bullets.append(f"**Opponent sacrifice**: Your opponent loses **{abs(opp_weekly_core_fp_change):.1f} weekly core FP**. They're making a strategic gamble (maybe betting on fit, schedule, or different roster construction philosophy). This makes the trade harder to sell but potentially more valuable if they accept.")
-        elif opp_weekly_core_fp_change > 5:
-            strategy_bullets.append(f"**Win-win structure**: Your opponent also gains **+{opp_weekly_core_fp_change:.1f} weekly core FP**. Both sides improve in different ways, making this easier to negotiate.")
-        
-        if strategy_bullets:
-            for bullet in strategy_bullets:
-                st.markdown(f"- {bullet}")
-        else:
-            st.caption("This trade is primarily about fit and positional needs rather than major strategic shifts.")
-        
-        st.markdown("---")
-        st.markdown("#### 💡 Bottom line")
-        if weekly_core_fp_change > 15 and fpts_diff > 3:
-            st.success("**Strong trade for you**: You gain both core value and package FP/G. The math clearly favors your side.")
-        elif weekly_core_fp_change > 10 and fpts_diff < -3:
-            st.info("**Strategic overpay**: You're paying a package FP/G tax, but your core still strengthens. This is a bet on fit and roster construction over raw per-slot value.")
-        elif weekly_core_fp_change > 5:
-            st.info("**Modest upgrade**: You gain some core value. Whether it's worth it depends on your team needs, schedule, and risk tolerance.")
-        else:
-            st.info("**Marginal trade**: Small core gain. This is more about fit, positional needs, or strategic roster reshaping than a clear value win.")
-
-    # Player Similarity Analysis Section
-    with st.expander("🔍 Player Similarity Analysis", expanded=False):
-        st.markdown("### Profile-based trade analysis")
-        
-        # Get league stats for normalization
-        try:
-            # Build combined player data from rosters
-            all_roster_dfs = [df for df in rosters_by_team.values() if df is not None and not df.empty]
-            if all_roster_dfs:
-                combined_df = pd.concat(all_roster_dfs, ignore_index=True)
-                if 'Player' in combined_df.columns:
-                    combined_df = combined_df.drop_duplicates(subset=['Player'])
-                
-                league_means, league_stds = calculate_league_stats(combined_df)
-                
-                # Get player rows for the trade
-                give_players = []
-                get_players = []
-                
-                for player_name in suggestion["you_give"]:
-                    player_rows = combined_df[combined_df['Player'] == player_name]
-                    if not player_rows.empty:
-                        give_players.append(player_rows.iloc[0])
-                
-                for player_name in suggestion["you_get"]:
-                    player_rows = combined_df[combined_df['Player'] == player_name]
-                    if not player_rows.empty:
-                        get_players.append(player_rows.iloc[0])
-                
-                if give_players and get_players:
-                    # Calculate package similarity
-                    pkg_analysis = trade_package_similarity(
-                        give_players, get_players, league_means, league_stds
-                    )
-                    
-                    st.markdown("#### 📊 Package Profile Comparison")
-                    
-                    sim_cols = st.columns(4)
-                    with sim_cols[0]:
-                        st.metric("Package Similarity", f"{pkg_analysis['similarity']:.1f}%",
-                                  help="How similar the trade packages are in overall profile")
-                    with sim_cols[1]:
-                        fpg_change = pkg_analysis.get('fpg_change', 0)
-                        st.metric("FP/G Profile", f"{fpg_change:+.2f}σ",
-                                  help="Z-score change in FP/G dimension")
-                    with sim_cols[2]:
-                        cons_change = pkg_analysis.get('consistency_change', 0)
-                        st.metric("Consistency", f"{cons_change:+.2f}σ",
-                                  help="Z-score change in consistency (positive = more consistent)")
-                    with sim_cols[3]:
-                        value_change = pkg_analysis.get('value_change', 0)
-                        st.metric("Value Profile", f"{value_change:+.2f}σ",
-                                  help="Z-score change in composite value")
-                    
-                    # Interpretation
-                    if pkg_analysis['similarity'] > 80:
-                        st.success("📊 **Very similar packages** - This is a balanced swap of comparable players")
-                    elif pkg_analysis['similarity'] > 60:
-                        st.info("📊 **Moderately similar packages** - Some profile differences but reasonable swap")
-                    elif pkg_analysis['similarity'] > 40:
-                        st.warning("📊 **Different profiles** - You're trading for a different type of player")
-                    else:
-                        st.warning("📊 **Very different profiles** - Major shift in player archetype")
-                    
-                    # Show radar comparison if 1-for-1 or small trade
-                    if len(give_players) <= 2 and len(get_players) <= 2:
-                        st.markdown("#### 🎯 Player Profile Radar")
-                        all_trade_players = give_players + get_players
-                        if len(all_trade_players) >= 2:
-                            fig = render_multi_player_radar(all_trade_players, league_means, league_stds)
-                            st.plotly_chart(fig, use_container_width=True, key=f"radar_{rank}")
-                    
-                    # Find similar players to what you're giving up
-                    st.markdown("#### 🔄 Similar Players to What You're Giving")
-                    for give_player in give_players[:2]:  # Limit to first 2
-                        player_name = give_player.get('Player', 'Unknown')
-                        similar = find_similar_players(
-                            player_name, combined_df, league_means, league_stds,
-                            n=3, exclude_same_team=True
-                        )
-                        if similar:
-                            similar_names = [f"{name} ({score:.0f}%)" for name, score, _ in similar]
-                            st.caption(f"**{player_name}** → Similar: {', '.join(similar_names)}")
-                else:
-                    st.caption("Unable to find player data for similarity analysis.")
-            else:
-                st.caption("No roster data available for similarity analysis.")
-        except Exception as e:
-            st.caption(f"Similarity analysis unavailable: {str(e)}")
-
-    with st.expander("📋 Roster Snapshot (top 10)", expanded=False):
-        your_roster = rosters_by_team.get(your_team_name)
-        opp_roster = rosters_by_team.get(suggestion["team"])
-        if your_roster is None or your_roster.empty or opp_roster is None or opp_roster.empty:
-            st.caption("Roster data not available for before/after view.")
+def _render_similarity_analysis(suggestion, rosters_by_team, rank):
+    """Render player similarity analysis."""
+    try:
+        all_roster_dfs = [df for df in rosters_by_team.values() if df is not None and not df.empty]
+        if not all_roster_dfs:
+            st.caption("No roster data for similarity analysis.")
             return
-
-        your_before = your_roster.copy()
-        opp_before = opp_roster.copy()
-
-        if "Player" in your_before.columns:
-            your_after = your_before[~your_before["Player"].isin(suggestion["you_give"])].copy()
-        else:
-            your_after = your_before.copy()
-        incoming_dfs = []
-        if "Player" in opp_before.columns:
-            for player in suggestion["you_get"]:
-                src = opp_before[opp_before["Player"] == player]
-                if src.empty and "Player" in your_before.columns:
-                    src = your_before[your_before["Player"] == player]
-                if not src.empty:
-                    incoming_dfs.append(src)
-        if incoming_dfs:
-            your_after = pd.concat([your_after] + incoming_dfs, ignore_index=True)
-
-        if "Player" in opp_before.columns:
-            opp_after = opp_before[~opp_before["Player"].isin(suggestion["you_get"])].copy()
-        else:
-            opp_after = opp_before.copy()
-        opp_incoming_dfs = []
-        if "Player" in your_before.columns:
-            for player in suggestion["you_give"]:
-                src = your_before[your_before["Player"] == player]
-                if src.empty and "Player" in opp_before.columns:
-                    src = opp_before[opp_before["Player"] == player]
-                if not src.empty:
-                    opp_incoming_dfs.append(src)
-        if opp_incoming_dfs:
-            opp_after = pd.concat([opp_after] + opp_incoming_dfs, ignore_index=True)
-
-        def _prepare_roster(df, highlight_out, highlight_in):
-            if df is None or df.empty:
-                return pd.DataFrame()
-            view = df.copy()
-            if "Player" in view.columns:
-                def _status(p):
-                    if p in highlight_out:
-                        return "OUT"
-                    if p in highlight_in:
-                        return "IN"
-                    return ""
-                view["Trade Status"] = view["Player"].apply(_status)
-            for sort_col in ["Mean FPts", "FP/G"]:
-                if sort_col in view.columns:
-                    view = view.sort_values(sort_col, ascending=False)
-                    break
-            if len(view) > 10:
-                view = view.head(10)
-            cols = [c for c in ["Player", "Team", "Mean FPts", "FP/G", "GP", "Trade Status"] if c in view.columns]
-            return view[cols] if cols else view
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**Your Team**")
-            st.caption("Top roster slots before and after this trade.")
-            st.write("Before")
-            st.dataframe(_prepare_roster(your_before, suggestion["you_give"], []), hide_index=True, width="stretch")
-            st.write("After")
-            st.dataframe(_prepare_roster(your_after, suggestion["you_give"], suggestion["you_get"]), hide_index=True, width="stretch")
-        with col2:
-            st.markdown(f"**{suggestion['team']}**")
-            st.caption("Top roster slots before and after this trade.")
-            st.write("Before")
-            st.dataframe(_prepare_roster(opp_before, suggestion["you_get"], []), hide_index=True, width="stretch")
-            st.write("After")
-            st.dataframe(_prepare_roster(opp_after, suggestion["you_get"], suggestion["you_give"]), hide_index=True, width="stretch")
-
-    with st.expander("📉 Full Trend & Risk Analysis (Trade Analysis tool)", expanded=False):
-        has_analyzer = bool(st.session_state.get("trade_analyzer")) and st.session_state.get("combined_data") is not None
-        if not has_analyzer:
-            st.info(
-                "To run full 7/14/30/60d analysis, first load a league dataset in the Trade Analysis tool "
-                "from the main menu. Then reopen this tab."
+        
+        combined_df = pd.concat(all_roster_dfs, ignore_index=True)
+        if 'Player' in combined_df.columns:
+            combined_df = combined_df.drop_duplicates(subset=['Player'])
+        
+        league_means, league_stds = calculate_league_stats(combined_df)
+        
+        give_players = []
+        get_players = []
+        
+        for player_name in suggestion["you_give"]:
+            player_rows = combined_df[combined_df['Player'] == player_name]
+            if not player_rows.empty:
+                give_players.append(player_rows.iloc[0])
+        
+        for player_name in suggestion["you_get"]:
+            player_rows = combined_df[combined_df['Player'] == player_name]
+            if not player_rows.empty:
+                get_players.append(player_rows.iloc[0])
+        
+        if give_players and get_players:
+            pkg_analysis = trade_package_similarity(
+                give_players, get_players, league_means, league_stds
             )
-        else:
-            your_code = CODE_BY_MANAGER.get(your_team_name, your_team_name)
-            opp_name = suggestion["team"]
-            opp_code = CODE_BY_MANAGER.get(opp_name, opp_name)
-            trade_teams = {
-                your_code: {p: opp_code for p in suggestion["you_give"]},
-                opp_code: {p: your_code for p in suggestion["you_get"]},
-            }
-            label = f"{your_team_name} vs {opp_name} - {suggestion.get('pattern', '')} (Suggestion #{rank})"
-            if st.button(
-                "Run Full Trade Analysis for this suggestion",
-                key=f"run_full_trade_analysis_{rank}_{opp_name}",
-            ):
-                results = run_trade_analysis(
-                    trade_teams=trade_teams,
-                    num_players=8,
-                    trade_label=label,
+            
+            st.markdown("##### 📊 Package Profile Comparison")
+            
+            sim_cols = st.columns(4)
+            with sim_cols[0]:
+                st.metric("Similarity", f"{pkg_analysis['similarity']:.0f}%")
+            with sim_cols[1]:
+                st.metric("FP/G Profile", f"{pkg_analysis.get('fpg_change', 0):+.2f}σ")
+            with sim_cols[2]:
+                st.metric("Consistency", f"{pkg_analysis.get('consistency_change', 0):+.2f}σ")
+            with sim_cols[3]:
+                st.metric("Value", f"{pkg_analysis.get('value_change', 0):+.2f}σ")
+            
+            if pkg_analysis['similarity'] > 80:
+                st.success("Very similar packages — balanced swap")
+            elif pkg_analysis['similarity'] > 60:
+                st.info("Moderately similar — reasonable swap")
+            else:
+                st.warning("Different profiles — archetype shift")
+            
+            # Similar players
+            st.markdown("##### 🔄 Similar Players")
+            for give_player in give_players[:2]:
+                player_name = give_player.get('Player', 'Unknown')
+                similar = find_similar_players(
+                    player_name, combined_df, league_means, league_stds,
+                    n=3, exclude_same_team=True
                 )
-                if not results:
-                    st.warning("No analysis results were produced. Check that trade data is loaded for this league.")
-                else:
-                    display_trade_results(results)
+                if similar:
+                    similar_names = [f"{name} ({score:.0f}%)" for name, score, _ in similar]
+                    st.caption(f"**{player_name}** → {', '.join(similar_names)}")
+        else:
+            st.caption("Unable to find player data for similarity analysis.")
+    except Exception as e:
+        st.caption(f"Similarity analysis unavailable: {str(e)}")
+
+
+def _render_full_trade_analysis_button(suggestion, your_team_name, rank):
+    """Render button to run full trade analysis."""
+    has_analyzer = bool(st.session_state.get("trade_analyzer")) and st.session_state.get("combined_data") is not None
+    
+    if not has_analyzer:
+        st.info("Load a league in Trade Analysis tool to enable full analysis.")
+        return
+    
+    your_code = CODE_BY_MANAGER.get(your_team_name, your_team_name)
+    opp_name = suggestion["team"]
+    opp_code = CODE_BY_MANAGER.get(opp_name, opp_name)
+    
+    trade_teams = {
+        your_code: {p: opp_code for p in suggestion["you_give"]},
+        opp_code: {p: your_code for p in suggestion["you_get"]},
+    }
+    label = f"{your_team_name} vs {opp_name} - {suggestion.get('pattern', '')} (#{rank})"
+    
+    if st.button("🔬 Run Full Trade Analysis", key=f"full_analysis_{rank}_{opp_name}"):
+        results = run_trade_analysis(
+            trade_teams=trade_teams,
+            num_players=8,
+            trade_label=label,
+        )
+        if not results:
+            st.warning("No analysis results. Check that trade data is loaded.")
+        else:
+            display_trade_results(results)
 
 
 def _estimate_ytd_fp_change_for_suggestion(
