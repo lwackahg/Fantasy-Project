@@ -53,6 +53,8 @@ This section provides detailed, technical explanations for each of the applicati
     -   *Scraping game-by-game player stats with variability analysis and consistency metrics.*
 -   [**201: Update — 2025-11-12 Scraper & Season-Aware UI**](./201_Feature_Update_2025-11-12_Scraper_and_UI_Season_Filtering.md)
     -   *Smart season skipping, standardized caching, and season-scoped League/Fantasy/Team views.*
+-   [**202: Update — 2025-12-02 Data Source Consolidation**](./202_Feature_Update_2025-12-02_Data_Source_Consolidation.md)
+    -   *Centralized player game log loading, removal of redundant file scanning, and unified index usage across modules.*
 
 ---
 
@@ -94,7 +96,7 @@ Below is a curated list of key Python files in the project, categorized by their
 ### Trade Analysis Module
 - `modules/trade_analysis/logic.py` - TradeAnalyzer class, run_trade_analysis()
 - `modules/trade_analysis/ui.py` - Trade UI, scenario comparison, game log viewer
-- `modules/trade_analysis/consistency_integration.py` - CV%, boom/bust metrics
+- `modules/trade_analysis/consistency_integration.py` - Unified data integration, CV%, boom/bust metrics
 
 ### Trade Suggestions Module
 - `modules/trade_suggestions.py` - Main orchestrator, value model
@@ -105,7 +107,7 @@ Below is a curated list of key Python files in the project, categorized by their
 - `modules/trade_suggestions_ui_tab.py` - Embedded UI tab with deep dive expanders
 
 ### Player Game Log Scraper Module
-- `modules/player_game_log_scraper/logic.py` - Scraping, caching, league index
+- `modules/player_game_log_scraper/logic.py` - Scraping, caching, league index, centralized data loading
 - `modules/player_game_log_scraper/db_store.py` - SQLite database storage
 - `modules/player_game_log_scraper/ui.py` - Main UI entry point
 - `modules/player_game_log_scraper/ui_components.py` - Visualization components
@@ -115,7 +117,7 @@ Below is a curated list of key Python files in the project, categorized by their
 - `modules/player_game_log_scraper/ui_viewer.py` - Public viewer
 
 ### Historical Trade Analyzer Module
-- `modules/historical_trade_analyzer/logic.py` - Snapshot builder, date parsing
+- `modules/historical_trade_analyzer/logic.py` - Snapshot builder, date parsing (uses centralized loader)
 - `modules/historical_trade_analyzer/ui.py` - Admin UI for historical trades
 
 ### Other Modules

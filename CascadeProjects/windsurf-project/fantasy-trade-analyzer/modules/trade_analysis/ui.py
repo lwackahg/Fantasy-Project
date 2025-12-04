@@ -624,7 +624,7 @@ def _display_styled_roster(title: str, roster_data: List[Dict[str, Any]], player
 
 def _display_traded_players_game_logs(results: Dict[str, Any], key_suffix: str = ""):
     """Display game logs for all players involved in the trade."""
-    from modules.trade_analysis.consistency_integration import load_player_consistency, get_consistency_cache_directory
+    from modules.trade_analysis.consistency_integration import load_player_consistency, get_player_game_log_df
     import json
     
     league_id = results.get('league_id', '')
@@ -638,58 +638,28 @@ def _display_traded_players_game_logs(results: Dict[str, Any], key_suffix: str =
     with st.expander("📋 View Traded Players' Game Logs", expanded=False):
         player_tabs = st.tabs(all_players)
         
-        cache_dir = get_consistency_cache_directory()
-        
         for player_tab, player_name in zip(player_tabs, all_players):
             with player_tab:
-                # ... (keep existing logic until download button) ...
-                # Find and load player's game log
-                cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
-                game_log_df = None
+                # Find and load player's game log using centralized loader
                 preferred_season = results.get("season") if isinstance(results, dict) else None
-                best_candidate = None
-                best_season = None
+                game_log_df = get_player_game_log_df(player_name, league_id, preferred_season)
                 
-                for cache_file in cache_files:
-                    try:
-                        with open(cache_file, 'r') as f:
-                            cache_data = json.load(f)
-                        cached_name = cache_data.get('player_name', '')
-                        if str(cached_name).strip().lower() != str(player_name).strip().lower():
-                            continue
-                        season_str = str(cache_data.get('season', '')).strip()
-                        # If a specific season is attached to the results, prefer an exact match
-                        if preferred_season and season_str == preferred_season:
-                            best_candidate = cache_data
-                            best_season = season_str
-                            break
-                        # Otherwise track the most recent season lexicographically
-                        if not preferred_season:
-                            if best_season is None or season_str > best_season:
-                                best_candidate = cache_data
-                                best_season = season_str
-                    except Exception:
-                        continue
-                
-                if best_candidate is not None:
-                    game_log = best_candidate.get('data', best_candidate.get('game_log', []))
-                    if game_log:
-                        game_log_df = pd.DataFrame(game_log)
-                        # For historical trades, filter logs to games on or before the trade date
-                        trade_date_str = results.get("trade_date") if isinstance(results, dict) else None
-                        if trade_date_str and preferred_season and "Date" in game_log_df.columns:
-                            try:
-                                from modules.historical_trade_analyzer.logic import _parse_game_dates_for_season
-                                trade_dt = pd.to_datetime(trade_date_str, errors="coerce")
-                                if not pd.isna(trade_dt):
-                                    parsed_dates = _parse_game_dates_for_season(game_log_df["Date"], preferred_season)
-                                    game_log_df = game_log_df.copy()
-                                    game_log_df["DateParsed"] = parsed_dates
-                                    game_log_df = game_log_df[game_log_df["DateParsed"] <= trade_dt]
-                                    game_log_df = game_log_df.drop(columns=["DateParsed"])
-                            except Exception:
-                                # If anything goes wrong, fall back to full log display
-                                pass
+                if game_log_df is not None and not game_log_df.empty:
+                    # For historical trades, filter logs to games on or before the trade date
+                    trade_date_str = results.get("trade_date") if isinstance(results, dict) else None
+                    if trade_date_str and preferred_season and "Date" in game_log_df.columns:
+                        try:
+                            from modules.historical_trade_analyzer.logic import _parse_game_dates_for_season
+                            trade_dt = pd.to_datetime(trade_date_str, errors="coerce")
+                            if not pd.isna(trade_dt):
+                                parsed_dates = _parse_game_dates_for_season(game_log_df["Date"], preferred_season)
+                                game_log_df = game_log_df.copy()
+                                game_log_df["DateParsed"] = parsed_dates
+                                game_log_df = game_log_df[game_log_df["DateParsed"] <= trade_dt]
+                                game_log_df = game_log_df.drop(columns=["DateParsed"])
+                        except Exception:
+                            # If anything goes wrong, fall back to full log display
+                            pass
                 
                 if game_log_df is not None and not game_log_df.empty:
                     # Display consistency metrics
@@ -718,7 +688,7 @@ def _display_traded_players_game_logs(results: Dict[str, Any], key_suffix: str =
                     
                     st.dataframe(
                         game_log_df[display_cols],
-                        width='stretch',
+                        use_container_width=True,
                         height=400
                     )
                     

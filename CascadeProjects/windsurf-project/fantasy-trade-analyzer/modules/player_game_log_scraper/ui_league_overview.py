@@ -51,7 +51,7 @@ def show_league_overview():
 		st.warning("Please enter a league ID to view cached data.")
 		return
 	
-	# Prefer DB-backed seasons if available, fall back to JSON cache files.
+	# Prefer DB-backed seasons if available, fall back to JSON cache index.
 	use_db = False
 	available_seasons: list[str] = []
 	try:
@@ -64,23 +64,20 @@ def show_league_overview():
 	# Get cache directory for fallback JSON path
 	cache_dir = get_cache_directory()
 	all_cache_files = []
+	
 	if not use_db:
-		# Find all cache files for this league (new format only)
-		all_cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
+		# Use index to find seasons and files
+		index = load_league_cache_index(league_id, rebuild_if_missing=True)
 		
-		if not all_cache_files:
+		if not index or not index.get("players"):
 			st.info("No cached player data found. Run a bulk scrape first to populate the cache.")
 			return
 		
-		# Extract available seasons from cache files
+		# Extract available seasons from index
 		season_set = set()
-		for cache_file in all_cache_files:
-			# Extract season from filename: player_game_log_full_{code}_{league}_{season}.json
-			parts = cache_file.stem.split('_')
-			if len(parts) >= 2:
-				season_part = '_'.join(parts[-2:])  # Get last two parts (e.g., "2025_26")
-				season = season_part.replace('_', '-')  # Convert to "2025-26"
-				season_set.add(season)
+		for player_data in index.get("players", {}).values():
+			seasons = player_data.get("seasons", {})
+			season_set.update(seasons.keys())
 		
 		available_seasons = sorted(list(season_set), reverse=True)  # Most recent first
 	
@@ -105,9 +102,16 @@ def show_league_overview():
 		st.success(f"Found {len(season_logs)} players with cached data for {selected_season}")
 		overview_df = _load_all_cached_data_from_db(season_logs)
 	else:
-		# Filter cache files for selected season
-		season_filename = selected_season.replace('-', '_')
-		cache_files = [f for f in all_cache_files if f.stem.endswith(season_filename)]
+		# Filter cache files for selected season using index
+		cache_files = []
+		index = load_league_cache_index(league_id)
+		if index and "players" in index:
+			for player_data in index["players"].values():
+				season_info = player_data.get("seasons", {}).get(selected_season)
+				if season_info and season_info.get("cache_file"):
+					path = cache_dir / season_info["cache_file"]
+					if path.exists():
+						cache_files.append(path)
 		
 		st.success(f"Found {len(cache_files)} players with cached data for {selected_season}")
 		

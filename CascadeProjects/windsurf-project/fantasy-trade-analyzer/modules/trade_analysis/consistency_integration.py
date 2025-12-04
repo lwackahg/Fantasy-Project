@@ -4,44 +4,53 @@ from pathlib import Path
 from typing import Dict, Optional
 from functools import lru_cache
 import pandas as pd
-from modules.player_game_log_scraper.logic import calculate_variability_stats
+from modules.player_game_log_scraper.logic import calculate_variability_stats, get_player_code_by_name, load_cached_player_log
 from modules.player_game_log_scraper import db_store
 
 CONSISTENCY_VERY_MAX_CV = 25.0
 CONSISTENCY_MODERATE_MAX_CV = 40.0
 
-def get_consistency_cache_directory():
-	"""Get the player game log cache directory."""
-	cache_dir = Path(__file__).resolve().parent.parent.parent / 'data' / 'player_game_log_cache'
-	cache_dir.mkdir(parents=True, exist_ok=True)
-	return cache_dir
+# No longer need get_consistency_cache_directory here if we rely on logic.py
+
+@lru_cache(maxsize=2048)
+def _load_raw_player_data(player_name: str, league_id: str, season: Optional[str] = None) -> Optional[Dict]:
+	"""Load raw player data, finding the best season match using logic.py helpers."""
+	player_code = get_player_code_by_name(league_id, player_name)
+	if not player_code:
+		# If name resolution fails, we can't load by code.
+		# Legacy fallback: glob by name if absolutely necessary, but condensing logic suggests we rely on the index.
+		# If the index is stale, the scraper logic handles rebuilding it.
+		return None
+	
+	df, meta = load_cached_player_log(player_code, league_id, season)
+	if df is None or df.empty:
+		return None
+		
+	# Pack into dictionary format expected by consumers
+	return {
+		'player_name': meta.get('player_name', player_name),
+		'player_code': player_code,
+		'league_id': league_id,
+		'season': meta.get('season', ''),
+		'timestamp': meta.get('timestamp'),
+		'data': df.to_dict('records'),
+		'game_log': df.to_dict('records') # support legacy key
+	}
 
 @lru_cache(maxsize=2048)
 def _load_player_consistency_internal(player_name: str, league_id: str) -> Optional[Dict]:
-	cache_dir = get_consistency_cache_directory()
-	cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
-	best_candidate = None
-	best_season = None
-	for cache_file in cache_files:
-		try:
-			with open(cache_file, 'r') as f:
-				cache_data = json.load(f)
-			cached_player_name = cache_data.get('player_name', '')
-			if str(cached_player_name).strip().lower() != str(player_name).strip().lower():
-				continue
-			season_str = str(cache_data.get('season', '')).strip()
-			if best_season is None or season_str > best_season:
-				best_candidate = cache_data
-				best_season = season_str
-		except Exception:
-			continue
-
-	if best_candidate is None:
+	# Use get_player_game_log_df directly? No, we need metrics here.
+	# But we can use _load_raw_player_data which now uses the centralized loader.
+	data = _load_raw_player_data(player_name, league_id)
+	if data is None:
 		return None
-	game_log = best_candidate.get('data', best_candidate.get('game_log', []))
+	
+	game_log = data.get('data', [])
 	if not game_log:
 		return None
+		
 	df = pd.DataFrame(game_log)
+	# ... rest of calculation logic ...
 	if 'FPts' not in df.columns or len(df) == 0:
 		return None
 	fpts = df['FPts']
@@ -74,6 +83,28 @@ def _load_player_consistency_internal(player_name: str, league_id: str) -> Optio
 def load_player_consistency(player_name: str, league_id: str) -> Optional[Dict]:
 	"""Public wrapper around the cached consistency loader."""
 	return _load_player_consistency_internal(player_name, league_id)
+
+def get_player_game_log_df(player_name: str, league_id: str, season: Optional[str] = None) -> Optional[pd.DataFrame]:
+	"""
+	Get the raw game log DataFrame for a player from the cache.
+	
+	Args:
+		player_name: Name of the player
+		league_id: Fantrax league ID
+		season: Optional specific season to retrieve
+		
+	Returns:
+		DataFrame containing game log or None if not found
+	"""
+	data = _load_raw_player_data(player_name, league_id, season)
+	if not data:
+		return None
+	
+	game_log = data.get('data', data.get('game_log', []))
+	if not game_log:
+		return None
+		
+	return pd.DataFrame(game_log)
 
 def get_consistency_tier(cv_percent: float) -> str:
 	"""

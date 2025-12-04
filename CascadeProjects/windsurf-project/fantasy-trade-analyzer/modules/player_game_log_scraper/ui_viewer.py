@@ -77,51 +77,22 @@ def get_available_seasons_for_player(player_code, league_id):
 	if seasons:
 		return sorted(list(set(seasons)), reverse=True)
 	
-	# Fallback: infer seasons from JSON cache filenames
-	cache_dir = get_cache_directory()
-	new_format = cache_dir.glob(f"player_game_log_full_{player_code}_{league_id}_*.json")
-	seasons = []
-	for file in new_format:
-		parts = file.stem.split('_')
-		if len(parts) >= 6:
-			season_part = parts[-1]
-			if len(parts) >= 7:
-				season = f"{parts[-2]}-{parts[-1]}"  # e.g., "2025-26"
-			else:
-				season = season_part.replace('_', '-')
-			seasons.append(season)
+	# Fallback: infer seasons from JSON cache index
+	index = load_league_cache_index(league_id)
+	if index and "players" in index and player_code in index["players"]:
+		cached_seasons = list(index["players"][player_code].get("seasons", {}).keys())
+		seasons.extend(cached_seasons)
 	
 	return sorted(list(set(seasons)), reverse=True)
 
 def load_player_season_data(player_code, league_id, season):
-	"""Load game log data for a specific player and season."""
-	# DB-first: load directly from SQLite
-	try:
-		loaded = db_store.load_player_season(
-			player_code=player_code,
-			league_id=league_id,
-			season=season,
-		)
-	except Exception:
-		loaded = None
-	if loaded:
-		records, status, player_name = loaded
-		return records or [], player_name or 'Unknown', True
+	"""Load game log data for a specific player and season using centralized loader."""
+	from modules.player_game_log_scraper.logic import load_cached_player_log
 	
-	# Fallback: load from JSON cache file
-	cache_dir = get_cache_directory()
-	season_filename = season.replace('-', '_')
-	cache_file = cache_dir / f"player_game_log_full_{player_code}_{league_id}_{season_filename}.json"
-	if cache_file.exists():
-		try:
-			with open(cache_file, 'r') as f:
-				cache_data = json.load(f)
-			status = cache_data.get('status', 'success')
-			data = cache_data.get('data', [])
-			player_name = cache_data.get('player_name', 'Unknown')
-			return data, player_name, True
-		except Exception:
-			pass
+	df, meta = load_cached_player_log(player_code, league_id, season)
+	
+	if df is not None and not df.empty:
+		return df.to_dict('records'), meta.get('player_name', 'Unknown'), True
 	
 	return [], 'Unknown', False
 
@@ -270,7 +241,9 @@ def show_player_consistency_viewer(initial_league_id: str | None = None):
 	st.success(f"Found {len(season_cache_files)} players with cached data for {selected_season}")
 	
 	# For Individual Player Analysis we still need the full set of cache files
-	cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
+	# Note: Individual viewer now uses index for player list, so we don't strictly need this list here anymore
+	# but we keep it compatible with function signatures if needed
+	cache_files = [] 
 	
 	# Create main tabs
 	main_tab1, main_tab2, main_tab3, main_tab4 = st.tabs([
@@ -324,7 +297,7 @@ def show_individual_player_viewer(league_id, cache_files, value_profiles_df=None
 	"""Display individual player analysis with multi-season support."""
 	st.subheader("🔍 Individual Player Analysis")
 	
-	# Load player list - DB first, fallback to cache files
+	# Load player list - DB first, fallback to cache index
 	player_dict = {}
 	try:
 		meta = db_store.get_league_player_seasons(league_id)
@@ -337,18 +310,12 @@ def show_individual_player_viewer(league_id, cache_files, value_profiles_df=None
 		player_dict = {}
 	
 	if not player_dict:
-		cache_dir = get_cache_directory()
-		all_cache_files = list(cache_dir.glob(f"player_game_log_full_*_{league_id}_*.json"))
-		for cache_file in all_cache_files:
-			try:
-				with open(cache_file, 'r') as f:
-					cache_data = json.load(f)
-				player_name = cache_data.get('player_name', 'Unknown')
-				player_code = cache_data.get('player_code', '')
-				if player_name and player_code and player_name not in player_dict:
-					player_dict[player_name] = player_code
-			except Exception:
-				continue
+		index = load_league_cache_index(league_id)
+		if index and "players" in index:
+			for code, data in index["players"].items():
+				name = data.get("player_name", "Unknown")
+				if name:
+					player_dict[name] = code
 	
 	if not player_dict:
 		st.warning("No player data available.")

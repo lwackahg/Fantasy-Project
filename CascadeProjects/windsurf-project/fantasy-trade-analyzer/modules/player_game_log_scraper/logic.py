@@ -1370,3 +1370,102 @@ def clear_all_cache():
 			pass
 	
 	return count
+
+def get_player_code_by_name(league_id: str, player_name: str) -> str | None:
+	"""Resolve player name to player code using the league cache index."""
+	index = load_league_cache_index(league_id, rebuild_if_missing=True)
+	if not index:
+		return None
+	
+	target = str(player_name).strip().lower()
+	for code, data in index.get("players", {}).items():
+		if str(data.get("player_name", "")).strip().lower() == target:
+			return code
+	return None
+
+def get_latest_available_season(league_id: str, player_code: str) -> str | None:
+	"""Find the most recent season available for a player."""
+	# Check DB first
+	try:
+		seasons = db_store.get_league_available_seasons(league_id)
+		# Filter for this player? db_store doesn't have a cheap "get seasons for player" without loading metadata
+		# Actually get_league_player_seasons returns metadata list
+		meta = db_store.get_league_player_seasons(league_id)
+		player_seasons = [m['season'] for m in meta if m.get('player_code') == player_code]
+		if player_seasons:
+			return sorted(player_seasons, reverse=True)[0]
+	except Exception:
+		pass
+
+	# Fallback to index
+	index = load_league_cache_index(league_id)
+	if index and "players" in index and player_code in index["players"]:
+		seasons = list(index["players"][player_code].get("seasons", {}).keys())
+		if seasons:
+			return sorted(seasons, reverse=True)[0]
+	
+	# Fallback to file glob
+	cache_dir = get_cache_directory()
+	files = list(cache_dir.glob(f"player_game_log_full_{player_code}_{league_id}_*.json"))
+	best_season = None
+	for f in files:
+		parts = f.stem.split('_')
+		if len(parts) >= 2:
+			season_part = '_'.join(parts[-2:])
+			season = season_part.replace('_', '-')
+			if best_season is None or season > best_season:
+				best_season = season
+	return best_season
+
+def load_cached_player_log(player_code: str, league_id: str, season: str | None = None) -> tuple[pd.DataFrame | None, dict]:
+	"""
+	Load player game log from DB or Cache without scraping.
+	
+	Args:
+		player_code: Player ID
+		league_id: League ID
+		season: Specific season (e.g. "2025-26"). If None, finds latest.
+		
+	Returns:
+		(DataFrame or None, Metadata Dictionary)
+	"""
+	if not season:
+		season = get_latest_available_season(league_id, player_code)
+		if not season:
+			return None, {}
+
+	# Try DB
+	try:
+		loaded = db_store.load_player_season(player_code, league_id, season)
+		if loaded:
+			records, status, name = loaded
+			if records:
+				df = pd.DataFrame.from_records(records)
+				return df, {"player_name": name, "season": season, "source": "db"}
+	except Exception:
+		pass
+
+	# Try Cache File
+	cache_dir = get_cache_directory()
+	# Try exact season match
+	filename = f"player_game_log_full_{player_code}_{league_id}_{season.replace('-', '_')}.json"
+	cache_file = cache_dir / filename
+	
+	if cache_file.exists():
+		try:
+			with open(cache_file, 'r') as f:
+				data = json.load(f)
+			records = data.get('data', data.get('game_log', []))
+			if records:
+				df = pd.DataFrame.from_records(records)
+				meta = {
+					"player_name": data.get("player_name", ""),
+					"season": season,
+					"source": "cache",
+					"timestamp": data.get("timestamp")
+				}
+				return df, meta
+		except Exception:
+			pass
+			
+	return None, {}

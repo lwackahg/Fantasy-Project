@@ -6,8 +6,8 @@ from typing import Dict, List, Any, Tuple
 import pandas as pd
 
 from modules.player_game_log_scraper.logic import (
-    get_cache_directory,
-    load_league_cache_index,
+    get_player_code_by_name,
+    load_cached_player_log
 )
 
 
@@ -50,88 +50,6 @@ def _parse_game_dates_for_season(dates: pd.Series, season: str) -> pd.Series:
 	return dates.apply(_parse_one)
 
 
-def _build_player_code_index(league_id: str) -> Tuple[Dict[str, str], Dict[str, Any], Path]:
-    """Build a mapping from player name -> player_code using the league cache index.
-
-    Returns (name_to_code, index, cache_dir).
-    """
-    index = load_league_cache_index(league_id, rebuild_if_missing=True)
-    if not index or not index.get("players"):
-        return {}, {}, Path(get_cache_directory())
-
-    cache_dir = Path(get_cache_directory())
-    name_to_code: Dict[str, str] = {}
-    for player_code, pdata in index["players"].items():
-        name = pdata.get("player_name")
-        if not name:
-            continue
-        key = str(name).strip().lower()
-        if not key:
-            continue
-        name_to_code[key] = player_code
-
-    return name_to_code, index, cache_dir
-
-
-def _load_player_games(
-    player_name: str,
-    league_id: str,
-    season: str,
-    name_to_code: Dict[str, str],
-    index: Dict[str, Any],
-    cache_dir: Path,
-) -> pd.DataFrame:
-    """Load a player's game log for a specific season from cache.
-
-    Returns an empty DataFrame if not found.
-    """
-    key = str(player_name).strip().lower()
-    if not key:
-        return pd.DataFrame()
-    code = name_to_code.get(key)
-    if not code:
-        return pd.DataFrame()
-
-    season_meta = index.get("players", {}).get(code, {}).get("seasons", {})
-    meta = season_meta.get(season)
-    cache_path: Path
-
-    if meta and meta.get("cache_file"):
-        cache_path = cache_dir / meta["cache_file"]
-    else:
-        # Fallback to filename convention
-        cache_path = cache_dir / f"player_game_log_full_{code}_{league_id}_{season.replace('-', '_')}.json"
-
-    if not cache_path.exists():
-        return pd.DataFrame()
-
-    try:
-        with cache_path.open("r", encoding="utf-8") as f:
-            cache_data = json.load(f)
-    except Exception:
-        return pd.DataFrame()
-
-    game_log = cache_data.get("data", cache_data.get("game_log", []))
-    if not game_log:
-        return pd.DataFrame()
-
-    df = pd.DataFrame(game_log)
-    if "FPts" not in df.columns or "Date" not in df.columns:
-        return pd.DataFrame()
-
-    # Parse dates and FPts
-    df = df.copy()
-    df["DateParsed"] = _parse_game_dates_for_season(df["Date"], season)
-    df["FPts"] = pd.to_numeric(df["FPts"], errors="coerce")
-    df = df.dropna(subset=["DateParsed", "FPts"])
-    if df.empty:
-        return pd.DataFrame()
-
-    # Ensure most recent first
-    df = df.sort_values("DateParsed", ascending=False)
-    return df
-
-
 def _window_stats(games: pd.DataFrame) -> Dict[str, float]:
     """Compute basic stats for a subset of games.
 
@@ -168,10 +86,6 @@ def build_historical_combined_data(
     with rows per (player, time range) and a Timestamp column in
     {"YTD", "60 Days", "30 Days", "14 Days", "7 Days"}.
     """
-    name_to_code, index, cache_dir = _build_player_code_index(league_id)
-    if not name_to_code or not index:
-        return pd.DataFrame()
-
     trade_dt = trade_date if isinstance(trade_date, date) else trade_date.date()
 
     rows: List[Dict[str, Any]] = []
@@ -181,9 +95,29 @@ def build_historical_combined_data(
             if not player_name:
                 continue
 
-            games = _load_player_games(player_name, league_id, season, name_to_code, index, cache_dir)
+            player_code = get_player_code_by_name(league_id, player_name)
+            if not player_code:
+                continue
+
+            df, _ = load_cached_player_log(player_code, league_id, season)
+            
+            if df is None or df.empty:
+                continue
+            
+            if "FPts" not in df.columns or "Date" not in df.columns:
+                continue
+
+            # Parse dates and FPts
+            games = df.copy()
+            games["DateParsed"] = _parse_game_dates_for_season(games["Date"], season)
+            games["FPts"] = pd.to_numeric(games["FPts"], errors="coerce")
+            games = games.dropna(subset=["DateParsed", "FPts"])
+            
             if games.empty:
                 continue
+
+            # Ensure most recent first
+            games = games.sort_values("DateParsed", ascending=False)
 
             # Filter to games on or before trade date
             games_filtered = games[games["DateParsed"] <= pd.Timestamp(trade_dt)].copy()
