@@ -1194,6 +1194,11 @@ def bulk_scrape_all_players_full(league_id, username, password, seasons=None, pl
 			recompute_player_season_stats_for_league(league_id, seasons)
 		except Exception:
 			pass
+		try:
+			# Keep index in sync with newly scraped cache files so name lookups stay fast.
+			build_league_cache_index(league_id)
+		except Exception:
+			pass
 		
 		return {
 			"success_count": success_count,
@@ -1344,6 +1349,11 @@ def bulk_scrape_all_players(league_id, username, password, player_dict=None, pro
 			recompute_player_season_stats_for_league(league_id, ["2025-26"])
 		except Exception:
 			pass
+		try:
+			# Keep index in sync with newly scraped cache files so name lookups stay fast.
+			build_league_cache_index(league_id)
+		except Exception:
+			pass
 		
 		return {
 			"success_count": success_count,
@@ -1371,16 +1381,51 @@ def clear_all_cache():
 	
 	return count
 
+def _normalize_player_name_for_match(name: str) -> str:
+	if not isinstance(name, str):
+		return ""
+	s = name.strip().lower().replace(".", "")
+	tokens = s.split()
+	suffixes = {"jr", "sr", "ii", "iii", "iv"}
+	if tokens and tokens[-1] in suffixes:
+		tokens = tokens[:-1]
+	return " ".join(tokens)
+
 def get_player_code_by_name(league_id: str, player_name: str) -> str | None:
 	"""Resolve player name to player code using the league cache index."""
 	index = load_league_cache_index(league_id, rebuild_if_missing=True)
 	if not index:
 		return None
-	
-	target = str(player_name).strip().lower()
-	for code, data in index.get("players", {}).items():
+	players = index.get("players", {})
+
+	target_raw = str(player_name).strip()
+	target = target_raw.lower()
+	for code, data in players.items():
 		if str(data.get("player_name", "")).strip().lower() == target:
 			return code
+
+	target_norm = _normalize_player_name_for_match(target_raw)
+	if not target_norm:
+		return None
+	for code, data in players.items():
+		idx_name = str(data.get("player_name", ""))
+		if _normalize_player_name_for_match(idx_name) == target_norm:
+			return code
+
+	# Fallback: scan cache JSONs directly in case the index is stale.
+	cache_dir = get_cache_directory()
+	pattern = f"player_game_log_full_*_{league_id}_*.json"
+	for cache_file in cache_dir.glob(pattern):
+		try:
+			with open(cache_file, "r") as f:
+				cache_data = json.load(f)
+			cached_name = str(cache_data.get("player_name", "")).strip()
+			if cached_name.lower() == target:
+				return cache_data.get("player_code")
+			if _normalize_player_name_for_match(cached_name) == target_norm:
+				return cache_data.get("player_code")
+		except Exception:
+			continue
 	return None
 
 def get_latest_available_season(league_id: str, player_code: str) -> str | None:

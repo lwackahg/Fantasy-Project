@@ -13,7 +13,8 @@ from modules.player_game_log_scraper.logic import (
 	bulk_scrape_all_players,
 	bulk_scrape_all_players_full,
 	clear_all_cache,
-	get_cache_directory
+	get_cache_directory,
+	build_league_cache_index,
 )
 from modules.trade_analysis.consistency_integration import (
 	CONSISTENCY_VERY_MAX_CV,
@@ -147,17 +148,31 @@ def show_player_game_log_scraper():
 			)
 		
 		# Second row of options
-		col4, col5 = st.columns(2)
+		col4, col5, col6 = st.columns(3)
 		with col4:
-			if st.button("🗑️ Clear All Cache", help="Delete all cached player game logs"):
+			if st.button("Clear All Cache", help="Delete all cached player game logs"):
 				message, success = clear_player_game_log_cache()
 				if success:
 					st.success(message)
 				else:
 					st.error(message)
 		with col5:
-			if st.button("📦 Bulk Scrape All Players", help="Scrape game logs for all players with multi-season support"):
+			if st.button("Bulk Scrape All Players", help="Scrape game logs for all players with multi-season support"):
 				st.session_state['show_bulk_scrape_full'] = True
+		with col6:
+			if st.button("Rebuild League Index", help="Re-scan cache JSONs and rebuild the league index for this league"):
+				if not league_id:
+					st.error("Please enter a Fantrax League ID before rebuilding the index.")
+				else:
+					try:
+						index = build_league_cache_index(league_id)
+						count = len(index.get("players", {})) if isinstance(index, dict) else None
+						if count is not None:
+							st.success(f"Rebuilt league cache index for league {league_id} ({count} players).")
+						else:
+							st.success(f"Rebuilt league cache index for league {league_id}.")
+					except Exception as e:
+						st.error(f"Error rebuilding league cache index: {e}")
 
 		# Scrape button
 		if st.button("Get Player Game Log", type="primary"):
