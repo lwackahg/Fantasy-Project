@@ -1,10 +1,22 @@
 {
   "league_id": "ifa1anexmdgtlk9s",
-  "generated_at": "2025-12-06T15:19:23.917171",
+  "generated_at": "2025-12-06T15:50:34.460361",
   "players": {
     "0011e": {
       "player_name": "LeBron James",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 45,
+          "cache_file": "player_game_log_full_0011e_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:41:36.027417"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 56,
+          "cache_file": "player_game_log_full_0011e_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:41:31.455683"
+        },
         "2022-23": {
           "status": "success",
           "games": 55,
@@ -34,6 +46,18 @@
     "001aw": {
       "player_name": "Kevin Durant",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 35,
+          "cache_file": "player_game_log_full_001aw_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:27:25.725394"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 55,
+          "cache_file": "player_game_log_full_001aw_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:27:21.427618"
+        },
         "2022-23": {
           "status": "success",
           "games": 47,
@@ -63,6 +87,18 @@
     "005kc": {
       "player_name": "Russell Westbrook",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 65,
+          "cache_file": "player_game_log_full_005kc_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:44:59.115048"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 78,
+          "cache_file": "player_game_log_full_005kc_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:44:54.628744"
+        },
         "2022-23": {
           "status": "success",
           "games": 73,
@@ -92,6 +128,18 @@
     "01enh": {
       "player_name": "Stephen Curry",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 63,
+          "cache_file": "player_game_log_full_01enh_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:27:14.136277"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 64,
+          "cache_file": "player_game_log_full_01enh_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:27:09.229970"
+        },
         "2022-23": {
           "status": "success",
           "games": 56,
@@ -121,6 +169,18 @@
     "01eo6": {
       "player_name": "James Harden",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 44,
+          "cache_file": "player_game_log_full_01eo6_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:43:38.361591"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 65,
+          "cache_file": "player_game_log_full_01eo6_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:43:34.053796"
+        },
         "2022-23": {
           "status": "success",
           "games": 58,
@@ -150,6 +210,18 @@
     "01eo9": {
       "player_name": "Jrue Holiday",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 59,
+          "cache_file": "player_game_log_full_01eo9_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:34:15.101192"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 67,
+          "cache_file": "player_game_log_full_01eo9_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:34:10.566432"
+        },
         "2022-23": {
           "status": "success",
           "games": 67,
@@ -179,6 +251,18 @@
     "01eon": {
       "player_name": "DeMar DeRozan",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 61,
+          "cache_file": "player_game_log_full_01eon_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:50:09.203574"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 76,
+          "cache_file": "player_game_log_full_01eon_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:50:04.536605"
+        },
         "2022-23": {
           "status": "success",
           "games": 74,
@@ -208,6 +292,18 @@
     "01uyj": {
       "player_name": "Paul George",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 54,
+          "cache_file": "player_game_log_full_01uyj_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:40:45.747443"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 31,
+          "cache_file": "player_game_log_full_01uyj_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:40:41.411242"
+        },
         "2022-23": {
           "status": "success",
           "games": 56,
@@ -237,6 +333,18 @@
     "027oj": {
       "player_name": "Kyrie Irving",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 54,
+          "cache_file": "player_game_log_full_027oj_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:42:42.934016"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 29,
+          "cache_file": "player_game_log_full_027oj_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:42:37.753651"
+        },
         "2022-23": {
           "status": "success",
           "games": 60,
@@ -266,6 +374,18 @@
     "027oz": {
       "player_name": "Kawhi Leonard",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 52,
+          "cache_file": "player_game_log_full_027oz_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:32:22.329770"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_027oz_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:32:18.001432"
+        },
         "2022-23": {
           "status": "success",
           "games": 52,
@@ -295,6 +415,18 @@
     "027p0": {
       "player_name": "Nikola Vucevic",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 70,
+          "cache_file": "player_game_log_full_027p0_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:25:41.185438"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 73,
+          "cache_file": "player_game_log_full_027p0_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:25:36.651278"
+        },
         "2022-23": {
           "status": "success",
           "games": 82,
@@ -324,6 +456,18 @@
     "027p4": {
       "player_name": "Tobias Harris",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 62,
+          "cache_file": "player_game_log_full_027p4_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:38:48.613627"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 73,
+          "cache_file": "player_game_log_full_027p4_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:38:44.101173"
+        },
         "2022-23": {
           "status": "success",
           "games": 74,
@@ -353,6 +497,18 @@
     "027pe": {
       "player_name": "Jimmy Butler",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 52,
+          "cache_file": "player_game_log_full_027pe_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:49:48.484007"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 57,
+          "cache_file": "player_game_log_full_027pe_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:49:43.907068"
+        },
         "2022-23": {
           "status": "success",
           "games": 64,
@@ -382,6 +538,18 @@
     "02nf1": {
       "player_name": "Anthony Davis",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 36,
+          "cache_file": "player_game_log_full_02nf1_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:48:21.149471"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 40,
+          "cache_file": "player_game_log_full_02nf1_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:48:15.943866"
+        },
         "2022-23": {
           "status": "success",
           "games": 56,
@@ -411,6 +579,18 @@
     "02nf7": {
       "player_name": "Harrison Barnes",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 58,
+          "cache_file": "player_game_log_full_02nf7_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:31:48.043956"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 77,
+          "cache_file": "player_game_log_full_02nf7_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:31:43.140048"
+        },
         "2022-23": {
           "status": "success",
           "games": 82,
@@ -440,6 +620,18 @@
     "02nf9": {
       "player_name": "Andre Drummond",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 46,
+          "cache_file": "player_game_log_full_02nf9_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:47:39.415306"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 73,
+          "cache_file": "player_game_log_full_02nf9_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:47:33.850315"
+        },
         "2022-23": {
           "status": "success",
           "games": 67,
@@ -469,6 +661,18 @@
     "02nfz": {
       "player_name": "Draymond Green",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 63,
+          "cache_file": "player_game_log_full_02nfz_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:34:04.398976"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 46,
+          "cache_file": "player_game_log_full_02nfz_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:33:59.483160"
+        },
         "2022-23": {
           "status": "success",
           "games": 73,
@@ -498,6 +702,18 @@
     "02xg9": {
       "player_name": "Rudy Gobert",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 71,
+          "cache_file": "player_game_log_full_02xg9_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:26:37.120394"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 66,
+          "cache_file": "player_game_log_full_02xg9_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:26:32.596103"
+        },
         "2022-23": {
           "status": "success",
           "games": 70,
@@ -527,6 +743,18 @@
     "02ym0": {
       "player_name": "Andrew Wiggins",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 71,
+          "cache_file": "player_game_log_full_02ym0_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:29:23.450232"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 73,
+          "cache_file": "player_game_log_full_02ym0_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:29:18.944636"
+        },
         "2022-23": {
           "status": "success",
           "games": 37,
@@ -556,6 +784,18 @@
     "031lx": {
       "player_name": "CJ McCollum",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 47,
+          "cache_file": "player_game_log_full_031lx_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:47:03.687840"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 62,
+          "cache_file": "player_game_log_full_031lx_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:46:58.582225"
+        },
         "2022-23": {
           "status": "success",
           "games": 75,
@@ -585,6 +825,18 @@
     "031m2": {
       "player_name": "Giannis Antetokounmpo",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 61,
+          "cache_file": "player_game_log_full_031m2_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:44:15.995887"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 67,
+          "cache_file": "player_game_log_full_031m2_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:44:11.458935"
+        },
         "2022-23": {
           "status": "success",
           "games": 63,
@@ -614,6 +866,18 @@
     "03ad2": {
       "player_name": "Myles Turner",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 47,
+          "cache_file": "player_game_log_full_03ad2_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:26:52.678350"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 42,
+          "cache_file": "player_game_log_full_03ad2_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:26:48.227705"
+        },
         "2022-23": {
           "status": "success",
           "games": 62,
@@ -643,6 +907,18 @@
     "03ad3": {
       "player_name": "Karl-Anthony Towns",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 50,
+          "cache_file": "player_game_log_full_03ad3_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:22:45.448444"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 74,
+          "cache_file": "player_game_log_full_03ad3_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:22:41.084358"
+        },
         "2022-23": {
           "status": "success",
           "games": 29,
@@ -672,6 +948,18 @@
     "03ajv": {
       "player_name": "Julius Randle",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 71,
+          "cache_file": "player_game_log_full_03ajv_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:23:20.184657"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 72,
+          "cache_file": "player_game_log_full_03ajv_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:23:15.740217"
+        },
         "2022-23": {
           "status": "success",
           "games": 77,
@@ -701,6 +989,18 @@
     "03al0": {
       "player_name": "Aaron Gordon",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 50,
+          "cache_file": "player_game_log_full_03al0_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:37:44.699553"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 75,
+          "cache_file": "player_game_log_full_03al0_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:37:39.905950"
+        },
         "2022-23": {
           "status": "success",
           "games": 68,
@@ -730,6 +1030,18 @@
     "03al1": {
       "player_name": "Marcus Smart",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 48,
+          "cache_file": "player_game_log_full_03al1_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:39:42.020691"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 71,
+          "cache_file": "player_game_log_full_03al1_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:39:37.343707"
+        },
         "2022-23": {
           "status": "success",
           "games": 61,
@@ -759,6 +1071,18 @@
     "03al2": {
       "player_name": "Joel Embiid",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 51,
+          "cache_file": "player_game_log_full_03al2_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:40:20.138504"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 68,
+          "cache_file": "player_game_log_full_03al2_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:40:15.613846"
+        },
         "2022-23": {
           "status": "success",
           "games": 66,
@@ -788,6 +1112,18 @@
     "03ams": {
       "player_name": "Zach LaVine",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 58,
+          "cache_file": "player_game_log_full_03ams_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:32:09.131191"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 67,
+          "cache_file": "player_game_log_full_03ams_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:32:04.334523"
+        },
         "2022-23": {
           "status": "success",
           "games": 77,
@@ -817,6 +1153,18 @@
     "03aq2": {
       "player_name": "Jerami Grant",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 54,
+          "cache_file": "player_game_log_full_03aq2_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:46:03.873953"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 47,
+          "cache_file": "player_game_log_full_03aq2_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:45:59.350230"
+        },
         "2022-23": {
           "status": "success",
           "games": 63,
@@ -846,6 +1194,18 @@
     "03e6n": {
       "player_name": "Jusuf Nurkic",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 37,
+          "cache_file": "player_game_log_full_03e6n_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:30:35.225286"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 56,
+          "cache_file": "player_game_log_full_03e6n_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:30:30.529642"
+        },
         "2022-23": {
           "status": "success",
           "games": 52,
@@ -875,6 +1235,18 @@
     "03e75": {
       "player_name": "Nikola Jokic",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 72,
+          "cache_file": "player_game_log_full_03e75_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:21:31.578312"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 74,
+          "cache_file": "player_game_log_full_03e75_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:21:26.267845"
+        },
         "2022-23": {
           "status": "success",
           "games": 69,
@@ -904,6 +1276,18 @@
     "03el5": {
       "player_name": "Kristaps Porzingis",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 43,
+          "cache_file": "player_game_log_full_03el5_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:35:32.572973"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 51,
+          "cache_file": "player_game_log_full_03el5_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:35:28.074319"
+        },
         "2022-23": {
           "status": "success",
           "games": 65,
@@ -933,6 +1317,18 @@
     "03lls": {
       "player_name": "Jaylen Brown",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 58,
+          "cache_file": "player_game_log_full_03lls_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:23:31.829320"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 66,
+          "cache_file": "player_game_log_full_03lls_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:23:27.435921"
+        },
         "2022-23": {
           "status": "success",
           "games": 67,
@@ -962,6 +1358,18 @@
     "03nwk": {
       "player_name": "Kelly Oubre Jr.",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 55,
+          "cache_file": "player_game_log_full_03nwk_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:38:31.935034"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 76,
+          "cache_file": "player_game_log_full_03nwk_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:38:26.961426"
+        },
         "2022-23": {
           "status": "success",
           "games": 48,
@@ -991,6 +1399,18 @@
     "03nwm": {
       "player_name": "Devin Booker",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 67,
+          "cache_file": "player_game_log_full_03nwm_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:44:35.090069"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 68,
+          "cache_file": "player_game_log_full_03nwm_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:44:30.350327"
+        },
         "2022-23": {
           "status": "success",
           "games": 53,
@@ -1020,6 +1440,18 @@
     "03nwn": {
       "player_name": "Bobby Portis",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 66,
+          "cache_file": "player_game_log_full_03nwn_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:34:44.766760"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 72,
+          "cache_file": "player_game_log_full_03nwn_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:34:40.308740"
+        },
         "2022-23": {
           "status": "success",
           "games": 70,
@@ -1049,6 +1481,18 @@
     "03r7z": {
       "player_name": "Norman Powell",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 69,
+          "cache_file": "player_game_log_full_03r7z_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:27:42.881778"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 45,
+          "cache_file": "player_game_log_full_03r7z_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:27:38.292029"
+        },
         "2022-23": {
           "status": "success",
           "games": 60,
@@ -1078,6 +1522,18 @@
     "03wr4": {
       "player_name": "T.J. McConnell",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 69,
+          "cache_file": "player_game_log_full_03wr4_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:39:31.532944"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 27,
+          "cache_file": "player_game_log_full_03wr4_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:39:25.981677"
+        },
         "2022-23": {
           "status": "success",
           "games": 75,
@@ -1107,6 +1563,18 @@
     "03xmv": {
       "player_name": "Jayson Tatum",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 64,
+          "cache_file": "player_game_log_full_03xmv_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:42:59.981040"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 76,
+          "cache_file": "player_game_log_full_03xmv_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:42:55.503561"
+        },
         "2022-23": {
           "status": "success",
           "games": 74,
@@ -1136,6 +1604,18 @@
     "042n1": {
       "player_name": "Brandon Ingram",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 61,
+          "cache_file": "player_game_log_full_042n1_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:25:59.051415"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 55,
+          "cache_file": "player_game_log_full_042n1_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:25:54.052811"
+        },
         "2022-23": {
           "status": "success",
           "games": 45,
@@ -1165,6 +1645,18 @@
     "042n4": {
       "player_name": "Jamal Murray",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 48,
+          "cache_file": "player_game_log_full_042n4_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:43:56.699424"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_042n4_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:43:51.266107"
+        },
         "2022-23": {
           "status": "success",
           "games": 65,
@@ -1194,6 +1686,18 @@
     "042n6": {
       "player_name": "Jakob Poeltl",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 69,
+          "cache_file": "player_game_log_full_042n6_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:34:54.940636"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 68,
+          "cache_file": "player_game_log_full_042n6_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:34:50.369650"
+        },
         "2022-23": {
           "status": "success",
           "games": 72,
@@ -1223,6 +1727,18 @@
     "042n7": {
       "player_name": "Domantas Sabonis",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 62,
+          "cache_file": "player_game_log_full_042n7_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:36:51.098935"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 62,
+          "cache_file": "player_game_log_full_042n7_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:36:45.710133"
+        },
         "2022-23": {
           "status": "success",
           "games": 79,
@@ -1252,6 +1768,18 @@
     "042nm": {
       "player_name": "Pascal Siakam",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 56,
+          "cache_file": "player_game_log_full_042nm_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:23:53.352733"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 68,
+          "cache_file": "player_game_log_full_042nm_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:23:48.987951"
+        },
         "2022-23": {
           "status": "success",
           "games": 71,
@@ -1281,6 +1809,18 @@
     "042nq": {
       "player_name": "Dejounte Murray",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 67,
+          "cache_file": "player_game_log_full_042nq_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:48:53.183924"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 68,
+          "cache_file": "player_game_log_full_042nq_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:48:48.124045"
+        },
         "2022-23": {
           "status": "success",
           "games": 74,
@@ -1310,6 +1850,18 @@
     "042nt": {
       "player_name": "Ivica Zubac",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 72,
+          "cache_file": "player_game_log_full_042nt_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:24:14.770757"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 76,
+          "cache_file": "player_game_log_full_042nt_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:24:09.335879"
+        },
         "2022-23": {
           "status": "success",
           "games": 76,
@@ -1339,6 +1891,18 @@
     "0496e": {
       "player_name": "Alex Caruso",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 58,
+          "cache_file": "player_game_log_full_0496e_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:39:58.711348"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 41,
+          "cache_file": "player_game_log_full_0496e_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:39:53.972550"
+        },
         "2022-23": {
           "status": "success",
           "games": 67,
@@ -1368,6 +1932,18 @@
     "049kb": {
       "player_name": "DeAaron Fox",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 58,
+          "cache_file": "player_game_log_full_049kb_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:47:20.921957"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 59,
+          "cache_file": "player_game_log_full_049kb_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:47:16.262090"
+        },
         "2022-23": {
           "status": "success",
           "games": 73,
@@ -1397,6 +1973,18 @@
     "049kc": {
       "player_name": "Malik Monk",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 42,
+          "cache_file": "player_game_log_full_049kc_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:37:16.594918"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 76,
+          "cache_file": "player_game_log_full_049kc_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:37:12.243782"
+        },
         "2022-23": {
           "status": "success",
           "games": 77,
@@ -1426,6 +2014,18 @@
     "049kd": {
       "player_name": "Deandre Ayton",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 69,
+          "cache_file": "player_game_log_full_049kd_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:29:02.462528"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 58,
+          "cache_file": "player_game_log_full_049kd_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:28:57.136004"
+        },
         "2022-23": {
           "status": "success",
           "games": 67,
@@ -1455,6 +2055,18 @@
     "049ki": {
       "player_name": "Marvin Bagley",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 43,
+          "cache_file": "player_game_log_full_049ki_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:38:59.859273"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 48,
+          "cache_file": "player_game_log_full_049ki_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:38:54.757762"
+        },
         "2022-23": {
           "status": "success",
           "games": 42,
@@ -1484,6 +2096,18 @@
     "04azw": {
       "player_name": "Lauri Markkanen",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 51,
+          "cache_file": "player_game_log_full_04azw_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:23:42.053604"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 61,
+          "cache_file": "player_game_log_full_04azw_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:23:37.443146"
+        },
         "2022-23": {
           "status": "success",
           "games": 66,
@@ -1513,6 +2137,18 @@
     "04ewe": {
       "player_name": "Donovan Mitchell",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 53,
+          "cache_file": "player_game_log_full_04ewe_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:22:03.225864"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 67,
+          "cache_file": "player_game_log_full_04ewe_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:21:58.935593"
+        },
         "2022-23": {
           "status": "success",
           "games": 68,
@@ -1542,6 +2178,18 @@
     "04ewf": {
       "player_name": "Bam Adebayo",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 64,
+          "cache_file": "player_game_log_full_04ewf_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:28:14.342099"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 56,
+          "cache_file": "player_game_log_full_04ewf_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:28:09.958337"
+        },
         "2022-23": {
           "status": "success",
           "games": 75,
@@ -1571,6 +2219,18 @@
     "04ewk": {
       "player_name": "John Collins",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 63,
+          "cache_file": "player_game_log_full_04ewk_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:35:06.399119"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 54,
+          "cache_file": "player_game_log_full_04ewk_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:35:01.582736"
+        },
         "2022-23": {
           "status": "success",
           "games": 71,
@@ -1600,6 +2260,18 @@
     "04ewm": {
       "player_name": "Jarrett Allen",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 63,
+          "cache_file": "player_game_log_full_04ewm_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:36:29.878605"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 56,
+          "cache_file": "player_game_log_full_04ewm_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:36:24.672286"
+        },
         "2022-23": {
           "status": "success",
           "games": 68,
@@ -1629,6 +2301,18 @@
     "04ewn": {
       "player_name": "OG Anunoby",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 43,
+          "cache_file": "player_game_log_full_04ewn_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:37:55.310164"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 48,
+          "cache_file": "player_game_log_full_04ewn_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:37:50.535431"
+        },
         "2022-23": {
           "status": "success",
           "games": 67,
@@ -1658,6 +2342,18 @@
     "04ewt": {
       "player_name": "Derrick White",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 36,
+          "cache_file": "player_game_log_full_04ewt_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:24:54.303383"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 75,
+          "cache_file": "player_game_log_full_04ewt_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:24:50.053588"
+        },
         "2022-23": {
           "status": "success",
           "games": 82,
@@ -1687,6 +2383,18 @@
     "04ewu": {
       "player_name": "Josh Hart",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 47,
+          "cache_file": "player_game_log_full_04ewu_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:27:03.475268"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 54,
+          "cache_file": "player_game_log_full_04ewu_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:26:59.065952"
+        },
         "2022-23": {
           "status": "success",
           "games": 76,
@@ -1716,6 +2424,18 @@
     "04ex6": {
       "player_name": "Isaiah Hartenstein",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 46,
+          "cache_file": "player_game_log_full_04ex6_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:45:27.570680"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 68,
+          "cache_file": "player_game_log_full_04ex6_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:45:22.991778"
+        },
         "2022-23": {
           "status": "success",
           "games": 82,
@@ -1745,6 +2465,18 @@
     "04ex8": {
       "player_name": "Dillon Brooks",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 67,
+          "cache_file": "player_game_log_full_04ex8_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:34:26.833056"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 32,
+          "cache_file": "player_game_log_full_04ex8_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:34:20.974077"
+        },
         "2022-23": {
           "status": "success",
           "games": 73,
@@ -1774,6 +2506,18 @@
     "04jwd": {
       "player_name": "Royce ONeale",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 71,
+          "cache_file": "player_game_log_full_04jwd_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:29:13.243306"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 77,
+          "cache_file": "player_game_log_full_04jwd_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:29:08.203792"
+        },
         "2022-23": {
           "status": "success",
           "games": 76,
@@ -1803,6 +2547,18 @@
     "04kj6": {
       "player_name": "Luka Doncic",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 66,
+          "cache_file": "player_game_log_full_04kj6_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:22:34.543679"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 65,
+          "cache_file": "player_game_log_full_04kj6_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:22:28.844769"
+        },
         "2022-23": {
           "status": "success",
           "games": 66,
@@ -1832,6 +2588,18 @@
     "04qrj": {
       "player_name": "Jaren Jackson",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 11,
+          "cache_file": "player_game_log_full_04qrj_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:50:31.060194"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 78,
+          "cache_file": "player_game_log_full_04qrj_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:50:26.208605"
+        },
         "2022-23": {
           "status": "success",
           "games": 63,
@@ -1861,6 +2629,18 @@
     "04qrk": {
       "player_name": "Trae Young",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 63,
+          "cache_file": "player_game_log_full_04qrk_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:42:00.200388"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 76,
+          "cache_file": "player_game_log_full_04qrk_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:41:55.624017"
+        },
         "2022-23": {
           "status": "success",
           "games": 73,
@@ -1890,6 +2670,18 @@
     "04qrl": {
       "player_name": "Wendell Carter",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 54,
+          "cache_file": "player_game_log_full_04qrl_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:30:11.390284"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 62,
+          "cache_file": "player_game_log_full_04qrl_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:30:06.672858"
+        },
         "2022-23": {
           "status": "success",
           "games": 57,
@@ -1919,6 +2711,18 @@
     "04qrm": {
       "player_name": "Collin Sexton",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 60,
+          "cache_file": "player_game_log_full_04qrm_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:33:04.568070"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 11,
+          "cache_file": "player_game_log_full_04qrm_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:33:00.063889"
+        },
         "2022-23": {
           "status": "success",
           "games": 48,
@@ -1948,6 +2752,18 @@
     "04qrn": {
       "player_name": "Mikal Bridges",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 72,
+          "cache_file": "player_game_log_full_04qrn_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:49:29.618065"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 82,
+          "cache_file": "player_game_log_full_04qrn_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:49:24.815663"
+        },
         "2022-23": {
           "status": "success",
           "games": 83,
@@ -1977,6 +2793,18 @@
     "04qro": {
       "player_name": "Shai Gilgeous-Alexander",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 35,
+          "cache_file": "player_game_log_full_04qro_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:21:41.617625"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 56,
+          "cache_file": "player_game_log_full_04qro_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:21:37.398336"
+        },
         "2022-23": {
           "status": "success",
           "games": 68,
@@ -2006,6 +2834,18 @@
     "04qrp": {
       "player_name": "Miles Bridges",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 66,
+          "cache_file": "player_game_log_full_04qrp_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:25:31.001474"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 80,
+          "cache_file": "player_game_log_full_04qrp_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:25:26.490074"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -2035,6 +2875,18 @@
     "04qrr": {
       "player_name": "Michael Porter",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 61,
+          "cache_file": "player_game_log_full_04qrr_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:49:58.559055"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 9,
+          "cache_file": "player_game_log_full_04qrr_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:49:54.031626"
+        },
         "2022-23": {
           "status": "success",
           "games": 62,
@@ -2064,6 +2916,18 @@
     "04qru": {
       "player_name": "Donte DiVincenzo",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 66,
+          "cache_file": "player_game_log_full_04qru_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:27:54.310091"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 42,
+          "cache_file": "player_game_log_full_04qru_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:27:49.359133"
+        },
         "2022-23": {
           "status": "success",
           "games": 72,
@@ -2093,6 +2957,18 @@
     "04qrw": {
       "player_name": "Kevin Huerter",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 69,
+          "cache_file": "player_game_log_full_04qrw_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:37:33.759165"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 74,
+          "cache_file": "player_game_log_full_04qrw_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:37:29.086219"
+        },
         "2022-23": {
           "status": "success",
           "games": 75,
@@ -2122,6 +2998,18 @@
     "04qry": {
       "player_name": "Grayson Allen",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 50,
+          "cache_file": "player_game_log_full_04qry_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:33:45.256197"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 66,
+          "cache_file": "player_game_log_full_04qry_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:33:40.772731"
+        },
         "2022-23": {
           "status": "success",
           "games": 72,
@@ -2151,6 +3039,18 @@
     "04qsa": {
       "player_name": "Jalen Brunson",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 68,
+          "cache_file": "player_game_log_full_04qsa_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:24:37.815451"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 79,
+          "cache_file": "player_game_log_full_04qsa_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:24:33.286269"
+        },
         "2022-23": {
           "status": "success",
           "games": 68,
@@ -2180,6 +3080,18 @@
     "04qse": {
       "player_name": "Gary Trent",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 58,
+          "cache_file": "player_game_log_full_04qse_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:48:04.984733"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 70,
+          "cache_file": "player_game_log_full_04qse_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:48:00.469259"
+        },
         "2022-23": {
           "status": "success",
           "games": 66,
@@ -2209,6 +3121,18 @@
     "051oh": {
       "player_name": "Zion Williamson",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 61,
+          "cache_file": "player_game_log_full_051oh_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:38:37.318018"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_051oh_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:48:24.339284"
+        },
         "2022-23": {
           "status": "success",
           "games": 29,
@@ -2238,6 +3162,18 @@
     "051oi": {
       "player_name": "Ja Morant",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 63,
+          "cache_file": "player_game_log_full_051oi_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:39:11.346555"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 57,
+          "cache_file": "player_game_log_full_051oi_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:39:05.687074"
+        },
         "2022-23": {
           "status": "success",
           "games": 61,
@@ -2267,6 +3203,18 @@
     "051oj": {
       "player_name": "RJ Barrett",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 72,
+          "cache_file": "player_game_log_full_051oj_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:32:33.452797"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 70,
+          "cache_file": "player_game_log_full_051oj_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:32:28.628612"
+        },
         "2022-23": {
           "status": "success",
           "games": 73,
@@ -2296,6 +3244,18 @@
     "051ok": {
       "player_name": "DeAndre Hunter",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 23,
+          "cache_file": "player_game_log_full_051ok_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:33:15.449197"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 53,
+          "cache_file": "player_game_log_full_051ok_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:33:10.340570"
+        },
         "2022-23": {
           "status": "success",
           "games": 67,
@@ -2325,6 +3285,18 @@
     "051ol": {
       "player_name": "Darius Garland",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 54,
+          "cache_file": "player_game_log_full_051ol_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:41:17.507577"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 68,
+          "cache_file": "player_game_log_full_051ol_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:41:13.131071"
+        },
         "2022-23": {
           "status": "success",
           "games": 69,
@@ -2354,6 +3326,18 @@
     "051on": {
       "player_name": "Coby White",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 69,
+          "cache_file": "player_game_log_full_051on_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:40:30.539617"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 61,
+          "cache_file": "player_game_log_full_051on_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:40:26.051478"
+        },
         "2022-23": {
           "status": "success",
           "games": 74,
@@ -2383,6 +3367,18 @@
     "051op": {
       "player_name": "Rui Hachimura",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 57,
+          "cache_file": "player_game_log_full_051op_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:35:56.836617"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 42,
+          "cache_file": "player_game_log_full_051op_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:35:52.264952"
+        },
         "2022-23": {
           "status": "success",
           "games": 63,
@@ -2412,6 +3408,18 @@
     "051or": {
       "player_name": "Cameron Johnson",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 60,
+          "cache_file": "player_game_log_full_051or_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:36:18.499588"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 66,
+          "cache_file": "player_game_log_full_051or_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:36:14.021819"
+        },
         "2022-23": {
           "status": "success",
           "games": 42,
@@ -2441,6 +3449,18 @@
     "051os": {
       "player_name": "P.J. Washington",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 64,
+          "cache_file": "player_game_log_full_051os_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:31:18.965006"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 65,
+          "cache_file": "player_game_log_full_051os_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:31:14.427555"
+        },
         "2022-23": {
           "status": "success",
           "games": 73,
@@ -2470,6 +3490,18 @@
     "051ot": {
       "player_name": "Tyler Herro",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 54,
+          "cache_file": "player_game_log_full_051ot_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:41:06.811649"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 66,
+          "cache_file": "player_game_log_full_051ot_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:41:02.315111"
+        },
         "2022-23": {
           "status": "success",
           "games": 67,
@@ -2499,6 +3531,18 @@
     "051ox": {
       "player_name": "Nickeil Alexander-Walker",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 46,
+          "cache_file": "player_game_log_full_051ox_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:45:10.550241"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 65,
+          "cache_file": "player_game_log_full_051ox_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:45:05.944108"
+        },
         "2022-23": {
           "status": "success",
           "games": 59,
@@ -2528,6 +3572,18 @@
     "051p8": {
       "player_name": "Jordan Poole",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 51,
+          "cache_file": "player_game_log_full_051p8_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:41:48.709109"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 76,
+          "cache_file": "player_game_log_full_051p8_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:41:43.534503"
+        },
         "2022-23": {
           "status": "success",
           "games": 82,
@@ -2557,6 +3613,18 @@
     "051p9": {
       "player_name": "Keldon Johnson",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 69,
+          "cache_file": "player_game_log_full_051p9_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:30:57.021869"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 75,
+          "cache_file": "player_game_log_full_051p9_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:30:52.627341"
+        },
         "2022-23": {
           "status": "success",
           "games": 63,
@@ -2586,6 +3654,18 @@
     "051pa": {
       "player_name": "Kevin Porter",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 26,
+          "cache_file": "player_game_log_full_051pa_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:40:56.373965"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 61,
+          "cache_file": "player_game_log_full_051pa_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:40:51.517545"
+        },
         "2022-23": {
           "status": "success",
           "games": 59,
@@ -2615,6 +3695,18 @@
     "051pb": {
       "player_name": "Nicolas Claxton",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 32,
+          "cache_file": "player_game_log_full_051pb_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:26:16.254616"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 47,
+          "cache_file": "player_game_log_full_051pb_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:45:16.255437"
+        },
         "2022-23": {
           "status": "success",
           "games": 76,
@@ -2644,6 +3736,18 @@
     "051pi": {
       "player_name": "Daniel Gafford",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 54,
+          "cache_file": "player_game_log_full_051pi_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:38:14.510340"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 72,
+          "cache_file": "player_game_log_full_051pi_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:38:10.012836"
+        },
         "2022-23": {
           "status": "success",
           "games": 78,
@@ -2673,6 +3777,18 @@
     "0527h": {
       "player_name": "Naz Reid",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 70,
+          "cache_file": "player_game_log_full_0527h_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:28:51.636981"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 77,
+          "cache_file": "player_game_log_full_0527h_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:28:47.157435"
+        },
         "2022-23": {
           "status": "success",
           "games": 68,
@@ -2702,6 +3818,18 @@
     "05qsq": {
       "player_name": "Tyrese Maxey",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 61,
+          "cache_file": "player_game_log_full_05qsq_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:21:52.385196"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 75,
+          "cache_file": "player_game_log_full_05qsq_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:21:47.534752"
+        },
         "2022-23": {
           "status": "success",
           "games": 60,
@@ -2731,6 +3859,18 @@
     "05qt0": {
       "player_name": "Saddiq Bey",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 70,
+          "cache_file": "player_game_log_full_05qt0_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:46:39.672947"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 82,
+          "cache_file": "player_game_log_full_05qt0_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:46:33.964853"
+        },
         "2022-23": {
           "status": "success",
           "games": 77,
@@ -2760,6 +3900,18 @@
     "05qt1": {
       "player_name": "Payton Pritchard",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 66,
+          "cache_file": "player_game_log_full_05qt1_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:26:10.019348"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 71,
+          "cache_file": "player_game_log_full_05qt1_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:26:05.008459"
+        },
         "2022-23": {
           "status": "success",
           "games": 48,
@@ -2789,6 +3941,18 @@
     "05qt3": {
       "player_name": "Desmond Bane",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 68,
+          "cache_file": "player_game_log_full_05qt3_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:45:46.553789"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 76,
+          "cache_file": "player_game_log_full_05qt3_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:45:41.853645"
+        },
         "2022-23": {
           "status": "success",
           "games": 58,
@@ -2818,6 +3982,18 @@
     "05qtb": {
       "player_name": "Sam Merrill",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 30,
+          "cache_file": "player_game_log_full_05qtb_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:48:35.519316"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 6,
+          "cache_file": "player_game_log_full_05qtb_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:48:30.643297"
+        },
         "2022-23": {
           "status": "success",
           "games": 5,
@@ -2847,6 +4023,18 @@
     "05qtj": {
       "player_name": "Deni Avdija",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 54,
+          "cache_file": "player_game_log_full_05qtj_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:22:23.029378"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 82,
+          "cache_file": "player_game_log_full_05qtj_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:22:17.576061"
+        },
         "2022-23": {
           "status": "success",
           "games": 76,
@@ -2876,6 +4064,18 @@
     "05qto": {
       "player_name": "LaMelo Ball",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 51,
+          "cache_file": "player_game_log_full_05qto_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:46:27.498366"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 75,
+          "cache_file": "player_game_log_full_05qto_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:46:23.002717"
+        },
         "2022-23": {
           "status": "success",
           "games": 36,
@@ -2905,6 +4105,18 @@
     "05qtq": {
       "player_name": "Tre Jones",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 37,
+          "cache_file": "player_game_log_full_05qtq_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:33:37.152520"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 69,
+          "cache_file": "player_game_log_full_05qtq_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:33:31.901098"
+        },
         "2022-23": {
           "status": "success",
           "games": 68,
@@ -2934,6 +4146,18 @@
     "05qtr": {
       "player_name": "Devin Vassell",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 62,
+          "cache_file": "player_game_log_full_05qtr_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:29:43.053477"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 71,
+          "cache_file": "player_game_log_full_05qtr_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:29:37.885593"
+        },
         "2022-23": {
           "status": "success",
           "games": 38,
@@ -2963,6 +4187,18 @@
     "05qtt": {
       "player_name": "Onyeka Okongwu",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 50,
+          "cache_file": "player_game_log_full_05qtt_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:25:20.765932"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 48,
+          "cache_file": "player_game_log_full_05qtt_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:25:16.408629"
+        },
         "2022-23": {
           "status": "success",
           "games": 80,
@@ -2992,6 +4228,18 @@
     "05qu0": {
       "player_name": "Jaden McDaniels",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 63,
+          "cache_file": "player_game_log_full_05qu0_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:28:41.337676"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 70,
+          "cache_file": "player_game_log_full_05qu0_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:28:36.775328"
+        },
         "2022-23": {
           "status": "success",
           "games": 79,
@@ -3021,6 +4269,18 @@
     "05qu9": {
       "player_name": "Immanuel Quickley",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 64,
+          "cache_file": "player_game_log_full_05qu9_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:24:25.191897"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 78,
+          "cache_file": "player_game_log_full_05qu9_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:24:20.755981"
+        },
         "2022-23": {
           "status": "success",
           "games": 81,
@@ -3050,6 +4310,18 @@
     "05qub": {
       "player_name": "Isaiah Stewart",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 68,
+          "cache_file": "player_game_log_full_05qub_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:36:08.093067"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 71,
+          "cache_file": "player_game_log_full_05qub_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:36:03.108050"
+        },
         "2022-23": {
           "status": "success",
           "games": 50,
@@ -3079,6 +4351,18 @@
     "05qug": {
       "player_name": "Anthony Edwards",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 72,
+          "cache_file": "player_game_log_full_05qug_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:25:05.398748"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 72,
+          "cache_file": "player_game_log_full_05qug_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:25:01.001476"
+        },
         "2022-23": {
           "status": "success",
           "games": 79,
@@ -3108,6 +4392,18 @@
     "05qzh": {
       "player_name": "Naji Marshall",
       "seasons": {
+        "2020-21": {
+          "status": "success",
+          "games": 32,
+          "cache_file": "player_game_log_full_05qzh_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:29:59.063951"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 55,
+          "cache_file": "player_game_log_full_05qzh_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:29:54.698418"
+        },
         "2022-23": {
           "status": "success",
           "games": 77,
@@ -3137,6 +4433,18 @@
     "05uib": {
       "player_name": "Cade Cunningham",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uib_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:43:46.363606"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 64,
+          "cache_file": "player_game_log_full_05uib_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:43:44.451282"
+        },
         "2022-23": {
           "status": "success",
           "games": 12,
@@ -3166,6 +4474,18 @@
     "05uic": {
       "player_name": "Jalen Green",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uic_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:42:32.037860"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 67,
+          "cache_file": "player_game_log_full_05uic_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:42:29.095062"
+        },
         "2022-23": {
           "status": "success",
           "games": 76,
@@ -3195,6 +4515,18 @@
     "05uid": {
       "player_name": "Evan Mobley",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uid_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:22:54.128508"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 69,
+          "cache_file": "player_game_log_full_05uid_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:22:52.261284"
+        },
         "2022-23": {
           "status": "success",
           "games": 79,
@@ -3224,6 +4556,18 @@
     "05uie": {
       "player_name": "Scottie Barnes",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uie_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:22:11.819415"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 74,
+          "cache_file": "player_game_log_full_05uie_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:22:10.008198"
+        },
         "2022-23": {
           "status": "success",
           "games": 77,
@@ -3253,6 +4597,18 @@
     "05uif": {
       "player_name": "Jalen Suggs",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uif_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:31:26.497523"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 48,
+          "cache_file": "player_game_log_full_05uif_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:31:24.613780"
+        },
         "2022-23": {
           "status": "success",
           "games": 53,
@@ -3282,6 +4638,18 @@
     "05uig": {
       "player_name": "Josh Giddey",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uig_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:23:01.615961"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 54,
+          "cache_file": "player_game_log_full_05uig_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:22:59.695876"
+        },
         "2022-23": {
           "status": "success",
           "games": 76,
@@ -3311,6 +4679,18 @@
     "05uii": {
       "player_name": "Franz Wagner",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uii_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:24:01.793386"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 79,
+          "cache_file": "player_game_log_full_05uii_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:23:59.750224"
+        },
         "2022-23": {
           "status": "success",
           "games": 80,
@@ -3340,6 +4720,18 @@
     "05uij": {
       "player_name": "Davion Mitchell",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uij_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:45:35.855342"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 75,
+          "cache_file": "player_game_log_full_05uij_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:45:33.872060"
+        },
         "2022-23": {
           "status": "success",
           "games": 80,
@@ -3369,6 +4761,18 @@
     "05uio": {
       "player_name": "Moses Moody",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uio_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:35:39.829615"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 52,
+          "cache_file": "player_game_log_full_05uio_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:35:37.915074"
+        },
         "2022-23": {
           "status": "success",
           "games": 63,
@@ -3398,6 +4802,18 @@
     "05uiq": {
       "player_name": "Alperen Sengun",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uiq_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:44:05.540452"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 72,
+          "cache_file": "player_game_log_full_05uiq_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:44:03.054956"
+        },
         "2022-23": {
           "status": "success",
           "games": 75,
@@ -3427,6 +4843,18 @@
     "05uir": {
       "player_name": "Trey Murphy",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uir_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:49:38.028570"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 62,
+          "cache_file": "player_game_log_full_05uir_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:49:35.442299"
+        },
         "2022-23": {
           "status": "success",
           "games": 79,
@@ -3456,6 +4884,18 @@
     "05uiu": {
       "player_name": "Jalen Johnson",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uiu_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:43:28.126542"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 22,
+          "cache_file": "player_game_log_full_05uiu_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:43:25.594977"
+        },
         "2022-23": {
           "status": "success",
           "games": 70,
@@ -3485,6 +4925,18 @@
     "05uiz": {
       "player_name": "Quentin Grimes",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uiz_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:28:30.909226"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 46,
+          "cache_file": "player_game_log_full_05uiz_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:28:29.011494"
+        },
         "2022-23": {
           "status": "success",
           "games": 71,
@@ -3514,6 +4966,18 @@
     "05uj1": {
       "player_name": "Cameron Thomas",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uj1_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:41:25.625510"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 67,
+          "cache_file": "player_game_log_full_05uj1_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:41:23.491200"
+        },
         "2022-23": {
           "status": "success",
           "games": 57,
@@ -3543,6 +5007,18 @@
     "05uj4": {
       "player_name": "Santi Aldama",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uj4_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:28:22.718019"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 32,
+          "cache_file": "player_game_log_full_05uj4_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:28:20.617651"
+        },
         "2022-23": {
           "status": "success",
           "games": 77,
@@ -3572,6 +5048,18 @@
     "05uj9": {
       "player_name": "Herbert Jones",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uj9_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:39:19.625254"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 78,
+          "cache_file": "player_game_log_full_05uj9_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:39:17.752522"
+        },
         "2022-23": {
           "status": "success",
           "games": 66,
@@ -3601,6 +5089,18 @@
     "05uja": {
       "player_name": "Miles McBride",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uja_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:36:39.372855"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 40,
+          "cache_file": "player_game_log_full_05uja_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:36:36.238084"
+        },
         "2022-23": {
           "status": "success",
           "games": 64,
@@ -3630,6 +5130,18 @@
     "05ujc": {
       "player_name": "Ayo Dosunmu",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05ujc_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:33:53.884425"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 77,
+          "cache_file": "player_game_log_full_05ujc_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:33:52.008581"
+        },
         "2022-23": {
           "status": "success",
           "games": 80,
@@ -3659,6 +5171,18 @@
     "05ujd": {
       "player_name": "Neemias Queta",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05ujd_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:30:19.489019"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 15,
+          "cache_file": "player_game_log_full_05ujd_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:30:17.415001"
+        },
         "2022-23": {
           "status": "success",
           "games": 5,
@@ -3688,6 +5212,18 @@
     "05ujs": {
       "player_name": "Sandro Mamukelashvili",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05ujs_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:34:34.463661"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 41,
+          "cache_file": "player_game_log_full_05ujs_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:34:32.602684"
+        },
         "2022-23": {
           "status": "success",
           "games": 43,
@@ -3717,6 +5253,18 @@
     "05uup": {
       "player_name": "Jay Huff",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uup_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:35:15.070532"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 4,
+          "cache_file": "player_game_log_full_05uup_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:35:13.225333"
+        },
         "2022-23": {
           "status": "success",
           "games": 7,
@@ -3746,6 +5294,18 @@
     "05uus": {
       "player_name": "Austin Reaves",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05uus_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:23:09.101245"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 61,
+          "cache_file": "player_game_log_full_05uus_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:23:07.144008"
+        },
         "2022-23": {
           "status": "success",
           "games": 64,
@@ -3775,6 +5335,18 @@
     "05y9y": {
       "player_name": "Brandon Williams",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_05y9y_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:37:00.181093"
+        },
+        "2021-22": {
+          "status": "success",
+          "games": 24,
+          "cache_file": "player_game_log_full_05y9y_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:36:57.874259"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -3804,6 +5376,18 @@
     "06210": {
       "player_name": "Paolo Banchero",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06210_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:35:21.231632"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06210_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:35:18.318125"
+        },
         "2022-23": {
           "status": "success",
           "games": 72,
@@ -3833,6 +5417,18 @@
     "06211": {
       "player_name": "Chet Holmgren",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06211_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:28:00.996049"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06211_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:27:58.166054"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -3862,6 +5458,18 @@
     "06212": {
       "player_name": "Jabari Smith",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06212_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:32:53.028395"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06212_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:32:49.924320"
+        },
         "2022-23": {
           "status": "success",
           "games": 79,
@@ -3891,6 +5499,18 @@
     "06213": {
       "player_name": "Keegan Murray",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06213_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:40:09.177589"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06213_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:40:07.309122"
+        },
         "2022-23": {
           "status": "success",
           "games": 80,
@@ -3920,6 +5540,18 @@
     "06214": {
       "player_name": "Jaden Ivey",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06214_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:42:23.348718"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06214_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:42:20.632704"
+        },
         "2022-23": {
           "status": "success",
           "games": 74,
@@ -3949,6 +5581,18 @@
     "06215": {
       "player_name": "Bennedict Mathurin",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06215_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:48:10.396612"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06215_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:48:08.266658"
+        },
         "2022-23": {
           "status": "success",
           "games": 78,
@@ -3978,6 +5622,18 @@
     "06216": {
       "player_name": "Shaedon Sharpe",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06216_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:32:43.857484"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06216_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:32:42.034700"
+        },
         "2022-23": {
           "status": "success",
           "games": 80,
@@ -4007,6 +5663,18 @@
     "06217": {
       "player_name": "Dyson Daniels",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06217_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:25:10.770654"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06217_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:25:08.619699"
+        },
         "2022-23": {
           "status": "success",
           "games": 59,
@@ -4036,6 +5704,18 @@
     "0621b": {
       "player_name": "Jalen Williams",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0621b_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:42:06.771445"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0621b_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:42:03.928596"
+        },
         "2022-23": {
           "status": "success",
           "games": 75,
@@ -4065,6 +5745,18 @@
     "0621c": {
       "player_name": "Jalen Duren",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0621c_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:24:44.265870"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0621c_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:24:41.747591"
+        },
         "2022-23": {
           "status": "success",
           "games": 67,
@@ -4094,6 +5786,18 @@
     "0621e": {
       "player_name": "Mark Williams",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0621e_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:46:46.988152"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0621e_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:46:44.015232"
+        },
         "2022-23": {
           "status": "success",
           "games": 43,
@@ -4123,6 +5827,18 @@
     "0621g": {
       "player_name": "Tari Eason",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0621g_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:39:48.117383"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0621g_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:39:46.251449"
+        },
         "2022-23": {
           "status": "success",
           "games": 82,
@@ -4152,6 +5868,18 @@
     "0621t": {
       "player_name": "Peyton Watson",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0621t_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:47:27.231742"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0621t_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:47:25.090248"
+        },
         "2022-23": {
           "status": "success",
           "games": 23,
@@ -4181,6 +5909,18 @@
     "0621u": {
       "player_name": "Andrew Nembhard",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0621u_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:37:06.353807"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0621u_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:37:04.425455"
+        },
         "2022-23": {
           "status": "success",
           "games": 75,
@@ -4210,6 +5950,18 @@
     "0621y": {
       "player_name": "Max Christie",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0621y_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:32:38.852806"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0621y_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:32:36.977461"
+        },
         "2022-23": {
           "status": "success",
           "games": 41,
@@ -4239,6 +5991,18 @@
     "06226": {
       "player_name": "Moussa Diabate",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06226_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:30:24.868636"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06226_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:30:22.617220"
+        },
         "2022-23": {
           "status": "success",
           "games": 22,
@@ -4268,6 +6032,18 @@
     "06227": {
       "player_name": "Ryan Rollins",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06227_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:44:23.145020"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06227_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:44:21.189998"
+        },
         "2022-23": {
           "status": "success",
           "games": 12,
@@ -4297,6 +6073,18 @@
     "0622a": {
       "player_name": "Vince Williams",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0622a_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:47:54.596899"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0622a_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:47:52.590492"
+        },
         "2022-23": {
           "status": "success",
           "games": 15,
@@ -4326,6 +6114,18 @@
     "06234": {
       "player_name": "AJ Green",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06234_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:31:53.349501"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06234_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:31:51.484395"
+        },
         "2022-23": {
           "status": "success",
           "games": 35,
@@ -4355,6 +6155,18 @@
     "0623e": {
       "player_name": "Collin Gillespie",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0623e_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:26:26.972549"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_0623e_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:26:24.660537"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4384,6 +6196,18 @@
     "062dn": {
       "player_name": "Julian Champagnie",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_062dn_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:47:44.217991"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_062dn_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:47:42.390342"
+        },
         "2022-23": {
           "status": "success",
           "games": 17,
@@ -4413,6 +6237,18 @@
     "064tp": {
       "player_name": "Quenton Jackson",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_064tp_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:42:17.309399"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_064tp_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:42:14.841354"
+        },
         "2022-23": {
           "status": "success",
           "games": 9,
@@ -4442,6 +6278,18 @@
     "06ca8": {
       "player_name": "Amen Thompson",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06ca8_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:26:42.738721"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06ca8_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:26:40.201563"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4471,6 +6319,18 @@
     "06cbx": {
       "player_name": "Jaime Jaquez",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cbx_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:46:09.981541"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cbx_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:46:07.366555"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4500,6 +6360,18 @@
     "06cby": {
       "player_name": "Keyonte George",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cby_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:44:40.218430"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cby_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:44:38.396445"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4529,6 +6401,18 @@
     "06cc5": {
       "player_name": "Anthony Black",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cc5_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:31:32.251519"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cc5_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:31:30.408500"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4558,6 +6442,18 @@
     "06cc7": {
       "player_name": "Brandin Podziemski",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cc7_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:30:46.856359"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cc7_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:30:45.022461"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4587,6 +6483,18 @@
     "06cc8": {
       "player_name": "Dereck Lively",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cc8_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:42:11.708744"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cc8_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:42:09.874170"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4616,6 +6524,18 @@
     "06cca": {
       "player_name": "Brandon Miller",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cca_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:48:42.260378"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cca_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:48:40.058197"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4645,6 +6565,18 @@
     "06ccd": {
       "player_name": "Noah Clowney",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06ccd_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:33:20.589917"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06ccd_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:33:18.757275"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4674,6 +6606,18 @@
     "06ccf": {
       "player_name": "Ausar Thompson",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06ccf_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:33:25.836112"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06ccf_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:33:23.769614"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4703,6 +6647,18 @@
     "06cch": {
       "player_name": "Victor Wembanyama",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cch_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:27:31.697482"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cch_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:27:29.517789"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4732,6 +6688,18 @@
     "06cd4": {
       "player_name": "Toumani Camara",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cd4_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:29:48.269602"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cd4_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:29:46.417595"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4761,6 +6729,18 @@
     "06cdn": {
       "player_name": "Scoot Henderson",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cdn_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:42:49.607346"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06cdn_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:42:47.149243"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4790,6 +6770,18 @@
     "06mju": {
       "player_name": "Alex Sarr",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mju_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:46:15.216042"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mju_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:46:13.349224"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4819,6 +6811,18 @@
     "06mjv": {
       "player_name": "Reed Sheppard",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mjv_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:47:10.489848"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mjv_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:47:07.926735"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4848,6 +6852,18 @@
     "06mjw": {
       "player_name": "Stephon Castle",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mjw_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:47:49.367007"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mjw_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:47:47.451116"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4877,6 +6893,18 @@
     "06mjz": {
       "player_name": "Donovan Clingan",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mjz_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:45:52.928589"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mjz_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:45:50.769584"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4906,6 +6934,18 @@
     "06mk1": {
       "player_name": "Zach Edey",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mk1_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:38:21.109024"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mk1_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:38:18.727902"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4935,6 +6975,18 @@
     "06mk3": {
       "player_name": "Matas Buzelis",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mk3_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:31:01.988867"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mk3_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:31:00.154598"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4964,6 +7016,18 @@
     "06mk7": {
       "player_name": "Kelel Ware",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mk7_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:44:48.794993"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mk7_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:44:46.017872"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -4993,6 +7057,18 @@
     "06mkc": {
       "player_name": "Jaylon Tyson",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mkc_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:31:37.176545"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mkc_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:31:35.333880"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -5022,6 +7098,18 @@
     "06mkg": {
       "player_name": "Kyshawn George",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mkg_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:50:20.252398"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mkg_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:50:18.152361"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -5051,6 +7139,18 @@
     "06mlk": {
       "player_name": "Ajay Mitchell",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mlk_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:50:14.855620"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mlk_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:50:12.815898"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -5080,6 +7180,18 @@
     "06mlr": {
       "player_name": "Jamal Shead",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mlr_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:35:46.654550"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06mlr_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:35:44.774160"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -5109,6 +7221,18 @@
     "06v57": {
       "player_name": "Ace Bailey",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v57_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:37:23.251067"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v57_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:37:21.408723"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -5138,6 +7262,18 @@
     "06v5g": {
       "player_name": "Jeremiah Fears",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5g_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:31:58.566790"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5g_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:31:56.501061"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -5167,6 +7303,18 @@
     "06v5h": {
       "player_name": "Derik Queen",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5h_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:30:40.358742"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5h_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:30:38.334531"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -5196,6 +7344,18 @@
     "06v5k": {
       "player_name": "VJ Edgecombe",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5k_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:31:08.776117"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5k_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:31:05.810118"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -5225,6 +7385,18 @@
     "06v5l": {
       "player_name": "Cooper Flagg",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5l_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:26:21.451267"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5l_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:26:19.631651"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -5254,6 +7426,18 @@
     "06v5n": {
       "player_name": "Kon Knueppel",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5n_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:25:48.491925"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5n_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:25:46.626168"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -5283,6 +7467,18 @@
     "06v5r": {
       "player_name": "Egor Demin",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5r_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:38:01.731445"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5r_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:37:59.641285"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -5312,6 +7508,18 @@
     "06v5v": {
       "player_name": "Cedric Coward",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5v_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:46:52.651289"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5v_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:46:50.743115"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -5341,6 +7549,18 @@
     "06v5y": {
       "player_name": "Dylan Harper",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5y_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:40:03.955223"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v5y_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:40:02.119638"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -5370,6 +7590,18 @@
     "06v80": {
       "player_name": "Ryan Kalkbrenner",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v80_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:32:14.727415"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06v80_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:32:12.661626"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
@@ -5399,6 +7631,18 @@
     "06y3q": {
       "player_name": "Ryan Nembhard",
       "seasons": {
+        "2020-21": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06y3q_ifa1anexmdgtlk9s_2020_21.json",
+          "last_modified": "2025-12-06T10:40:35.540552"
+        },
+        "2021-22": {
+          "status": "no_games_played",
+          "games": 0,
+          "cache_file": "player_game_log_full_06y3q_ifa1anexmdgtlk9s_2021_22.json",
+          "last_modified": "2025-12-06T10:40:33.657106"
+        },
         "2022-23": {
           "status": "no_games_played",
           "games": 0,
