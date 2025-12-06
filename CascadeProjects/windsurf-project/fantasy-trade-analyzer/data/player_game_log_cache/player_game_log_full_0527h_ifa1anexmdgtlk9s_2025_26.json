@@ -3,20 +3,20 @@
     "player_code": "0527h",
     "league_id": "ifa1anexmdgtlk9s",
     "season": "2025-26",
-    "timestamp": 1764905033.1963844,
+    "timestamp": 1765033956.5889595,
     "data": [
         {
             "Date": "Dec 4",
             "Team": "MIN",
             "Opp": "@NO",
-            "Score": "120-112",
-            "FPts": 71,
+            "Score": "W 125-116",
+            "FPts": 82,
             "FG-": "7.0",
-            "3PTM": 3,
+            "3PTM": 4,
             "FT-": "0",
-            "PTS": 16,
+            "PTS": 19,
             "OREB": "0",
-            "REB": 6,
+            "REB": 7,
             "AST": 6,
             "ST": 1,
             "BLK": 2,
@@ -25,7 +25,7 @@
             "EJ": "0",
             "3D": "0",
             "2D": "0",
-            "MIN": 31.283333333333335
+            "MIN": 32.666666666666664
         },
         {
             "Date": "Dec 2",
