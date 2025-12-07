@@ -341,6 +341,29 @@ if not st.session_state.draft_started:
                         st.error("Failed to generate projections.")
         else:
             st.success("Projections have been generated.")
+            sources = st.session_state.get("auction_data_sources", {})
+            if sources:
+                error_msg = sources.get("error")
+                if error_msg:
+                    st.error(f"Auction data sources: {error_msg}")
+                else:
+                    fp_src = sources.get("pps_fp_gp_source")
+                    mv_src = sources.get("pps_market_value_source")
+                    parts = []
+                    if fp_src == "historical_ytd":
+                        parts.append("FP/G & GP from historical YTD (DB-backed)")
+                    elif fp_src == "csv":
+                        parts.append("FP/G & GP from legacy CSVs")
+                    if mv_src == "draft_history":
+                        parts.append("Market values from draft history (bids)")
+                    elif mv_src == "bids_csv":
+                        parts.append("Market values from legacy bid CSV")
+                    if parts:
+                        text = "; ".join(parts)
+                        if fp_src == "csv" or mv_src == "bids_csv":
+                            st.warning(f"Auction inputs: {text}")
+                        else:
+                            st.caption(f"Auction inputs: {text}")
 
     with col2:
         if st.session_state.projections_generated:
@@ -361,7 +384,11 @@ if not st.session_state.draft_started:
                 
                 with st.spinner("Calculating initial player values..."):
                     data_dir = Path(__file__).resolve().parent.parent / "data"
-                    pps_df = pd.read_csv(data_dir / 'player_projections.csv')
+                    auction_dir = data_dir / "auction"
+                    proj_path = auction_dir / 'player_projections.csv'
+                    if not proj_path.exists():
+                        proj_path = data_dir / 'player_projections.csv'
+                    pps_df = pd.read_csv(proj_path)
                     st.session_state.available_players, st.session_state.initial_pos_counts, st.session_state.initial_tier_counts = calculate_initial_values(
                         pps_df=pps_df,
                         num_teams=st.session_state.num_teams,

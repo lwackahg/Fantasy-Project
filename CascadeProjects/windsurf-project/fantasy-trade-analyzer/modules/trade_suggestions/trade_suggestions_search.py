@@ -18,6 +18,7 @@ from .trade_suggestions_core import (
 	_calculate_floor_impact,
 	_determine_trade_reasoning,
 	_check_opponent_core_avg_drop,
+	_passes_cushion_guard,
 )
 from .trade_suggestions_realism import (
 	_is_realistic_trade,
@@ -187,6 +188,14 @@ def _find_1_for_1_trades(
 				opp_baseline_core,
 			)
 
+			if not _passes_cushion_guard(
+				your_full_team,
+				opp_full_team,
+				[your_player],
+				[their_player],
+			):
+				continue
+
 			if not _passes_score_guards(
 				[your_player],
 				[their_player],
@@ -280,6 +289,14 @@ def _find_2_for_1_trades(
 				core_size,
 				opp_baseline_core,
 			)
+
+			if not _passes_cushion_guard(
+				your_full_team,
+				opp_full_team,
+				your_players,
+				[their_player],
+			):
+				continue
 
 			if not _passes_score_guards(
 				your_players,
@@ -378,6 +395,14 @@ def _find_1_for_2_trades(
 				core_size,
 				opp_baseline_core,
 			)
+
+			if not _passes_cushion_guard(
+				your_full_team,
+				opp_full_team,
+				[your_player],
+				their_players,
+			):
+				continue
 
 			if not _passes_score_guards(
 				[your_player],
@@ -561,6 +586,14 @@ def _find_2_for_3_trades(
 				core_size,
 				opp_baseline_core,
 			)
+
+			if not _passes_cushion_guard(
+				your_full_team,
+				opp_full_team,
+				your_players,
+				their_players,
+			):
+				continue
 
 			if not _passes_score_guards(
 				your_players,

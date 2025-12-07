@@ -144,7 +144,7 @@ def render_trade_summary_metrics(suggestion: Dict, key_prefix: str = ""):
             f"{cv_diff:+.1f}%",
             delta="more stable" if cv_diff < 0 else "more volatile",
             delta_color=cv_delta_color,
-            help="Change in coefficient of variation (lower = more consistent)"
+            help="Change in coefficient of variation (lower = more consistent), with availability/missed-games risk baked in"
         )
 
 

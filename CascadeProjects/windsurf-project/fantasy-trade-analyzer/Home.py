@@ -42,14 +42,19 @@ def main():
                     st.session_state.loaded_league_name = league_name
                     player_files_found = True
                 
-                # Load schedule data
-                if 'schedule_data' not in st.session_state or st.session_state.schedule_data is None:
+                # Load schedule data (canonical schedule25_26.csv)
+                needs_schedule = (
+                    'schedule_data' not in st.session_state
+                    or st.session_state.schedule_data is None
+                    or getattr(st.session_state.schedule_data, 'empty', True)
+                )
+                if needs_schedule:
                     schedule_df = load_schedule_data()
                     if schedule_df is not None and not schedule_df.empty:
                         st.session_state.schedule_data = schedule_df
-
                     else:
-                        st.session_state.schedule_data = pd.DataFrame()  # Ensure it's an empty DataFrame if load fails
+                        # Ensure it's an empty DataFrame if load fails
+                        st.session_state.schedule_data = pd.DataFrame()
 
                 # Only set the loaded flag if both were successful
                 if player_files_found and ('schedule_data' in st.session_state and st.session_state.schedule_data is not None and not st.session_state.schedule_data.empty):
@@ -62,7 +67,7 @@ def main():
                     if not player_files_found:
                         st.warning("Default player CSV data not found in /data folder.")
                     if 'schedule_data' not in st.session_state or st.session_state.schedule_data is None or st.session_state.schedule_data.empty:
-                        st.warning("Default schedule.csv not found in /data/schedule folder.")
+                        st.warning("Default schedule file not found in /data/schedule folder (expected 'schedule25_26.csv').")
 
 
         except Exception as e:

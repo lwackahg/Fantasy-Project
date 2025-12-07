@@ -16,7 +16,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException
 from webdriver_manager.chrome import ChromeDriverManager
 from dotenv import load_dotenv, find_dotenv
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import atexit
 import numpy as np
 from . import db_store
@@ -41,6 +41,11 @@ def get_league_index_path(league_id: str) -> Path:
 	and where their underlying cache files live on disk.
 	"""
 	return CACHE_DIR / f"player_game_log_index_{league_id}.json"
+
+
+def get_availability_index_path(league_id: str, season: str) -> Path:
+	"""Return the path to the league/season availability index file."""
+	return CACHE_DIR / f"availability_index_{league_id}_{season.replace('-', '_')}.json"
 
 def build_league_cache_index(league_id: str) -> dict:
 	"""Scan all player_game_log_full JSONs for a league and build an index.
@@ -119,6 +124,221 @@ def build_league_cache_index(league_id: str) -> dict:
 		pass
 
 	return index
+
+
+def _parse_game_date_for_season(raw_date: str, season: str) -> date | None:
+	"""Best-effort parser for game log dates given an NBA season string.
+
+	The Fantrax Date column is typically in formats like "Nov 8" or "04/06".
+	We infer the calendar year from the season (e.g. "2024-25") and month:
+	- Months Oct–Dec are mapped to the season's start year (e.g. 2024)
+	- Other months are mapped to the following year (e.g. 2025)
+	"""
+	if not raw_date:
+		return None
+
+	season_str = str(season or "")
+	try:
+		start_year = int(season_str.split("-")[0])
+	except Exception:
+		start_year = datetime.utcnow().year
+	try:
+		end_part = season_str.split("-")[1]
+		if len(end_part) == 2:
+			end_year = int(str(start_year)[:2] + end_part)
+		else:
+			end_year = int(end_part)
+	except Exception:
+		end_year = start_year + 1
+
+	s = str(raw_date).strip()
+	month = None
+	day = None
+	for fmt in ("%b %d", "%m/%d", "%b %d, %Y", "%m/%d/%Y"):
+		try:
+			dt = datetime.strptime(s, fmt)
+			month = dt.month
+			day = dt.day
+			break
+		except ValueError:
+			continue
+	if month is None or day is None:
+		return None
+
+	year = start_year if month >= 10 else end_year
+	try:
+		return date(year, month, day)
+	except Exception:
+		return None
+
+
+def build_availability_index(league_id: str, season: str) -> dict:
+	"""Build league/season availability index from player game logs.
+
+	For each NBA team we infer its game calendar from all player logs.
+	For each player we compute:
+	- games_played: number of fantasy games logged
+	- team_games: number of inferred team games since player's first appearance
+	- availability_ytd: games_played / team_games
+	- availability_30d: availability over the last 30 calendar days (relative to league-wide latest game)
+	- max_missed_streak: longest streak of consecutive team games the player missed
+
+	Index is stored as JSON under data/player_game_log_cache/ so it can be
+	reused by trade suggestions and team viewers without re-reading logs.
+	"""
+	index = {
+		"league_id": league_id,
+		"season": season,
+		"generated_at": datetime.utcnow().isoformat(),
+		"players": {},
+	}
+
+	# Prefer SQLite logs; fall back to JSON cache if unavailable.
+	try:
+		season_logs = db_store.get_league_season_player_logs(league_id, season)
+	except Exception:
+		season_logs = []
+
+	team_dates: dict[str, set[date]] = {}
+	player_dates: dict[str, set[tuple[str, date]]] = {}
+	player_codes: dict[str, str] = {}
+
+	if season_logs:
+		for player_code, player_name, records in season_logs:
+			if not records:
+				continue
+			p_name = player_name or player_code or "Unknown"
+			player_codes[p_name] = player_code or ""
+			p_entries = player_dates.setdefault(p_name, set())
+			for rec in records:
+				team = rec.get("Team")
+				raw_date = rec.get("Date")
+				if not team or not raw_date:
+					continue
+				dt = _parse_game_date_for_season(raw_date, season)
+				if dt is None:
+					continue
+				team_set = team_dates.setdefault(str(team), set())
+				team_set.add(dt)
+				p_entries.add((str(team), dt))
+	else:
+		cache_dir = get_cache_directory()
+		pattern = f"player_game_log_full_*_{league_id}_{season.replace('-', '_')}.json"
+		for cache_file in cache_dir.glob(pattern):
+			try:
+				with cache_file.open("r", encoding="utf-8") as f:
+					cache_data = json.load(f)
+			except Exception:
+				continue
+			player_code = cache_data.get("player_code") or ""
+			player_name = cache_data.get("player_name") or player_code or "Unknown"
+			data = cache_data.get("data", cache_data.get("game_log", [])) or []
+			if not isinstance(data, list) or not data:
+				continue
+			p_name = player_name
+			player_codes[p_name] = player_code
+			p_entries = player_dates.setdefault(p_name, set())
+			for rec in data:
+				team = rec.get("Team")
+				raw_date = rec.get("Date")
+				if not team or not raw_date:
+					continue
+				dt = _parse_game_date_for_season(raw_date, season)
+				if dt is None:
+					continue
+				team_set = team_dates.setdefault(str(team), set())
+				team_set.add(dt)
+				p_entries.add((str(team), dt))
+
+	if not team_dates or not player_dates:
+		# Nothing to index; return empty structure.
+		path = get_availability_index_path(league_id, season)
+		try:
+			CACHE_DIR.mkdir(parents=True, exist_ok=True)
+			with path.open("w", encoding="utf-8") as f:
+				json.dump(index, f, indent=2)
+		except Exception:
+			pass
+		return index
+
+	# Pre-compute league-wide latest game date for recent windows.
+	all_dates: list[date] = []
+	for dset in team_dates.values():
+		all_dates.extend(list(dset))
+	if all_dates:
+		latest_date = max(all_dates)
+	else:
+		latest_date = date.today()
+	cutoff_30 = latest_date - timedelta(days=30)
+
+	players_out: dict[str, dict] = {}
+	for p_name, entries in player_dates.items():
+		if not entries:
+			continue
+		teams_for_player = {tm for tm, _ in entries}
+		played_dates = {dt for _, dt in entries}
+		first_play = min(played_dates)
+
+		team_union: set[date] = set()
+		for tm in teams_for_player:
+			team_union.update({d for d in team_dates.get(tm, set()) if d >= first_play})
+		if not team_union:
+			continue
+
+		team_games = len(team_union)
+		games_played = len(played_dates)
+		availability_ytd = games_played / team_games if team_games > 0 else 0.0
+
+		recent_team_dates = {d for d in team_union if d >= cutoff_30}
+		recent_played = {d for d in played_dates if d >= cutoff_30}
+		team_games_30 = len(recent_team_dates)
+		availability_30d = (len(recent_played) / team_games_30) if team_games_30 > 0 else availability_ytd
+
+		# Longest streak of consecutive team games missed (in games, not days).
+		sorted_team_dates = sorted(team_union)
+		played_set = played_dates
+		max_streak = 0
+		cur_streak = 0
+		for d in sorted_team_dates:
+			if d in played_set:
+				cur_streak = 0
+			else:
+				cur_streak += 1
+				if cur_streak > max_streak:
+					max_streak = cur_streak
+
+		players_out[p_name] = {
+			"code": player_codes.get(p_name, ""),
+			"games_played": int(games_played),
+			"team_games": int(team_games),
+			"availability_ytd": float(availability_ytd),
+			"availability_30d": float(availability_30d),
+			"max_missed_streak": int(max_streak),
+		}
+
+	index["players"] = players_out
+	path = get_availability_index_path(league_id, season)
+	try:
+		CACHE_DIR.mkdir(parents=True, exist_ok=True)
+		with path.open("w", encoding="utf-8") as f:
+			json.dump(index, f, indent=2)
+	except Exception:
+		pass
+	return index
+
+
+def load_availability_index(league_id: str, season: str, rebuild_if_missing: bool = True) -> dict | None:
+	"""Load availability index for a league/season, rebuilding if needed."""
+	path = get_availability_index_path(league_id, season)
+	if path.exists():
+		try:
+			with path.open("r", encoding="utf-8") as f:
+				return json.load(f)
+		except Exception:
+			pass
+	if rebuild_if_missing:
+		return build_availability_index(league_id, season)
+	return None
 
 def load_league_cache_index(league_id: str, rebuild_if_missing: bool = True) -> dict | None:
 	"""Load the league cache index, optionally rebuilding it if missing/invalid."""

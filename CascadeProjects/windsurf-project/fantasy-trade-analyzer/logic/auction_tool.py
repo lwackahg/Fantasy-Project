@@ -86,8 +86,16 @@ def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composit
     try:
         from pathlib import Path
         data_path = Path(__file__).resolve().parent.parent / "data"
-        gp_hist_df = pd.read_csv(data_path / "PlayerGPOverYears.csv")
-        fpg_hist_df = pd.read_csv(data_path / "PlayerFPperGameOverYears.csv")
+        auction_path = data_path / "auction"
+        # Prefer auction/ for auction-related historical CSVs, fall back to root data/
+        gp_path = auction_path / "PlayerGPOverYears.csv"
+        fpg_path = auction_path / "PlayerFPperGameOverYears.csv"
+        if not gp_path.exists():
+            gp_path = data_path / "PlayerGPOverYears.csv"
+        if not fpg_path.exists():
+            fpg_path = data_path / "PlayerFPperGameOverYears.csv"
+        gp_hist_df = pd.read_csv(gp_path)
+        fpg_hist_df = pd.read_csv(fpg_path)
 
         # Align column names for merging
         gp_hist_df.rename(columns={'Player': 'PlayerName'}, inplace=True)
@@ -149,7 +157,11 @@ def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composit
         try:
             from pathlib import Path as _Path
             _data_path = _Path(__file__).resolve().parent.parent / "data"
-            draft_path = _data_path / "DraftPedigree.csv"
+            _auction_path = _data_path / "auction"
+            # Prefer auction/ for DraftPedigree, fallback to root data/
+            draft_path = _auction_path / "DraftPedigree.csv"
+            if not draft_path.exists():
+                draft_path = _data_path / "DraftPedigree.csv"
             if draft_path.exists():
                 ddf = pd.read_csv(draft_path)
                 # Expect columns: PlayerName, DraftPickOverall, DraftRound

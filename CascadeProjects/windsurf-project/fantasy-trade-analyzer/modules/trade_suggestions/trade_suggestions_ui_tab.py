@@ -82,9 +82,8 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
     # =========================================================================
     analysis_tabs = st.tabs([
         "💡 Why It Works",
-        "🗣️ Pitch to Opponent",
         "📊 Deep Dive",
-        "� Roster Impact",
+        "📋 Roster Impact",
         "🔬 Advanced Analysis",
     ])
     
@@ -92,23 +91,20 @@ def _display_trade_suggestion(suggestion, rank, rosters_by_team, your_team_name,
     with analysis_tabs[0]:
         render_trade_reasoning(suggestion)
         _render_recent_form_section(suggestion, rosters_by_team)
-    
-    # --- Tab 2: Pitch to Opponent ---
-    with analysis_tabs[1]:
         render_talking_points(suggestion)
         _render_yoy_pitch_points(suggestion, yoy_index)
     
-    # --- Tab 3: Deep Dive ---
-    with analysis_tabs[2]:
+    # --- Tab 2: Deep Dive ---
+    with analysis_tabs[1]:
         _render_deep_dive_metrics(suggestion)
         _render_trade_framework(suggestion)
     
-    # --- Tab 4: Roster Impact ---
-    with analysis_tabs[3]:
+    # --- Tab 3: Roster Impact ---
+    with analysis_tabs[2]:
         _render_roster_snapshot(suggestion, rosters_by_team, your_team_name)
     
-    # --- Tab 5: Advanced Analysis ---
-    with analysis_tabs[4]:
+    # --- Tab 4: Advanced Analysis ---
+    with analysis_tabs[3]:
         _render_similarity_analysis(suggestion, rosters_by_team, rank)
         _render_full_trade_analysis_button(suggestion, your_team_name, rank)
 
@@ -145,7 +141,7 @@ def _render_recent_form_section(suggestion, rosters_by_team):
                     continue
                 delta = float(val) - float(base)
                 if abs(delta) >= 3.0:
-                    icon = "�" if delta > 0 else "📉"
+                    icon = "📈" if delta > 0 else "📉"
                     side = "give" if is_outgoing else "get"
                     return f"{icon} **{player_name}** ({side}) — {label}: {val:.1f} vs YTD {base:.1f} ({delta:+.1f})"
         return None
@@ -230,14 +226,14 @@ def _render_deep_dive_metrics(suggestion):
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Your Avg FP/G", f"{your_avg_fpts:.1f}")
-        st.metric("Your Avg CV%", f"{your_avg_cv:.1f}%")
+        st.metric("Outgoing pkg avg FP/G", f"{your_avg_fpts:.1f}")
+        st.metric("Outgoing pkg avg CV%", f"{your_avg_cv:.1f}%")
     with col2:
-        st.metric("Their Avg FP/G", f"{their_avg_fpts:.1f}")
-        st.metric("Their Avg CV%", f"{their_avg_cv:.1f}%")
+        st.metric("Incoming pkg avg FP/G", f"{their_avg_fpts:.1f}")
+        st.metric("Incoming pkg avg CV%", f"{their_avg_cv:.1f}%")
     with col3:
-        st.metric("FP/G Change", f"{fpts_diff:+.1f}")
-        st.metric("CV% Change", f"{cv_diff:+.1f}%", help="Negative = more consistent")
+        st.metric("Pkg FP/G change", f"{fpts_diff:+.1f}")
+        st.metric("Pkg CV% change", f"{cv_diff:+.1f}%", help="Negative = more consistent")
     
     # Risk assessment
     if your_avg_cv < CONSISTENCY_VERY_MAX_CV:
@@ -254,7 +250,9 @@ def _render_deep_dive_metrics(suggestion):
     else:
         their_risk = "High"
     
+    st.caption("All values are averages across players in this trade package, not full rosters.")
     st.caption(f"Risk profile: You ({your_risk}) → Them ({their_risk})")
+    st.caption("CV% here already bakes in availability and missed-games risk from this season's logs.")
 
 
 def _render_trade_framework(suggestion):
@@ -288,7 +286,7 @@ def _render_trade_framework(suggestion):
     elif cv_diff > 5:
         st.warning(f"**More Volatile**: CV% rises by {cv_diff:.1f}%")
     
-    st.markdown("##### 🏗️ Roster Impact")
+    st.markdown("##### 🏗️ Pattern Framing")
     if pattern in ("2-for-1", "3-for-1", "4-for-1"):
         st.info(f"**Consolidation**: {pattern.split('-')[0]} pieces → 1 stronger player. Opens roster spot(s).")
     elif pattern in ("1-for-2", "1-for-3", "1-for-4"):
@@ -357,6 +355,19 @@ def _render_roster_snapshot(suggestion, rosters_by_team, your_team_name):
         st.markdown(f"**{suggestion['team']}** (Top 8)")
         st.caption("Before")
         st.dataframe(_prepare_roster(opp_before, suggestion["you_get"], []), hide_index=True, use_container_width=True)
+        st.caption("After")
+        opp_after = opp_before
+        if "Player" in opp_before.columns:
+            opp_after = opp_after[~opp_after["Player"].isin(suggestion["you_get"])].copy()
+        incoming_opp = []
+        if "Player" in your_before.columns:
+            for player in suggestion["you_give"]:
+                src = your_before[your_before["Player"] == player]
+                if not src.empty:
+                    incoming_opp.append(src)
+        if incoming_opp:
+            opp_after = pd.concat([opp_after] + incoming_opp, ignore_index=True)
+        st.dataframe(_prepare_roster(opp_after, [], suggestion["you_give"]), hide_index=True, use_container_width=True)
 
 
 def _render_similarity_analysis(suggestion, rosters_by_team, rank):
@@ -686,27 +697,74 @@ def display_trade_suggestions_tab():
         )
 
     with col2:
+        all_patterns = [
+            "1-for-1",
+            "2-for-1",
+            "1-for-2",
+            "2-for-2",
+            "3-for-1",
+            "1-for-3",
+            "3-for-2",
+            "2-for-3",
+            "3-for-3",
+            "4-for-1",
+            "1-for-4",
+            "4-for-2",
+            "2-for-4",
+            "4-for-3",
+            "3-for-4",
+            "4-for-4",
+        ]
+        small_patterns = ["1-for-1", "2-for-1", "1-for-2", "2-for-2"]
+        big_patterns = [
+            "3-for-1",
+            "1-for-3",
+            "3-for-2",
+            "2-for-3",
+            "3-for-3",
+            "4-for-1",
+            "1-for-4",
+            "4-for-2",
+            "2-for-4",
+            "4-for-3",
+            "3-for-4",
+            "4-for-4",
+        ]
+        condense_patterns = [
+            "2-for-1",
+            "3-for-1",
+            "4-for-1",
+            "3-for-2",
+            "4-for-2",
+            "4-for-3",
+        ]
+        expand_patterns = [
+            "1-for-2",
+            "1-for-3",
+            "1-for-4",
+            "2-for-3",
+            "2-for-4",
+            "3-for-4",
+        ]
+        # Initialize default patterns once
+        if "tab_trade_patterns" not in st.session_state:
+            st.session_state["tab_trade_patterns"] = small_patterns
+        # Preset buttons update session_state *before* the widget is created
+        preset_cols = st.columns(2)
+        with preset_cols[0]:
+            if st.button("Small trades", key="tp_preset_small"):
+                st.session_state["tab_trade_patterns"] = small_patterns
+            if st.button("Condense roster", key="tp_preset_condense"):
+                st.session_state["tab_trade_patterns"] = condense_patterns
+        with preset_cols[1]:
+            if st.button("Big trades", key="tp_preset_big"):
+                st.session_state["tab_trade_patterns"] = big_patterns
+            if st.button("Expand roster", key="tp_preset_expand"):
+                st.session_state["tab_trade_patterns"] = expand_patterns
         trade_patterns = st.multiselect(
             "Trade Patterns",
-            options=[
-                "1-for-1",
-                "2-for-1",
-                "1-for-2",
-                "2-for-2",
-                "3-for-1",
-                "1-for-3",
-                "3-for-2",
-                "2-for-3",
-                "3-for-3",
-                "4-for-1",
-                "1-for-4",
-                "4-for-2",
-                "2-for-4",
-                "4-for-3",
-                "3-for-4",
-                "4-for-4",
-            ],
-            default=["1-for-1", "2-for-1", "1-for-2", "2-for-2"],
+            options=all_patterns,
+            default=st.session_state.get("tab_trade_patterns", small_patterns),
             help="Select which trade patterns to consider",
             key="tab_trade_patterns",
         )

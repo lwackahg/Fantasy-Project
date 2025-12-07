@@ -179,7 +179,9 @@ def load_schedule_data():
     try:
         # Construct an absolute path to the data directory from the project root
         project_root = Path(__file__).parent
-        schedule_path = project_root / "data" / "schedule" / "schedule.csv"
+        schedule_dir = project_root / "data" / "schedule"
+        # Canonical schedule file for the current season
+        schedule_path = schedule_dir / "schedule25_26.csv"
         logging.info(f"Attempting to load schedule from: {schedule_path}")
         
         if not os.path.exists(schedule_path):
@@ -193,8 +195,10 @@ def load_schedule_data():
         current_period = None
         current_date_range = None
         
-        # Read the file using csv module which handles quotes properly
-        with open(schedule_path, 'r', newline='') as file:
+        # Read the file using csv module which handles quotes properly.
+        # Use a Windows-friendly encoding to handle non-breaking spaces and other characters
+        # that may appear in Excel-exported CSVs.
+        with open(schedule_path, 'r', newline='', encoding='cp1252') as file:
             csv_reader = csv.reader(file)
             
             for row in csv_reader:
@@ -202,50 +206,65 @@ def load_schedule_data():
                 if not row or all(cell.strip() == '' for cell in row):
                     continue
                 
+                cell0 = row[0].strip()
                 # Check if this is a scoring period line
-                if row[0].startswith("Scoring Period"):
-                    current_period = row[0].strip()
+                if cell0.startswith("Scoring Period"):
+                    current_period = cell0
                     continue
                 
                 # Check if this is a date range line
-                if row[0].startswith("(") and ")" in row[0]:
-                    current_date_range = row[0].strip('()"')
+                if cell0.startswith("(") and ")" in cell0:
+                    current_date_range = cell0.strip('()"')
                     continue
                 
-                # Process matchup line - we expect 4 columns: Team1, Score1, Team2, Score2
-                if len(row) >= 4:
+                team1 = None
+                team2 = None
+                score1_str = None
+                score2_str = None
+                
+                # New-format rows: Team1, Raw1, Adj1, Final1, Team2, Raw2, Adj2, Final2
+                if len(row) >= 8:
+                    team1 = row[0].strip()
+                    final1_str = row[3].strip()
+                    team2 = row[4].strip()
+                    final2_str = row[7].strip()
+                    score1_str = final1_str
+                    score2_str = final2_str
+                # Legacy rows: Team1, Score1, Team2, Score2
+                elif len(row) >= 4:
                     team1 = row[0].strip()
                     score1_str = row[1].strip()
                     team2 = row[2].strip()
                     score2_str = row[3].strip()
+                
+                if team1 is None or team2 is None or score1_str is None or score2_str is None:
+                    continue
+                
+                # Only add valid matchups (both teams have names)
+                if team1 and team2 and not (team1.startswith("(") or team2.startswith("(")):
+                    # Convert scores to integers, handling commas in numbers
+                    try:
+                        score1 = int(score1_str.replace(",", ""))
+                    except ValueError:
+                        score1 = 0
                     
-                    # Only add valid matchups (both teams have names)
-                    if team1 and team2 and not (team1.startswith("(") or team2.startswith("(")):
-                        # Convert scores to integers, handling commas in numbers
-                        try:
-                            score1 = int(score1_str.replace(",", ""))
-                        except ValueError:
-                            # If we can't convert to int, it might be a date or other text
-                            # Just set to 0 and continue without warning
-                            score1 = 0
-                        
-                        try:
-                            score2 = int(score2_str.replace(",", ""))
-                        except ValueError:
-                            score2 = 0
-                        
-                        # Add to data
-                        data.append({
-                            "Scoring Period": current_period,
-                            "Date Range": current_date_range,
-                            "Team 1": team1,
-                            "Score 1": score1,
-                            "Score 1 Display": score1_str,
-                            "Team 2": team2,
-                            "Score 2": score2,
-                            "Score 2 Display": score2_str,
-                            "Matchup": f"{team1} - {score1_str} vs {team2} - {score2_str}"
-                        })
+                    try:
+                        score2 = int(score2_str.replace(",", ""))
+                    except ValueError:
+                        score2 = 0
+                    
+                    # Add to data
+                    data.append({
+                        "Scoring Period": current_period,
+                        "Date Range": current_date_range,
+                        "Team 1": team1,
+                        "Score 1": score1,
+                        "Score 1 Display": score1_str,
+                        "Team 2": team2,
+                        "Score 2": score2,
+                        "Score 2 Display": score2_str,
+                        "Matchup": f"{team1} - {score1_str} vs {team2} - {score2_str}"
+                    })
         
         # Convert to DataFrame
         df = pd.DataFrame(data)

@@ -261,45 +261,99 @@ Heuristics for comparing players in trades:
   - Regularly dip under the minimum,
   then the total tradeoff starts to favor the more durable player.
 
-### 6.3. Using Insurance and IL Rules in Trade Design
+### 6.3. Using Insurance and the IL Rules in Trade Design
 
-- The **insurance appendix** allows managers to structure trades that hedge missed games risk for specific players over a short window.
-- In this context, it’s especially useful when:
-  - One side is acquiring a **high FP/G but risky availability** player.
-  - The other side wants compensation if the player doesn’t meet a minimum games threshold.
-- This makes it easier to trade for upside while respecting how critical availability is to hitting 25 games.
+The insurance clause exists because this league bakes volatility directly into value. A high-FP/G player who only shows up for one and a half games in a week can tilt an entire matchup, but they can also disappear for seven days and leave you scrambling for low-end streams that dilute your team PPG.
+
+Insurance helps smooth that risk:
+
+- If you're acquiring a high-ceiling, high-injury-risk star, insurance protects the seller from catastrophic miss-time in the following one or two weeks.
+- If you're giving up the star, it helps the buyer feel confident they won't immediately eat that volatility.
+- It makes uneven risk profiles tradable, which keeps the league liquid and encourages deals instead of stalemates.
+
+The IL rules also matter. Because your IL locks if abused, stashing becomes a real strategic cost. Every IL slot you use has to be justified by the upside to your team's weekly FP/G, not hypothetical future value.
+
+A simple way to think about it: Your IL slot must be worth more than the worst player on your team in FP/G once the injured player comes back, and the timeline has to be relevant enough that their return still affects the season.
 
 ---
 
-## 7. How the Tool Will Align With This Philosophy (High‑Level)
+## 7. Draft Strategy in a 25-Game Minimum League
+
+The draft is where FP/G orientation pays off the most.
+
+Think of your team as a machine that needs around 7 to 8 legitimate FP/G drivers to function well every week. The other 2 to 3 slots are where you patch, flex, stream, or ride hot hands.
+
+Because of this:
+
+- **Early rounds** should focus on acquiring true FP/G anchors. The rare players who are 75 to 100 FP/G with decent availability are the best building blocks in this format. They clean up so many problems that come from schedule variance.
+- **Middle rounds** are for solid FP/G with strong minutes security. Not as explosive, but reliable enough to help you reach 25 games without polluting your PPG.
+- **Late rounds** are for:
+  - Role volatility bets who might spike into 60 to 75 FP/G.
+  - Situational schedule pieces.
+  - Injury handcuffs who become mid-to-high FP/G producers when they start.
+
+You don't need 10 safe players. You need 7 to 8 high-quality engines plus 2 to 3 swing spots that you can churn throughout the year without tanking PPG.
+
+---
+
+## 8. In-Season Team Management
+
+The league pushes you toward measured, thoughtful management rather than frantic streaming.
+
+A few truths to keep in mind:
+
+- **You win your matchup with your best 25 games, not your largest number of games.** If you have 30 to 34 games of availability, you will almost certainly sit players. In traditional H2H you would never bench a player with a scheduled game. Here, benching is normal and often optimal, especially when a low-FP/G guy plays on a night where he's likely to dilute your weekly PPG.
+
+- **You have to monitor schedule density.** If you're already trending to finish the week at 27 or 28 games, you do not want to add someone who plays three times in four days unless that someone is meaningfully above your team's PPG. The league punishes greed.
+
+- **You want to be aggressive when injury news breaks.** When a backup becomes a starter, that temporary FP/G spike is more useful than a long-term low-ceiling grinder. That's the good version of streaming in this league. The bad version is filling holes with guys who give you 19 FP on 4-for-13 shooting.
+
+---
+
+## 9. How the Tool Will Align With This Philosophy (High-Level)
 
 The Trade Suggestions engine and related analytics will be tuned to reflect these principles:
 
-- **FP/G‑centric value**:
+- **FP/G-centric value**:
   - FP/G is treated as the primary driver of player value per roster spot.
-  - Elite FP/G players are rewarded non‑linearly to reflect how they shape weekly matchups.
+  - Elite FP/G players are rewarded non-linearly to reflect how they shape weekly matchups.
 
 - **Availability and durability as modifiers, not the main currency**:
   - Games played, injury history, and projected availability adjust value up or down.
-  - The goal is to capture “Can this player help me consistently hit 25 games with quality?”
+  - The goal is to capture "Can this player help me consistently hit 25 games with quality?"
 
-- **Team‑level impact**:
-  - Evaluations will focus on how a trade changes your **team’s effective FP/G across key spots**, rather than just summing totals.
-  - Volume that only shows up as extra games beyond the penalty threshold will be treated as lower‑impact.
+- **Team-level impact**:
+  - Evaluations will focus on how a trade changes your **team's effective FP/G across key spots**, rather than just summing totals.
+  - Volume that only shows up as extra games beyond the penalty threshold will be treated as lower-impact.
 
 Specific formulas and tuning live in the implementation notes and code, but the guiding philosophy is:
 
-> **Quality of games (FP/G) wins in this league, as long as you can reliably reach the minimum games without drowning in low‑efficiency volume.**
+> **Quality of games (FP/G) wins in this league, as long as you can reliably reach the minimum games without drowning in low-efficiency volume.**
 
 ---
 
-## 8. Future Extensions / Notes
+## 10. Putting It All Together
+
+This league is shaped by a single structural truth: **It is an efficiency contest.**
+
+The manager who consistently turns roughly 25 games into the highest number of fantasy points wins most matchups. Everything else the constitution adds—from the insurance appendix to the IL governance to the schedule logic—flows from that core idea.
+
+- **FP/G matters** because every decision you make either raises or lowers your weekly PPG.
+- **Durability matters** because it determines whether you can reach 25 games with quality players or whether you have to dip into the mud.
+- **Total FPts are what you get** once you've already made good FP/G decisions, not what you chase.
+
+If you treat the weekly slate like a puzzle—where the goal is to assemble 25 efficient games—the league's rules become intuitive. Even small improvements in weekly PPG add up fast over 16 teams and a long season. Once you internalize that the league rewards precision, timing, and consistent lineup quality more than volume, you'll see why the best managers win without playing the most games.
+
+---
+
+## 11. Future Extensions / Notes
 
 Potential areas to explore in future seasons or tool updates:
 
-- **Schedule‑aware recommendations** that highlight weeks where your roster is at risk of missing 25 games.
-- **Risk dashboards** that show how many of your key FP/G contributors are injury‑prone vs iron‑men.
-- **Playoff‑specific views**, where upcoming schedules and back‑to‑backs are weighted more heavily.
+- **Schedule-aware recommendations** that highlight weeks where your roster is at risk of missing 25 games.
+- **Risk dashboards** that show how many of your key FP/G contributors are injury-prone vs iron-men.
+- **Playoff-specific views**, where upcoming schedules and back-to-backs are weighted more heavily.
+- **Monte Carlo simulations** for win probability modeling based on player μ and σ distributions.
 
 This document should be updated over time as new edge cases, rulings, or league cultural norms develop.
 

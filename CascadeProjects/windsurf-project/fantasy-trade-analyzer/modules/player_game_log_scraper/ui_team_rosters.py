@@ -4,7 +4,8 @@ from pathlib import Path
 import json
 from modules.player_game_log_scraper.logic import (
 	calculate_variability_stats,
-	get_cache_directory
+	get_cache_directory,
+	load_cached_player_log,
 )
 from modules.player_game_log_scraper import db_store
 from modules.trade_analysis.consistency_integration import (
@@ -202,23 +203,14 @@ def show_team_rosters_viewer(league_id, cache_files, selected_season):
 	)
 	st.markdown("---")
 	player = st.selectbox("View Player Details", options=list(filtered['Player']))
-	cache_dir = get_cache_directory()
 	code = df.loc[df['Player'] == player, 'code'].values[0]
-	# Look for new format files for this player
-	cache_files = list(cache_dir.glob(f"player_game_log_full_{code}_{league_id}_*.json"))
-	if not cache_files:
-		st.error("Player data not found in cache.")
+	# DB-first: use centralized loader for this league/season/player.
+	games_df, meta = load_cached_player_log(code, league_id, selected_season)
+	if games_df is None or games_df.empty:
+		st.warning("No game log data for this player for the selected season.")
 		return
-	
-	# Use the most recent season file
-	cache_file = max(cache_files, key=lambda f: f.stat().st_mtime)
-	if not cache_file.exists():
-		st.error("Player data not found in cache.")
-		return
-	with open(cache_file, 'r') as f:
-		data = json.load(f)
-	name = data.get('player_name', player)
-	games = pd.DataFrame(data.get('data', data.get('game_log', [])))
+	name = meta.get("player_name") or player
+	games = games_df.copy()
 	if games.empty:
 		st.warning("No game log data for this player.")
 		return

@@ -62,6 +62,16 @@ Interpretation:
 - The remaining slots are primarily **flex/streaming** levers.
 - If MinGames increases, more of the roster becomes "core" and pure depth/availability gains value.
 
+### 1.4. Historical League Variants
+
+In past seasons this league has used different roster sizes (for example, 12-player rosters), different manager counts, and different lineup templates (such as 4G / 3F / 2C / 1 Flex) that implied a higher `MinGames` (often around 30 instead of 25).
+
+The model above already covers these eras, because everything is parameterized by `R`, `G_avg`, and `MinGames`:
+
+- Larger rosters or more starting spots increase `Games_max` and typically push `MinGames` higher.
+- Higher `MinGames` increases `CoreSize`, so more of the roster becomes "core" and depth/availability are worth more.
+- Smaller leagues or fewer managers generally mean a stronger waiver pool, which should be reflected in the assumed waiver FP/G baseline used later in the trade model.
+
 ---
 
 ## 2. Effective Team FP & FP/G Under League Rules
@@ -118,10 +128,13 @@ Given the above:
   - Adding more low FP/G games does not increase `TeamFP_effective`.
   - It may **lower TeamPPG**, making the penalty formula worse.
 
+**Floor risk warning**: The penalty math assumes your extra games are roughly at your team's average PPG. But a player with a floor of 25 FP/G can drag TeamPPG down faster than the model suggests. If your 9th or 10th man regularly posts 20-25 FP games, those games actively hurt you even when you're above MinGames—they dilute your PPG, which then becomes the penalty rate for *all* your overage games. The trade engine should weight the lowest end of your roster explicitly, not just the core.
+
 Thus, in modeling terms:
 
 - Core players are evaluated primarily by **μ_i (FP/G)** and **risk/variance**.
 - Non-core slots are evaluated by **how efficiently they help you stay above MinGames** without killing TeamPPG.
+- **Floor players** (roster spots 9-10) should be evaluated by their *downside* FP/G, not their average—a player who averages 45 but floors at 20 is more dangerous than one who averages 42 but floors at 35.
 
 ---
 
@@ -140,11 +153,21 @@ Let `g_sched_i` be the number of NBA games scheduled for player `i` that week, a
 
 - `E[g_i] = g_sched_i × p_i`
 
-We don’t know `p_i` exactly, but we can approximate via:
+**Critical note**: `p_i` is not static. It drifts as:
 
-- Historical games played rate
-- Injury flags and IL usage
-- Manual league knowledge (for advanced use)
+- Roles shift (a player moving to the bench has different rest patterns than a starter)
+- Rotations settle (early-season minutes volatility stabilizes by December)
+- Nagging injuries grow stale (a "day-to-day" tag in week 1 means something different than the same tag in week 12)
+- Load management patterns emerge (stars on playoff teams rest more in March)
+
+Treating availability as a **weekly estimate** rather than a season-long average makes the risk metric more predictive. The tool should ideally re-estimate `p_i` each week based on recent news, not just historical GP%.
+
+We can approximate `p_i` via:
+
+- Historical games played rate (baseline)
+- Current injury flags and IL usage (adjustment)
+- Recent games played in last 2-3 weeks (trend)
+- Manual league knowledge (override for edge cases)
 
 High-level modeling:
 
@@ -259,9 +282,40 @@ These ideas can be further tuned with historical league data once available.
 Potential extensions:
 
 - Incorporate real schedule data (back-to-backs, 3-in-4s) to estimate per-week `g_sched_i`.
-- Estimate `p_i` (availability) using past seasons and injury tags.
+- Estimate `p_i` (availability) using past seasons and injury tags, updated weekly.
 - Simulate weekly outcomes under different trade scenarios to approximate win probability change, not just FP/G change.
 - Build playoff-specific models where upcoming schedule and rest patterns are weighted more than season-long averages.
+
+### 6.1. Schedule Cluster Analysis (Playoff Weeks)
+
+A player's utility in playoff weeks depends heavily on **schedule shape**, not just total games. Consider:
+
+- **Player A**: 4-3-4 split across three playoff weeks (11 games)
+- **Player B**: 3-3-2 split across three playoff weeks (8 games)
+
+Even if both players have identical FP/G, Player A provides ~37% more playoff volume. In an efficiency league, this matters because:
+
+1. More games from high-FP/G players = more chances to hit MinGames with quality
+2. Fewer forced streams in critical weeks
+3. Schedule clustering (multiple games in a single week) is more valuable than spread-out games
+
+The trade engine should eventually incorporate **projected playoff schedule density** as a modifier, especially for trades made after Week 12 when playoff seeding becomes clearer.
+
+### 6.2. Distribution-Based Simulation (Monte Carlo)
+
+The current model produces point estimates (`ΔCorePPG`). The natural evolution is to convert this into a **distribution**:
+
+- Each player has `μ_i` (mean FP/G) and `σ_i` (standard deviation)
+- Simulate 10,000+ weekly outcomes by sampling from each player's distribution
+- Produce a **win probability shift** instead of a raw FP/G delta
+
+This enables:
+
+- Risk-adjusted trade grades ("This trade raises your ceiling but lowers your floor")
+- Matchup-specific analysis ("Against Team X's high-variance roster, you want stability")
+- Playoff survival probability modeling
+
+The infrastructure for this exists once we have reliable `σ_i` estimates per player.
 
 This doc should serve as the conceptual foundation for tuning the trade suggestions engine, risk ratings, and any future "league meta" insights.
 
@@ -319,10 +373,14 @@ When trading a superstar for multiple players (deconstruction), the break-even p
 minimum_return = superstar_fpg + worst_player_fpg
 ```
 
+**Key framing**: This is a **displacement model**, not an additive rotation. You are not adding players to your roster—you are replacing specific slots. The superstar vacates a core slot; your worst player gets dropped entirely. The incoming players must fill *both* holes.
+
+Roster math in fantasy confuses people because they think in terms of "I'm getting two players, so I'm adding value." No. You're *replacing* two slots that previously held (a) your best player and (b) your worst player. The incoming package must exceed the sum of what those slots were producing, or you've lost ground.
+
 This represents the minimum combined FP/G needed to maintain roster value, since:
-- You lose the superstar
-- You drop your worst player to make room
-- The incoming players must replace both
+- You lose the superstar (core slot now empty)
+- You drop your worst player to make room (floor slot now empty)
+- The incoming players must replace both slots, not "add to" your roster
 
 **Example**: Trading a 125 FP/G superstar when your worst player is 39 FP/G:
 - Break-even: 125 + 39 = 164 FP/G

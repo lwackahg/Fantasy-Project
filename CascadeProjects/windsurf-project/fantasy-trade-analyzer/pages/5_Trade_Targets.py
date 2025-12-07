@@ -286,7 +286,6 @@ with tab1:
             st.info("Adjust filters and click 'Find Similar Players' to see suggested targets.")
 
 
-# =============================================================================
 # Tab 2: Buy Low / Sell High
 # =============================================================================
 
@@ -311,13 +310,21 @@ with tab2:
         - Outliers (very high or low) suggest buy/sell opportunities
         """)
     
-    # Check if we have minutes data
+    # Check if we have minutes data; if not, try to enrich from DB-backed
+    # consistency stats (game logs) before giving up.
     has_mins = 'Min' in df.columns or 'MPG' in df.columns
     mins_col = 'Min' if 'Min' in df.columns else 'MPG' if 'MPG' in df.columns else None
     
+    if not has_mins and league_id:
+        # This will pull mean_minutes out of the DB-backed consistency index
+        # when available, and attach a 'Min' column to df.
+        df = enrich_with_consistency(df)
+        has_mins = 'Min' in df.columns or 'MPG' in df.columns
+        mins_col = 'Min' if 'Min' in df.columns else 'MPG' if 'MPG' in df.columns else None
+    
     if not has_mins:
         st.warning("⚠️ Minutes data not available. This analysis requires MPG (minutes per game) data.")
-        st.info("Load player data that includes minutes to use this feature.")
+        st.info("Load player data that includes minutes to use this feature, or ensure game logs/DB stats are available for your league.")
     else:
         # Calculate efficiency metrics
         analysis_df = df.copy()

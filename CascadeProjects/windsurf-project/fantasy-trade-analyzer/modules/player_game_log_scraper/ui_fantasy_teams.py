@@ -8,7 +8,8 @@ from modules.player_game_log_scraper.logic import (
 	calculate_variability_stats,
 	calculate_multi_range_stats,
 	get_cache_directory,
-	clean_html_from_text
+	clean_html_from_text,
+	load_availability_index,
 )
 from modules.player_game_log_scraper import db_store
 from modules.trade_analysis.consistency_integration import (
@@ -97,6 +98,8 @@ def _build_fantasy_team_view(league_id, cache_files, season):
 	suggestions and team viewers can reuse the results without re-reading logs.
 	"""
 	rosters = _load_fantasy_team_rosters()
+	availability_index = load_availability_index(league_id, season) or {}
+	availability_players = availability_index.get("players", {}) if isinstance(availability_index, dict) else {}
 	# DB-first: build index from SQLite for the requested season, fallback to JSON cache_files.
 	cache_index = {}
 	use_db = False
@@ -141,6 +144,45 @@ def _build_fantasy_team_view(league_id, cache_files, season):
 				'CV %': round(ytd['coefficient_of_variation'], 1),
 				'code': entry['code']
 			}
+			
+			avail_info = availability_players.get(name)
+			if not avail_info and entry['code']:
+				# Fallback: match by code if names differ slightly
+				for pname, info in availability_players.items():
+					if info.get('code') == entry['code']:
+						avail_info = info
+						break
+			if avail_info:
+				row['Avail %'] = round(float(avail_info.get('availability_ytd', 0.0)) * 100.0, 1)
+				row['Avail30 %'] = round(float(avail_info.get('availability_30d', avail_info.get('availability_ytd', 0.0))) * 100.0, 1)
+				row['Max Missed G'] = int(avail_info.get('max_missed_streak', 0))
+			else:
+				row['Avail %'] = 100.0
+				row['Avail30 %'] = 100.0
+				row['Max Missed G'] = 0
+			
+			# Availability-aware CV%: penalize players who miss many team games or have long missed streaks.
+			try:
+				raw_cv = float(row.get('CV %', 0.0) or 0.0)
+				avail_pct = float(row.get('Avail %', 100.0) or 100.0)
+				avail30_pct = float(row.get('Avail30 %', avail_pct) or avail_pct)
+				max_missed = float(row.get('Max Missed G', 0) or 0.0)
+				# Use the worse of YTD and recent availability as effective availability.
+				eff_avail_pct = max(0.0, min(100.0, min(avail_pct, avail30_pct)))
+				eff_avail = eff_avail_pct / 100.0
+				# Base penalty: below 90% availability, add up to ~25 CV points (e.g. 50% avail -> +20).
+				base_penalty = max(0.0, (0.9 - eff_avail) * 50.0)
+				# Extra penalty for long consecutive missed-game streaks (capped at +5 CV).
+				streak_penalty = min(max_missed, 10.0) * 0.5
+				adj_cv = raw_cv + base_penalty + streak_penalty
+				if adj_cv < raw_cv:
+					adj_cv = raw_cv
+				if adj_cv > 100.0:
+					adj_cv = 100.0
+				row['CV %'] = round(adj_cv, 1)
+			except Exception:
+				# On any parsing error, keep original CV%
+				pass
 			
 			# Add recent trend data if available
 			if 'Last 7' in multi_stats:

@@ -1,0 +1,1551 @@
+{
+  "league_id": "ifa1anexmdgtlk9s",
+  "season": "2025-26",
+  "generated_at": "2025-12-07T00:12:15.016807",
+  "players": {
+    "LeBron James": {
+      "code": "0011e",
+      "games_played": 6,
+      "team_games": 8,
+      "availability_ytd": 0.75,
+      "availability_30d": 0.75,
+      "max_missed_streak": 1
+    },
+    "Kevin Durant": {
+      "code": "001aw",
+      "games_played": 18,
+      "team_games": 20,
+      "availability_ytd": 0.9,
+      "availability_30d": 0.8571428571428571,
+      "max_missed_streak": 2
+    },
+    "Russell Westbrook": {
+      "code": "005kc",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Stephen Curry": {
+      "code": "01enh",
+      "games_played": 16,
+      "team_games": 23,
+      "availability_ytd": 0.6956521739130435,
+      "availability_30d": 0.5333333333333333,
+      "max_missed_streak": 3
+    },
+    "James Harden": {
+      "code": "01eo6",
+      "games_played": 22,
+      "team_games": 23,
+      "availability_ytd": 0.9565217391304348,
+      "availability_30d": 0.9375,
+      "max_missed_streak": 1
+    },
+    "Jrue Holiday": {
+      "code": "01eo9",
+      "games_played": 12,
+      "team_games": 23,
+      "availability_ytd": 0.5217391304347826,
+      "availability_30d": 0.3125,
+      "max_missed_streak": 11
+    },
+    "DeMar DeRozan": {
+      "code": "01eon",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Paul George": {
+      "code": "01uyj",
+      "games_played": 7,
+      "team_games": 10,
+      "availability_ytd": 0.7,
+      "availability_30d": 0.7,
+      "max_missed_streak": 1
+    },
+    "Kawhi Leonard": {
+      "code": "027oz",
+      "games_played": 13,
+      "team_games": 23,
+      "availability_ytd": 0.5652173913043478,
+      "availability_30d": 0.4375,
+      "max_missed_streak": 10
+    },
+    "Nikola Vucevic": {
+      "code": "027p0",
+      "games_played": 21,
+      "team_games": 22,
+      "availability_ytd": 0.9545454545454546,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 1
+    },
+    "Tobias Harris": {
+      "code": "027p4",
+      "games_played": 14,
+      "team_games": 23,
+      "availability_ytd": 0.6086956521739131,
+      "availability_30d": 0.5,
+      "max_missed_streak": 9
+    },
+    "Jimmy Butler": {
+      "code": "027pe",
+      "games_played": 20,
+      "team_games": 23,
+      "availability_ytd": 0.8695652173913043,
+      "availability_30d": 0.8,
+      "max_missed_streak": 1
+    },
+    "Anthony Davis": {
+      "code": "02nf1",
+      "games_played": 9,
+      "team_games": 24,
+      "availability_ytd": 0.375,
+      "availability_30d": 0.23529411764705882,
+      "max_missed_streak": 14
+    },
+    "Harrison Barnes": {
+      "code": "02nf7",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Andre Drummond": {
+      "code": "02nf9",
+      "games_played": 21,
+      "team_games": 22,
+      "availability_ytd": 0.9545454545454546,
+      "availability_30d": 1.0,
+      "max_missed_streak": 1
+    },
+    "Draymond Green": {
+      "code": "02nfz",
+      "games_played": 20,
+      "team_games": 23,
+      "availability_ytd": 0.8695652173913043,
+      "availability_30d": 0.8,
+      "max_missed_streak": 1
+    },
+    "Rudy Gobert": {
+      "code": "02xg9",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Andrew Wiggins": {
+      "code": "02ym0",
+      "games_played": 20,
+      "team_games": 23,
+      "availability_ytd": 0.8695652173913043,
+      "availability_30d": 0.8125,
+      "max_missed_streak": 3
+    },
+    "CJ McCollum": {
+      "code": "031lx",
+      "games_played": 21,
+      "team_games": 21,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Giannis Antetokounmpo": {
+      "code": "031m2",
+      "games_played": 17,
+      "team_games": 24,
+      "availability_ytd": 0.7083333333333334,
+      "availability_30d": 0.625,
+      "max_missed_streak": 4
+    },
+    "Dennis Schroder": {
+      "code": "031m4",
+      "games_played": 18,
+      "team_games": 22,
+      "availability_ytd": 0.8181818181818182,
+      "availability_30d": 0.7333333333333333,
+      "max_missed_streak": 4
+    },
+    "Myles Turner": {
+      "code": "03ad2",
+      "games_played": 24,
+      "team_games": 24,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Karl-Anthony Towns": {
+      "code": "03ad3",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Julius Randle": {
+      "code": "03ajv",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Aaron Gordon": {
+      "code": "03al0",
+      "games_played": 13,
+      "team_games": 22,
+      "availability_ytd": 0.5909090909090909,
+      "availability_30d": 0.4375,
+      "max_missed_streak": 7
+    },
+    "Marcus Smart": {
+      "code": "03al1",
+      "games_played": 14,
+      "team_games": 22,
+      "availability_ytd": 0.6363636363636364,
+      "availability_30d": 0.5714285714285714,
+      "max_missed_streak": 5
+    },
+    "Joel Embiid": {
+      "code": "03al2",
+      "games_played": 8,
+      "team_games": 22,
+      "availability_ytd": 0.36363636363636365,
+      "availability_30d": 0.2,
+      "max_missed_streak": 9
+    },
+    "Zach LaVine": {
+      "code": "03ams",
+      "games_played": 20,
+      "team_games": 22,
+      "availability_ytd": 0.9090909090909091,
+      "availability_30d": 0.8666666666666667,
+      "max_missed_streak": 1
+    },
+    "Jerami Grant": {
+      "code": "03aq2",
+      "games_played": 22,
+      "team_games": 23,
+      "availability_ytd": 0.9565217391304348,
+      "availability_30d": 0.9375,
+      "max_missed_streak": 1
+    },
+    "Jusuf Nurkic": {
+      "code": "03e6n",
+      "games_played": 21,
+      "team_games": 22,
+      "availability_ytd": 0.9545454545454546,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 1
+    },
+    "Nikola Jokic": {
+      "code": "03e75",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Kristaps Porzingis": {
+      "code": "03el5",
+      "games_played": 13,
+      "team_games": 24,
+      "availability_ytd": 0.5416666666666666,
+      "availability_30d": 0.4375,
+      "max_missed_streak": 4
+    },
+    "Jaylen Brown": {
+      "code": "03lls",
+      "games_played": 22,
+      "team_games": 23,
+      "availability_ytd": 0.9565217391304348,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 1
+    },
+    "Kelly Oubre Jr.": {
+      "code": "03nwk",
+      "games_played": 12,
+      "team_games": 22,
+      "availability_ytd": 0.5454545454545454,
+      "availability_30d": 0.3333333333333333,
+      "max_missed_streak": 10
+    },
+    "Devin Booker": {
+      "code": "03nwm",
+      "games_played": 22,
+      "team_games": 23,
+      "availability_ytd": 0.9565217391304348,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 1
+    },
+    "Bobby Portis": {
+      "code": "03nwn",
+      "games_played": 24,
+      "team_games": 24,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Norman Powell": {
+      "code": "03r7z",
+      "games_played": 18,
+      "team_games": 23,
+      "availability_ytd": 0.782608695652174,
+      "availability_30d": 0.875,
+      "max_missed_streak": 3
+    },
+    "T.J. McConnell": {
+      "code": "03wr4",
+      "games_played": 13,
+      "team_games": 13,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Brandon Ingram": {
+      "code": "042n1",
+      "games_played": 24,
+      "team_games": 24,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Jamal Murray": {
+      "code": "042n4",
+      "games_played": 21,
+      "team_games": 22,
+      "availability_ytd": 0.9545454545454546,
+      "availability_30d": 0.9375,
+      "max_missed_streak": 1
+    },
+    "Jakob Poeltl": {
+      "code": "042n6",
+      "games_played": 17,
+      "team_games": 24,
+      "availability_ytd": 0.7083333333333334,
+      "availability_30d": 0.75,
+      "max_missed_streak": 3
+    },
+    "Domantas Sabonis": {
+      "code": "042n7",
+      "games_played": 11,
+      "team_games": 21,
+      "availability_ytd": 0.5238095238095238,
+      "availability_30d": 0.3333333333333333,
+      "max_missed_streak": 8
+    },
+    "Pascal Siakam": {
+      "code": "042nm",
+      "games_played": 22,
+      "team_games": 23,
+      "availability_ytd": 0.9565217391304348,
+      "availability_30d": 0.9375,
+      "max_missed_streak": 1
+    },
+    "Ivica Zubac": {
+      "code": "042nt",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Alex Caruso": {
+      "code": "0496e",
+      "games_played": 15,
+      "team_games": 23,
+      "availability_ytd": 0.6521739130434783,
+      "availability_30d": 0.6666666666666666,
+      "max_missed_streak": 3
+    },
+    "DeAaron Fox": {
+      "code": "049kb",
+      "games_played": 14,
+      "team_games": 14,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Malik Monk": {
+      "code": "049kc",
+      "games_played": 19,
+      "team_games": 22,
+      "availability_ytd": 0.8636363636363636,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 2
+    },
+    "Deandre Ayton": {
+      "code": "049kd",
+      "games_played": 20,
+      "team_games": 22,
+      "availability_ytd": 0.9090909090909091,
+      "availability_30d": 0.9285714285714286,
+      "max_missed_streak": 1
+    },
+    "Marvin Bagley": {
+      "code": "049ki",
+      "games_played": 17,
+      "team_games": 21,
+      "availability_ytd": 0.8095238095238095,
+      "availability_30d": 0.7142857142857143,
+      "max_missed_streak": 4
+    },
+    "Lauri Markkanen": {
+      "code": "04azw",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Donovan Mitchell": {
+      "code": "04ewe",
+      "games_played": 22,
+      "team_games": 24,
+      "availability_ytd": 0.9166666666666666,
+      "availability_30d": 0.9411764705882353,
+      "max_missed_streak": 1
+    },
+    "Bam Adebayo": {
+      "code": "04ewf",
+      "games_played": 17,
+      "team_games": 23,
+      "availability_ytd": 0.7391304347826086,
+      "availability_30d": 0.625,
+      "max_missed_streak": 6
+    },
+    "John Collins": {
+      "code": "04ewk",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Jarrett Allen": {
+      "code": "04ewm",
+      "games_played": 15,
+      "team_games": 24,
+      "availability_ytd": 0.625,
+      "availability_30d": 0.5882352941176471,
+      "max_missed_streak": 4
+    },
+    "OG Anunoby": {
+      "code": "04ewn",
+      "games_played": 13,
+      "team_games": 22,
+      "availability_ytd": 0.5909090909090909,
+      "availability_30d": 0.4,
+      "max_missed_streak": 9
+    },
+    "Derrick White": {
+      "code": "04ewt",
+      "games_played": 22,
+      "team_games": 23,
+      "availability_ytd": 0.9565217391304348,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 1
+    },
+    "Josh Hart": {
+      "code": "04ewu",
+      "games_played": 21,
+      "team_games": 21,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Isaiah Hartenstein": {
+      "code": "04ex6",
+      "games_played": 19,
+      "team_games": 23,
+      "availability_ytd": 0.8260869565217391,
+      "availability_30d": 0.7333333333333333,
+      "max_missed_streak": 4
+    },
+    "Dillon Brooks": {
+      "code": "04ex8",
+      "games_played": 17,
+      "team_games": 23,
+      "availability_ytd": 0.7391304347826086,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 6
+    },
+    "Luke Kornet": {
+      "code": "04jwb",
+      "games_played": 11,
+      "team_games": 22,
+      "availability_ytd": 0.5,
+      "availability_30d": 0.5625,
+      "max_missed_streak": 7
+    },
+    "Royce ONeale": {
+      "code": "04jwd",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Luka Doncic": {
+      "code": "04kj6",
+      "games_played": 16,
+      "team_games": 22,
+      "availability_ytd": 0.7272727272727273,
+      "availability_30d": 0.8571428571428571,
+      "max_missed_streak": 3
+    },
+    "Jaren Jackson": {
+      "code": "04qrj",
+      "games_played": 21,
+      "team_games": 23,
+      "availability_ytd": 0.9130434782608695,
+      "availability_30d": 0.8666666666666667,
+      "max_missed_streak": 2
+    },
+    "Trae Young": {
+      "code": "04qrk",
+      "games_played": 5,
+      "team_games": 24,
+      "availability_ytd": 0.20833333333333334,
+      "availability_30d": 0.0,
+      "max_missed_streak": 19
+    },
+    "Wendell Carter": {
+      "code": "04qrl",
+      "games_played": 22,
+      "team_games": 23,
+      "availability_ytd": 0.9565217391304348,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 1
+    },
+    "Collin Sexton": {
+      "code": "04qrm",
+      "games_played": 21,
+      "team_games": 23,
+      "availability_ytd": 0.9130434782608695,
+      "availability_30d": 0.8666666666666667,
+      "max_missed_streak": 1
+    },
+    "Mikal Bridges": {
+      "code": "04qrn",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Shai Gilgeous-Alexander": {
+      "code": "04qro",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Miles Bridges": {
+      "code": "04qrp",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Michael Porter": {
+      "code": "04qrr",
+      "games_played": 18,
+      "team_games": 22,
+      "availability_ytd": 0.8181818181818182,
+      "availability_30d": 0.8,
+      "max_missed_streak": 2
+    },
+    "Donte DiVincenzo": {
+      "code": "04qru",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Kevin Huerter": {
+      "code": "04qrw",
+      "games_played": 19,
+      "team_games": 22,
+      "availability_ytd": 0.8636363636363636,
+      "availability_30d": 0.8,
+      "max_missed_streak": 2
+    },
+    "Grayson Allen": {
+      "code": "04qry",
+      "games_played": 15,
+      "team_games": 23,
+      "availability_ytd": 0.6521739130434783,
+      "availability_30d": 0.4666666666666667,
+      "max_missed_streak": 7
+    },
+    "Anfernee Simons": {
+      "code": "04qs1",
+      "games_played": 22,
+      "team_games": 23,
+      "availability_ytd": 0.9565217391304348,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 1
+    },
+    "Robert Williams": {
+      "code": "04qs4",
+      "games_played": 14,
+      "team_games": 18,
+      "availability_ytd": 0.7777777777777778,
+      "availability_30d": 0.75,
+      "max_missed_streak": 2
+    },
+    "Jalen Brunson": {
+      "code": "04qsa",
+      "games_played": 20,
+      "team_games": 22,
+      "availability_ytd": 0.9090909090909091,
+      "availability_30d": 0.8666666666666667,
+      "max_missed_streak": 2
+    },
+    "Gary Trent": {
+      "code": "04qse",
+      "games_played": 24,
+      "team_games": 24,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Zion Williamson": {
+      "code": "051oh",
+      "games_played": 10,
+      "team_games": 23,
+      "availability_ytd": 0.43478260869565216,
+      "availability_30d": 0.3125,
+      "max_missed_streak": 8
+    },
+    "Ja Morant": {
+      "code": "051oi",
+      "games_played": 12,
+      "team_games": 23,
+      "availability_ytd": 0.5217391304347826,
+      "availability_30d": 0.3333333333333333,
+      "max_missed_streak": 9
+    },
+    "RJ Barrett": {
+      "code": "051oj",
+      "games_played": 17,
+      "team_games": 24,
+      "availability_ytd": 0.7083333333333334,
+      "availability_30d": 0.5625,
+      "max_missed_streak": 7
+    },
+    "DeAndre Hunter": {
+      "code": "051ok",
+      "games_played": 20,
+      "team_games": 22,
+      "availability_ytd": 0.9090909090909091,
+      "availability_30d": 0.8823529411764706,
+      "max_missed_streak": 1
+    },
+    "Darius Garland": {
+      "code": "051ol",
+      "games_played": 8,
+      "team_games": 17,
+      "availability_ytd": 0.47058823529411764,
+      "availability_30d": 0.47058823529411764,
+      "max_missed_streak": 5
+    },
+    "Coby White": {
+      "code": "051on",
+      "games_played": 6,
+      "team_games": 11,
+      "availability_ytd": 0.5454545454545454,
+      "availability_30d": 0.5454545454545454,
+      "max_missed_streak": 3
+    },
+    "Rui Hachimura": {
+      "code": "051op",
+      "games_played": 21,
+      "team_games": 22,
+      "availability_ytd": 0.9545454545454546,
+      "availability_30d": 0.9285714285714286,
+      "max_missed_streak": 1
+    },
+    "Cameron Johnson": {
+      "code": "051or",
+      "games_played": 21,
+      "team_games": 22,
+      "availability_ytd": 0.9545454545454546,
+      "availability_30d": 0.9375,
+      "max_missed_streak": 1
+    },
+    "P.J. Washington": {
+      "code": "051os",
+      "games_played": 19,
+      "team_games": 24,
+      "availability_ytd": 0.7916666666666666,
+      "availability_30d": 0.7058823529411765,
+      "max_missed_streak": 4
+    },
+    "Tyler Herro": {
+      "code": "051ot",
+      "games_played": 5,
+      "team_games": 6,
+      "availability_ytd": 0.8333333333333334,
+      "availability_30d": 0.8333333333333334,
+      "max_missed_streak": 1
+    },
+    "Nickeil Alexander-Walker": {
+      "code": "051ox",
+      "games_played": 22,
+      "team_games": 24,
+      "availability_ytd": 0.9166666666666666,
+      "availability_30d": 0.875,
+      "max_missed_streak": 2
+    },
+    "Jordan Poole": {
+      "code": "051p8",
+      "games_played": 7,
+      "team_games": 23,
+      "availability_ytd": 0.30434782608695654,
+      "availability_30d": 0.0,
+      "max_missed_streak": 16
+    },
+    "Keldon Johnson": {
+      "code": "051p9",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Kevin Porter": {
+      "code": "051pa",
+      "games_played": 5,
+      "team_games": 24,
+      "availability_ytd": 0.20833333333333334,
+      "availability_30d": 0.25,
+      "max_missed_streak": 19
+    },
+    "Nicolas Claxton": {
+      "code": "051pb",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Daniel Gafford": {
+      "code": "051pi",
+      "games_played": 15,
+      "team_games": 19,
+      "availability_ytd": 0.7894736842105263,
+      "availability_30d": 0.7647058823529411,
+      "max_missed_streak": 2
+    },
+    "Naz Reid": {
+      "code": "0527h",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Tyrese Maxey": {
+      "code": "05qsq",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Saddiq Bey": {
+      "code": "05qt0",
+      "games_played": 22,
+      "team_games": 23,
+      "availability_ytd": 0.9565217391304348,
+      "availability_30d": 0.9375,
+      "max_missed_streak": 1
+    },
+    "Payton Pritchard": {
+      "code": "05qt1",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Desmond Bane": {
+      "code": "05qt3",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Sam Merrill": {
+      "code": "05qtb",
+      "games_played": 12,
+      "team_games": 24,
+      "availability_ytd": 0.5,
+      "availability_30d": 0.47058823529411764,
+      "max_missed_streak": 9
+    },
+    "Deni Avdija": {
+      "code": "05qtj",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "LaMelo Ball": {
+      "code": "05qto",
+      "games_played": 16,
+      "team_games": 23,
+      "availability_ytd": 0.6956521739130435,
+      "availability_30d": 0.6666666666666666,
+      "max_missed_streak": 5
+    },
+    "Tre Jones": {
+      "code": "05qtq",
+      "games_played": 17,
+      "team_games": 22,
+      "availability_ytd": 0.7727272727272727,
+      "availability_30d": 0.6666666666666666,
+      "max_missed_streak": 3
+    },
+    "Devin Vassell": {
+      "code": "05qtr",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Onyeka Okongwu": {
+      "code": "05qtt",
+      "games_played": 23,
+      "team_games": 24,
+      "availability_ytd": 0.9583333333333334,
+      "availability_30d": 0.9375,
+      "max_missed_streak": 1
+    },
+    "Jaden McDaniels": {
+      "code": "05qu0",
+      "games_played": 21,
+      "team_games": 22,
+      "availability_ytd": 0.9545454545454546,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 1
+    },
+    "Immanuel Quickley": {
+      "code": "05qu9",
+      "games_played": 24,
+      "team_games": 24,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Isaiah Stewart": {
+      "code": "05qub",
+      "games_played": 20,
+      "team_games": 23,
+      "availability_ytd": 0.8695652173913043,
+      "availability_30d": 0.8125,
+      "max_missed_streak": 3
+    },
+    "Anthony Edwards": {
+      "code": "05qug",
+      "games_played": 18,
+      "team_games": 22,
+      "availability_ytd": 0.8181818181818182,
+      "availability_30d": 1.0,
+      "max_missed_streak": 4
+    },
+    "Naji Marshall": {
+      "code": "05qzh",
+      "games_played": 24,
+      "team_games": 24,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Cade Cunningham": {
+      "code": "05uib",
+      "games_played": 20,
+      "team_games": 23,
+      "availability_ytd": 0.8695652173913043,
+      "availability_30d": 0.8125,
+      "max_missed_streak": 3
+    },
+    "Jalen Green": {
+      "code": "05uic",
+      "games_played": 2,
+      "team_games": 15,
+      "availability_ytd": 0.13333333333333333,
+      "availability_30d": 0.13333333333333333,
+      "max_missed_streak": 13
+    },
+    "Evan Mobley": {
+      "code": "05uid",
+      "games_played": 23,
+      "team_games": 24,
+      "availability_ytd": 0.9583333333333334,
+      "availability_30d": 0.9411764705882353,
+      "max_missed_streak": 1
+    },
+    "Scottie Barnes": {
+      "code": "05uie",
+      "games_played": 24,
+      "team_games": 24,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Jalen Suggs": {
+      "code": "05uif",
+      "games_played": 18,
+      "team_games": 23,
+      "availability_ytd": 0.782608695652174,
+      "availability_30d": 0.8,
+      "max_missed_streak": 1
+    },
+    "Josh Giddey": {
+      "code": "05uig",
+      "games_played": 20,
+      "team_games": 22,
+      "availability_ytd": 0.9090909090909091,
+      "availability_30d": 0.8666666666666667,
+      "max_missed_streak": 2
+    },
+    "Franz Wagner": {
+      "code": "05uii",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Davion Mitchell": {
+      "code": "05uij",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Moses Moody": {
+      "code": "05uio",
+      "games_played": 21,
+      "team_games": 21,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Alperen Sengun": {
+      "code": "05uiq",
+      "games_played": 19,
+      "team_games": 20,
+      "availability_ytd": 0.95,
+      "availability_30d": 0.9285714285714286,
+      "max_missed_streak": 1
+    },
+    "Trey Murphy": {
+      "code": "05uir",
+      "games_played": 21,
+      "team_games": 23,
+      "availability_ytd": 0.9130434782608695,
+      "availability_30d": 0.875,
+      "max_missed_streak": 2
+    },
+    "Jalen Johnson": {
+      "code": "05uiu",
+      "games_played": 21,
+      "team_games": 24,
+      "availability_ytd": 0.875,
+      "availability_30d": 0.875,
+      "max_missed_streak": 1
+    },
+    "Quentin Grimes": {
+      "code": "05uiz",
+      "games_played": 21,
+      "team_games": 22,
+      "availability_ytd": 0.9545454545454546,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 1
+    },
+    "Cameron Thomas": {
+      "code": "05uj1",
+      "games_played": 8,
+      "team_games": 22,
+      "availability_ytd": 0.36363636363636365,
+      "availability_30d": 0.06666666666666667,
+      "max_missed_streak": 14
+    },
+    "Santi Aldama": {
+      "code": "05uj4",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Herbert Jones": {
+      "code": "05uj9",
+      "games_played": 16,
+      "team_games": 23,
+      "availability_ytd": 0.6956521739130435,
+      "availability_30d": 0.5625,
+      "max_missed_streak": 7
+    },
+    "Miles McBride": {
+      "code": "05uja",
+      "games_played": 19,
+      "team_games": 22,
+      "availability_ytd": 0.8636363636363636,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 2
+    },
+    "Ayo Dosunmu": {
+      "code": "05ujc",
+      "games_played": 19,
+      "team_games": 22,
+      "availability_ytd": 0.8636363636363636,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 2
+    },
+    "Neemias Queta": {
+      "code": "05ujd",
+      "games_played": 21,
+      "team_games": 23,
+      "availability_ytd": 0.9130434782608695,
+      "availability_30d": 0.8666666666666667,
+      "max_missed_streak": 1
+    },
+    "Sandro Mamukelashvili": {
+      "code": "05ujs",
+      "games_played": 23,
+      "team_games": 24,
+      "availability_ytd": 0.9583333333333334,
+      "availability_30d": 0.9375,
+      "max_missed_streak": 1
+    },
+    "Jose Alvarado": {
+      "code": "05uul",
+      "games_played": 20,
+      "team_games": 22,
+      "availability_ytd": 0.9090909090909091,
+      "availability_30d": 0.875,
+      "max_missed_streak": 2
+    },
+    "Jay Huff": {
+      "code": "05uup",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Austin Reaves": {
+      "code": "05uus",
+      "games_played": 19,
+      "team_games": 22,
+      "availability_ytd": 0.8636363636363636,
+      "availability_30d": 0.8571428571428571,
+      "max_missed_streak": 3
+    },
+    "Brandon Williams": {
+      "code": "05y9y",
+      "games_played": 22,
+      "team_games": 24,
+      "availability_ytd": 0.9166666666666666,
+      "availability_30d": 1.0,
+      "max_missed_streak": 2
+    },
+    "Paolo Banchero": {
+      "code": "06210",
+      "games_played": 13,
+      "team_games": 23,
+      "availability_ytd": 0.5652173913043478,
+      "availability_30d": 0.3333333333333333,
+      "max_missed_streak": 10
+    },
+    "Chet Holmgren": {
+      "code": "06211",
+      "games_played": 19,
+      "team_games": 23,
+      "availability_ytd": 0.8260869565217391,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 3
+    },
+    "Jabari Smith": {
+      "code": "06212",
+      "games_played": 19,
+      "team_games": 20,
+      "availability_ytd": 0.95,
+      "availability_30d": 1.0,
+      "max_missed_streak": 1
+    },
+    "Keegan Murray": {
+      "code": "06213",
+      "games_played": 7,
+      "team_games": 7,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Jaden Ivey": {
+      "code": "06214",
+      "games_played": 8,
+      "team_games": 8,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Bennedict Mathurin": {
+      "code": "06215",
+      "games_played": 12,
+      "team_games": 23,
+      "availability_ytd": 0.5217391304347826,
+      "availability_30d": 0.625,
+      "max_missed_streak": 11
+    },
+    "Shaedon Sharpe": {
+      "code": "06216",
+      "games_played": 19,
+      "team_games": 23,
+      "availability_ytd": 0.8260869565217391,
+      "availability_30d": 0.75,
+      "max_missed_streak": 4
+    },
+    "Dyson Daniels": {
+      "code": "06217",
+      "games_played": 24,
+      "team_games": 24,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Jalen Williams": {
+      "code": "0621b",
+      "games_played": 4,
+      "team_games": 4,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Jalen Duren": {
+      "code": "0621c",
+      "games_played": 20,
+      "team_games": 23,
+      "availability_ytd": 0.8695652173913043,
+      "availability_30d": 0.8125,
+      "max_missed_streak": 2
+    },
+    "Mark Williams": {
+      "code": "0621e",
+      "games_played": 19,
+      "team_games": 23,
+      "availability_ytd": 0.8260869565217391,
+      "availability_30d": 0.8,
+      "max_missed_streak": 1
+    },
+    "Tari Eason": {
+      "code": "0621g",
+      "games_played": 11,
+      "team_games": 20,
+      "availability_ytd": 0.55,
+      "availability_30d": 0.35714285714285715,
+      "max_missed_streak": 9
+    },
+    "Christian Braun": {
+      "code": "0621k",
+      "games_played": 11,
+      "team_games": 22,
+      "availability_ytd": 0.5,
+      "availability_30d": 0.3125,
+      "max_missed_streak": 11
+    },
+    "Peyton Watson": {
+      "code": "0621t",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Andrew Nembhard": {
+      "code": "0621u",
+      "games_played": 15,
+      "team_games": 23,
+      "availability_ytd": 0.6521739130434783,
+      "availability_30d": 0.875,
+      "max_missed_streak": 7
+    },
+    "Max Christie": {
+      "code": "0621y",
+      "games_played": 24,
+      "team_games": 24,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Moussa Diabate": {
+      "code": "06226",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Ryan Rollins": {
+      "code": "06227",
+      "games_played": 24,
+      "team_games": 24,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Vince Williams": {
+      "code": "0622a",
+      "games_played": 18,
+      "team_games": 18,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "AJ Green": {
+      "code": "06234",
+      "games_played": 24,
+      "team_games": 24,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Collin Gillespie": {
+      "code": "0623e",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Julian Champagnie": {
+      "code": "062dn",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Quenton Jackson": {
+      "code": "064tp",
+      "games_played": 5,
+      "team_games": 21,
+      "availability_ytd": 0.23809523809523808,
+      "availability_30d": 0.0,
+      "max_missed_streak": 16
+    },
+    "Amen Thompson": {
+      "code": "06ca8",
+      "games_played": 20,
+      "team_games": 20,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Jaime Jaquez": {
+      "code": "06cbx",
+      "games_played": 22,
+      "team_games": 23,
+      "availability_ytd": 0.9565217391304348,
+      "availability_30d": 0.9375,
+      "max_missed_streak": 1
+    },
+    "Keyonte George": {
+      "code": "06cby",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Bilal Coulibaly": {
+      "code": "06cc1",
+      "games_played": 12,
+      "team_games": 17,
+      "availability_ytd": 0.7058823529411765,
+      "availability_30d": 0.6428571428571429,
+      "max_missed_streak": 4
+    },
+    "Anthony Black": {
+      "code": "06cc5",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Brandin Podziemski": {
+      "code": "06cc7",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Dereck Lively": {
+      "code": "06cc8",
+      "games_played": 7,
+      "team_games": 24,
+      "availability_ytd": 0.2916666666666667,
+      "availability_30d": 0.23529411764705882,
+      "max_missed_streak": 9
+    },
+    "Brandon Miller": {
+      "code": "06cca",
+      "games_played": 7,
+      "team_games": 23,
+      "availability_ytd": 0.30434782608695654,
+      "availability_30d": 0.3333333333333333,
+      "max_missed_streak": 13
+    },
+    "Noah Clowney": {
+      "code": "06ccd",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Ausar Thompson": {
+      "code": "06ccf",
+      "games_played": 19,
+      "team_games": 23,
+      "availability_ytd": 0.8260869565217391,
+      "availability_30d": 0.75,
+      "max_missed_streak": 4
+    },
+    "Victor Wembanyama": {
+      "code": "06cch",
+      "games_played": 12,
+      "team_games": 22,
+      "availability_ytd": 0.5454545454545454,
+      "availability_30d": 0.375,
+      "max_missed_streak": 10
+    },
+    "Toumani Camara": {
+      "code": "06cd4",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Alex Sarr": {
+      "code": "06mju",
+      "games_played": 16,
+      "team_games": 21,
+      "availability_ytd": 0.7619047619047619,
+      "availability_30d": 0.6428571428571429,
+      "max_missed_streak": 3
+    },
+    "Reed Sheppard": {
+      "code": "06mjv",
+      "games_played": 20,
+      "team_games": 20,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Stephon Castle": {
+      "code": "06mjw",
+      "games_played": 13,
+      "team_games": 22,
+      "availability_ytd": 0.5909090909090909,
+      "availability_30d": 0.4375,
+      "max_missed_streak": 9
+    },
+    "Donovan Clingan": {
+      "code": "06mjz",
+      "games_played": 21,
+      "team_games": 23,
+      "availability_ytd": 0.9130434782608695,
+      "availability_30d": 0.875,
+      "max_missed_streak": 1
+    },
+    "Zach Edey": {
+      "code": "06mk1",
+      "games_played": 10,
+      "team_games": 10,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Matas Buzelis": {
+      "code": "06mk3",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Kelel Ware": {
+      "code": "06mk7",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "JaKobe Walter": {
+      "code": "06mkb",
+      "games_played": 18,
+      "team_games": 21,
+      "availability_ytd": 0.8571428571428571,
+      "availability_30d": 0.8125,
+      "max_missed_streak": 3
+    },
+    "Jaylon Tyson": {
+      "code": "06mkc",
+      "games_played": 19,
+      "team_games": 24,
+      "availability_ytd": 0.7916666666666666,
+      "availability_30d": 0.7058823529411765,
+      "max_missed_streak": 5
+    },
+    "Yves Missi": {
+      "code": "06mkd",
+      "games_played": 16,
+      "team_games": 23,
+      "availability_ytd": 0.6956521739130435,
+      "availability_30d": 0.6875,
+      "max_missed_streak": 4
+    },
+    "Kyshawn George": {
+      "code": "06mkg",
+      "games_played": 19,
+      "team_games": 21,
+      "availability_ytd": 0.9047619047619048,
+      "availability_30d": 0.8571428571428571,
+      "max_missed_streak": 1
+    },
+    "Ajay Mitchell": {
+      "code": "06mlk",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Jamal Shead": {
+      "code": "06mlr",
+      "games_played": 24,
+      "team_games": 24,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Daniss Jenkins": {
+      "code": "06mmf",
+      "games_played": 15,
+      "team_games": 22,
+      "availability_ytd": 0.6818181818181818,
+      "availability_30d": 0.6875,
+      "max_missed_streak": 3
+    },
+    "Ace Bailey": {
+      "code": "06v57",
+      "games_played": 22,
+      "team_games": 22,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Jeremiah Fears": {
+      "code": "06v5g",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Derik Queen": {
+      "code": "06v5h",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "VJ Edgecombe": {
+      "code": "06v5k",
+      "games_played": 19,
+      "team_games": 22,
+      "availability_ytd": 0.8636363636363636,
+      "availability_30d": 0.8,
+      "max_missed_streak": 3
+    },
+    "Cooper Flagg": {
+      "code": "06v5l",
+      "games_played": 23,
+      "team_games": 24,
+      "availability_ytd": 0.9583333333333334,
+      "availability_30d": 0.9411764705882353,
+      "max_missed_streak": 1
+    },
+    "Kon Knueppel": {
+      "code": "06v5n",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Egor Demin": {
+      "code": "06v5r",
+      "games_played": 20,
+      "team_games": 22,
+      "availability_ytd": 0.9090909090909091,
+      "availability_30d": 0.9333333333333333,
+      "max_missed_streak": 1
+    },
+    "Cedric Coward": {
+      "code": "06v5v",
+      "games_played": 23,
+      "team_games": 23,
+      "availability_ytd": 1.0,
+      "availability_30d": 1.0,
+      "max_missed_streak": 0
+    },
+    "Dylan Harper": {
+      "code": "06v5y",
+      "games_played": 12,
+      "team_games": 22,
+      "availability_ytd": 0.5454545454545454,
+      "availability_30d": 0.375,
+      "max_missed_streak": 10
+    },
+    "Ryan Kalkbrenner": {
+      "code": "06v80",
+      "games_played": 21,
+      "team_games": 23,
+      "availability_ytd": 0.9130434782608695,
+      "availability_30d": 0.8666666666666667,
+      "max_missed_streak": 1
+    },
+    "Ryan Nembhard": {
+      "code": "06y3q",
+      "games_played": 11,
+      "team_games": 24,
+      "availability_ytd": 0.4583333333333333,
+      "availability_30d": 0.47058823529411764,
+      "max_missed_streak": 8
+    }
+  }
+}

@@ -4,13 +4,18 @@ from pathlib import Path
 from typing import Dict, Optional
 from functools import lru_cache
 import pandas as pd
-from modules.player_game_log_scraper.logic import calculate_variability_stats, get_player_code_by_name, load_cached_player_log
+from modules.player_game_log_scraper.logic import calculate_variability_stats, get_player_code_by_name, load_cached_player_log, get_cache_directory
 from modules.player_game_log_scraper import db_store
 
 CONSISTENCY_VERY_MAX_CV = 25.0
 CONSISTENCY_MODERATE_MAX_CV = 40.0
 
 # No longer need get_consistency_cache_directory here if we rely on logic.py
+
+
+def get_consistency_cache_directory() -> Path:
+	"""Return the directory where player game log cache files are stored."""
+	return get_cache_directory()
 
 @lru_cache(maxsize=2048)
 def _load_raw_player_data(player_name: str, league_id: str, season: Optional[str] = None) -> Optional[Dict]:

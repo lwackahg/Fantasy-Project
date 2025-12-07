@@ -9,6 +9,9 @@ from typing import Dict, List, Optional
 
 import math
 import pandas as pd
+import json
+from pathlib import Path
+from datetime import datetime, timedelta
 
 from .trade_suggestions_config import (
 	ROSTER_SIZE,
@@ -21,6 +24,26 @@ from .trade_suggestions_config import (
 	EQUAL_COUNT_MAX_TOTAL_FPTS_RATIO,
 	TRADE_BALANCE_LEVEL,
 )
+
+
+_INJURY_TAGS: Optional[Dict[str, str]] = None
+
+
+def _load_injury_tags() -> Dict[str, str]:
+	global _INJURY_TAGS
+	if _INJURY_TAGS is not None:
+		return _INJURY_TAGS or {}
+	try:
+		base_dir = Path(__file__).resolve().parent.parent.parent
+		inj_path = base_dir / "data" / "injured_players.json"
+		if inj_path.exists():
+			with inj_path.open("r", encoding="utf-8") as f:
+				_INJURY_TAGS = json.load(f)
+		else:
+			_INJURY_TAGS = {}
+	except Exception:
+		_INJURY_TAGS = {}
+	return _INJURY_TAGS or {}
 
 
 def _update_realism_caps_from_league(scarcity_context: Dict, league_tiers: Dict[str, float]) -> None:
@@ -94,6 +117,136 @@ def _calculate_core_value(team_df: pd.DataFrame, core_size: int) -> float:
 	return float(core_df["Value"].sum())
 
 
+def _resolve_injury_tag(info) -> Optional[str]:
+	"""Normalize injured_players.json entry to an active tag or None.
+
+	Supports both legacy string format and richer objects like:
+	{"tag": "Half Season", "duration_value": 6, "duration_unit": "weeks", "added": "2025-12-06"}
+	"""
+	# Legacy: simple string means "always active" override
+	from typing import Union
+	if isinstance(info, str):
+		return info
+	if not isinstance(info, dict):
+		return None
+
+	tag = info.get("tag") or None
+	if not tag:
+		return None
+
+	added_str = info.get("added")
+	duration_value = info.get("duration_value")
+	duration_unit = str(info.get("duration_unit") or "").lower()
+
+	# If we don't have clean timing metadata, treat as always active.
+	if not added_str or not isinstance(duration_value, (int, float)):
+		return tag
+
+	try:
+		added_date = datetime.strptime(str(added_str), "%Y-%m-%d").date()
+	except Exception:
+		return tag
+
+	try:
+		v = int(duration_value)
+	except Exception:
+		v = 0
+	if v <= 0:
+		return tag
+
+	if duration_unit.startswith("day"):
+		days = v
+	elif duration_unit.startswith("week"):
+		days = v * 7
+	elif duration_unit.startswith("month"):
+		days = v * 30
+	else:
+		# Unknown unit -> fall back to always-active behavior
+		return tag
+
+	expiry = added_date + timedelta(days=days)
+	if datetime.today().date() <= expiry:
+		return tag
+	return None
+
+
+def _build_after_team(
+	full_team: pd.DataFrame,
+	players_give: List[pd.Series],
+	players_get: List[pd.Series],
+) -> pd.DataFrame:
+	if full_team is None or full_team.empty:
+		return full_team
+	after_team = full_team.copy()
+
+	if players_give:
+		give_names = [p.get("Player") for p in players_give if "Player" in p]
+		if give_names:
+			after_team = after_team[~after_team["Player"].isin(give_names)].copy()
+
+	if players_get:
+		new_rows = pd.DataFrame(players_get)
+		if not new_rows.empty:
+			if "Player" in after_team.columns and "Player" in new_rows.columns:
+				existing = set(after_team["Player"].tolist())
+				new_rows = new_rows[~new_rows["Player"].isin(existing)]
+			if not new_rows.empty:
+				after_team = pd.concat([after_team, new_rows], ignore_index=True)
+
+	return after_team
+
+
+def _estimate_team_cushion(team_df: pd.DataFrame) -> float:
+	if team_df is None or team_df.empty:
+		return 0.0
+	if "GP" not in team_df.columns:
+		return 0.0
+
+	gp_series = team_df["GP"].astype(float)
+	max_gp = float(gp_series.max() or 1.0)
+	base_p = (gp_series / max_gp).clip(lower=0.4, upper=1.0)
+
+	inj_tags = _load_injury_tags()
+	inj_mult = {
+		"Full Season": 0.50,
+		"Half Season": 0.70,
+		"1/4 Season": 0.85,
+	}
+
+	adj_p = []
+	for idx, row in team_df.iterrows():
+		name = str(row.get("Player", "") or "")
+		p = float(base_p.loc[idx])
+		info = inj_tags.get(name)
+		tag = _resolve_injury_tag(info)
+		if tag:
+			mult = inj_mult.get(tag, 1.0)
+			p = max(0.2, min(1.0, p * mult))
+		adj_p.append(p)
+
+	adj_p_series = pd.Series(adj_p, index=team_df.index)
+	e_games = adj_p_series * float(AVG_GAMES_PER_PLAYER)
+	total_e_games = float(e_games.sum())
+	return total_e_games - float(MIN_GAMES_REQUIRED)
+
+
+def _passes_cushion_guard(
+	your_full_team: pd.DataFrame,
+	opp_full_team: pd.DataFrame,
+	your_players_give: List[pd.Series],
+	their_players_get: List[pd.Series],
+) -> bool:
+	your_after = _build_after_team(your_full_team, your_players_give, their_players_get)
+	opp_after = _build_after_team(opp_full_team, their_players_get, your_players_give)
+	if your_after is None or opp_after is None:
+		return True
+	your_cushion = _estimate_team_cushion(your_after)
+	opp_cushion = _estimate_team_cushion(opp_after)
+	if your_cushion < 0 or opp_cushion < 0:
+		return False
+	return True
+
+
 def _check_opponent_core_avg_drop(
 	opp_full_team: pd.DataFrame,
 	opp_baseline_core: float,
@@ -136,24 +289,9 @@ def _simulate_core_value_gain(
 	if your_full_team is None or your_full_team.empty or core_size <= 0:
 		return 0.0
 
-	after_team = your_full_team.copy()
-
-	# Remove players you are giving up
-	if your_players_give:
-		give_names = [p.get("Player") for p in your_players_give if "Player" in p]
-		if give_names:
-			after_team = after_team[~after_team["Player"].isin(give_names)].copy()
-
-	# Add players you are receiving
-	if their_players_get:
-		new_rows = pd.DataFrame(their_players_get)
-		if not new_rows.empty:
-			if "Player" in after_team.columns and "Player" in new_rows.columns:
-				existing = set(after_team["Player"].tolist())
-				new_rows = new_rows[~new_rows["Player"].isin(existing)]
-			if not new_rows.empty:
-				after_team = pd.concat([after_team, new_rows], ignore_index=True)
-
+	after_team = _build_after_team(your_full_team, your_players_give, their_players_get)
+	if after_team is None or after_team.empty:
+		return 0.0
 	core_after = _calculate_core_value(after_team, core_size)
 	core_delta = core_after - baseline_core_value
 

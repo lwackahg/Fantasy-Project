@@ -232,7 +232,13 @@ def calculate_team_stats(schedule_df):
         team2 = row["Team 2"]
         score1 = row["Score 1"]
         score2 = row["Score 2"]
-        
+
+        # Treat 0-0 or missing scores as "not yet played" and skip them.
+        # This prevents future weeks with placeholder zeros from being counted
+        # as ties and keeps standings aligned with actual completed matchups.
+        if pd.isna(score1) or pd.isna(score2) or (score1 == 0 and score2 == 0):
+            continue
+
         # Update team1 stats
         team_stats[team1]["Points For"] += score1
         team_stats[team1]["Points Against"] += score2
@@ -268,3 +274,75 @@ def calculate_team_stats(schedule_df):
     stats_df["Avg Points Against"] = round(stats_df["Points Against"] / stats_df["Total Matchups"], 1)
     
     return stats_df
+
+
+@st.cache_data
+def get_team_matchup_breakdown(schedule_df, team_name: str):
+    """Return a per-matchup PF/PA breakdown for a single team.
+
+    This uses the same rules as calculate_team_stats: future/unplayed 0-0
+    matchups (or rows with missing scores) are skipped entirely so that the
+    totals line up with the main standings table.
+    """
+    if schedule_df is None or schedule_df.empty or not team_name:
+        return pd.DataFrame()
+
+    rows = []
+
+    for _, row in schedule_df.iterrows():
+        team1 = row["Team 1"]
+        team2 = row["Team 2"]
+        score1 = row["Score 1"]
+        score2 = row["Score 2"]
+
+        # Keep in sync with calculate_team_stats: skip unplayed 0-0 or missing matchups
+        if pd.isna(score1) or pd.isna(score2) or (score1 == 0 and score2 == 0):
+            continue
+
+        if team1 != team_name and team2 != team_name:
+            continue
+
+        if team1 == team_name:
+            pts_for = score1
+            pts_against = score2
+            opponent = team2
+        else:
+            pts_for = score2
+            pts_against = score1
+            opponent = team1
+
+        if pts_for > pts_against:
+            outcome = "W"
+        elif pts_for < pts_against:
+            outcome = "L"
+        else:
+            outcome = "T"
+
+        rows.append({
+            "Scoring Period": row.get("Scoring Period", None),
+            "Period Number": row.get("Period Number", None),
+            "Date Range": row.get("Date Range", None),
+            "Opponent": opponent,
+            "Points For": pts_for,
+            "Points Against": pts_against,
+            "Outcome": outcome,
+        })
+
+    breakdown_df = pd.DataFrame(rows)
+    if breakdown_df.empty:
+        return breakdown_df
+
+    sort_cols = []
+    if "Period Number" in breakdown_df.columns:
+        sort_cols.append("Period Number")
+    if "Scoring Period" in breakdown_df.columns:
+        sort_cols.append("Scoring Period")
+
+    if sort_cols:
+        breakdown_df = breakdown_df.sort_values(sort_cols).reset_index(drop=True)
+    else:
+        breakdown_df = breakdown_df.reset_index(drop=True)
+
+    breakdown_df["Cumulative Points For"] = breakdown_df["Points For"].cumsum()
+    breakdown_df["Cumulative Points Against"] = breakdown_df["Points Against"].cumsum()
+    return breakdown_df
