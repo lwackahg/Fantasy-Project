@@ -230,7 +230,11 @@ def display_all_swaps_analysis(all_teams, all_swaps_df, schedule_df):
     Displays the analysis of all possible schedule swaps from pre-calculated data.
     """
     st.subheader("All Possible Schedule Swaps")
-    st.write("This table shows the impact of every possible one-for-one schedule swap. Higher 'Impact' scores indicate more significant changes to the league standings.")
+    st.write(
+        "This table shows the effect of every possible one-for-one schedule swap. "
+        "When showing all teams, rows are ordered by the total movement in standings "
+        "for the two swapped teams."
+    )
 
     if all_swaps_df.empty:
         st.warning("Swap analysis data could not be calculated.")
@@ -255,9 +259,13 @@ def display_all_swaps_analysis(all_teams, all_swaps_df, schedule_df):
 
         filtered_df = filtered_df.copy()
         filtered_df["Selected Team Change"] = filtered_df.apply(_selected_team_change, axis=1)
+        sort_keys = ["Selected Team Change"]
+        if "Impact" in filtered_df.columns:
+            sort_keys.append("Impact")
+        sort_keys.extend(["Team 1 Position Change", "Team 2 Position Change"])
         filtered_df = filtered_df.sort_values(
-            by=["Selected Team Change", "Team 1 Position Change", "Team 2 Position Change"],
-            ascending=[False, False, False],
+            by=sort_keys,
+            ascending=[False] + [False] * (len(sort_keys) - 1),
         )
 
     st.write(f"Showing {len(filtered_df)} possible swaps.")
@@ -265,17 +273,39 @@ def display_all_swaps_analysis(all_teams, all_swaps_df, schedule_df):
     def style_change(val):
         return 'color: #28a745; font-weight: bold;' if val > 0 else ('color: #dc3545; font-weight: bold;' if val < 0 else 'color: #6c757d;')
 
-    base_columns = ["Team 1", "Team 2", "Team 1 Position Change", "Team 2 Position Change", "Biggest Winner", "Winner Change", "Biggest Loser", "Loser Change"]
-    if "Selected Team Change" in filtered_df.columns:
-        display_columns = ["Team 1", "Team 2", "Selected Team Change", "Team 1 Position Change", "Team 2 Position Change", "Biggest Winner", "Winner Change", "Biggest Loser", "Loser Change"]
-    else:
-        display_columns = base_columns
+    # Always show a consistent set of columns; when a team is selected we add
+    # a "Selected Team ΔPos" column while keeping the per-team position changes
+    # and biggest winner/loser metrics. Impact is still used internally for
+    # sorting but is not shown as a separate column.
+    base_columns = [
+        "Team 1",
+        "Team 2",
+        "Team 1 Position Change",
+        "Team 2 Position Change",
+        "Biggest Winner",
+        "Winner Change",
+        "Biggest Loser",
+        "Loser Change",
+    ]
 
+    display_columns = base_columns.copy()
+    if "Selected Team Change" in filtered_df.columns:
+        display_columns.insert(2, "Selected Team Change")  # after Team 2
+
+    display_columns = [c for c in display_columns if c in filtered_df.columns]
     display_df = filtered_df[display_columns].copy()
 
-    style_cols = ['Team 1 Position Change', 'Team 2 Position Change', 'Winner Change', 'Loser Change']
-    if "Selected Team Change" in display_df.columns:
-        style_cols.append("Selected Team Change")
+    style_cols = [
+        c
+        for c in [
+            "Selected Team Change",
+            "Team 1 Position Change",
+            "Team 2 Position Change",
+            "Winner Change",
+            "Loser Change",
+        ]
+        if c in display_df.columns
+    ]
 
     st.dataframe(
         display_df.style.applymap(style_change, subset=style_cols),
@@ -286,37 +316,12 @@ def display_all_swaps_analysis(all_teams, all_swaps_df, schedule_df):
             "Selected Team Change": st.column_config.NumberColumn("Selected Team ΔPos", help="Change in standings position for the team chosen in the filter (positive = moves up)."),
             "Team 1 Position Change": st.column_config.NumberColumn("T1 Change", help="Team 1's change in standings position."),
             "Team 2 Position Change": st.column_config.NumberColumn("T2 Change", help="Team 2's change in standings position."),
-            "Biggest Winner": st.column_config.TextColumn("Biggest Winner", help="The team (not T1 or T2) that benefits most from the swap.", width="medium"),
+            "Biggest Winner": st.column_config.TextColumn("Biggest Winner", help="The team that benefits most from the swap (largest positive position change).", width="medium"),
             "Winner Change": st.column_config.NumberColumn("Winner Change", help="The standings position change for the biggest winner."),
-            "Biggest Loser": st.column_config.TextColumn("Biggest Loser", help="The team (not T1 or T2) that is most hurt by the swap.", width="medium"),
+            "Biggest Loser": st.column_config.TextColumn("Biggest Loser", help="The team that is most hurt by the swap (largest negative position change).", width="medium"),
             "Loser Change": st.column_config.NumberColumn("Loser Change", help="The standings position change for the biggest loser."),
         }
     )
-
-    st.markdown("---")
-    st.subheader("Detailed Swap Impact")
-    
-    if not filtered_df.empty:
-        swap_options = [f"'{row['Team 1']}' and '{row['Team 2']}'" for _, row in filtered_df.iterrows()]
-        selected_swap_str = st.selectbox("Select a swap for detailed league impact:", options=swap_options, key="swap_detail_select")
-        
-        if selected_swap_str:
-            selected_row = filtered_df.iloc[swap_options.index(selected_swap_str)]
-            team1 = selected_row['Team 1']
-            team2 = selected_row['Team 2']
-            st.write(f"Showing full impact for swapping **{team1}** and **{team2}** schedules:")
-
-            # Recompute full standings and schedule for this specific swap to show
-            # before/after tables and the actual matchup changes.
-            swapped_df, original_stats, new_stats = swap_team_schedules(schedule_df, team1, team2)
-            st.markdown("---")
-            cols = st.columns(2)
-            with cols[0]:
-                _display_team_standings_from_stats(original_stats, heading="Standings Before This Swap")
-            with cols[1]:
-                _display_team_standings_from_stats(new_stats, heading="Standings After This Swap")
-
-            _display_swap_matchups(schedule_df, swapped_df, team1, team2)
 
 
 def display_current_period_overview(schedule_df, current_period: int | None):

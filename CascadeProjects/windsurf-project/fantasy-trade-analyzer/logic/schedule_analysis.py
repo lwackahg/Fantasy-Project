@@ -174,10 +174,23 @@ def calculate_all_schedule_swaps(schedule_df):
             team1_pos_change = position_changes[team1]
             team2_pos_change = position_changes[team2]
 
-            other_teams_changes = {t: p for t, p in position_changes.items() if t not in [team1, team2]}
-            
-            biggest_winner, biggest_winner_change = (max(other_teams_changes, key=other_teams_changes.get), max(other_teams_changes.values())) if other_teams_changes and max(other_teams_changes.values()) > 0 else (None, 0)
-            biggest_loser, biggest_loser_change = (min(other_teams_changes, key=other_teams_changes.get), min(other_teams_changes.values())) if other_teams_changes and min(other_teams_changes.values()) < 0 else (None, 0)
+            # Consider all teams (including Team 1 and Team 2) when looking for
+            # the biggest winner/loser. This way, if one of the swapped teams
+            # jumps the most spots (e.g. from 3-3 to 6-0), it will correctly
+            # appear as the biggest winner rather than showing "None".
+            max_change = max(position_changes.values())
+            if max_change > 0:
+                biggest_winner = next(t for t, c in position_changes.items() if c == max_change)
+                biggest_winner_change = max_change
+            else:
+                biggest_winner, biggest_winner_change = None, 0
+
+            min_change = min(position_changes.values())
+            if min_change < 0:
+                biggest_loser = next(t for t, c in position_changes.items() if c == min_change)
+                biggest_loser_change = min_change
+            else:
+                biggest_loser, biggest_loser_change = None, 0
 
             summary_data.append({
                 "Team 1": team1,
