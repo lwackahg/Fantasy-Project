@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import os
 import re
 from modules.trade_suggestions import find_trade_suggestions, calculate_exponential_value, set_trade_balance_preset
+from modules.trade_suggestions.trade_suggestions_config import MIN_TRADE_FP_G
 from modules.player_game_log_scraper.logic import get_cache_directory
 from modules.player_game_log_scraper.ui_fantasy_teams import _build_fantasy_team_view
 from modules.trade_analysis.consistency_integration import (
@@ -890,6 +891,15 @@ def display_trade_suggestions_tab():
                 key="tab_exclude_opposing_players",
             )
 
+            min_incoming_fp_g = st.number_input(
+                "Min FP/G for incoming players",
+                min_value=0.0,
+                max_value=150.0,
+                value=float(MIN_TRADE_FP_G),
+                step=1.0,
+                key="tab_min_incoming_fp_g",
+            )
+
             realism_min_opp_core = st.number_input(
                 "Opponent min package FP/G advantage",
                 min_value=-150.0,
@@ -994,6 +1004,7 @@ def display_trade_suggestions_tab():
                 exclude_opposing_players=exclude_opposing_players if exclude_opposing_players else None,
                 player_fpts_overrides=player_fpts_overrides if "player_fpts_overrides" in locals() and player_fpts_overrides else None,
                 require_all_include_players=require_all_include_players,
+                min_incoming_fp_g=min_incoming_fp_g,
             )
 
             if not suggestions:

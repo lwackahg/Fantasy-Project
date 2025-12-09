@@ -46,19 +46,21 @@ def load_manager_ids() -> pd.DataFrame:
 def get_manager_list(df: pd.DataFrame) -> pd.DataFrame:
     """Return one row per manager with a simple display label.
 
-    The label uses the earliest season's team name as a shorthand.
+    The label uses the **most recent** season's team name as a shorthand so
+    the dropdown reflects how managers are currently known in the league.
     """
     if df is None or df.empty:
         return pd.DataFrame(columns=["managerid", "label"])
 
-    # Sort so earliest season comes first for each manager
+    # Sort by season so we can pick the most recent entry per manager.
     tmp = df.copy()
     tmp["season_sort"] = tmp["season"]
 
     grouped = []
     for mid, sub in tmp.groupby("managerid"):
         sub = sub.sort_values("season_sort")
-        example_team = sub["team_name"].iloc[0] if not sub.empty else ""
+        # Use the *latest* season's team name for the label
+        example_team = sub["team_name"].iloc[-1] if not sub.empty else ""
         label = f"{mid} – {example_team}" if example_team else str(mid)
         grouped.append({"managerid": mid, "label": label})
 

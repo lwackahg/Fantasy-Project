@@ -3,11 +3,12 @@ import pandas as pd
 import plotly.express as px
 
 from modules.draft_history import load_draft_history
+from modules.manager_ids import load_manager_ids, get_manager_list
 
 
 st.set_page_config(page_title="Draft History", page_icon="📜", layout="wide")
 
-st.title("📜 Draft History - S1 to S5")
+st.title("📜 Draft History - S1 (2021-22) to S5 (2025-26)")
 
 st.markdown(
     """
@@ -37,6 +38,15 @@ if "Bid" in df.columns:
 df["TeamLabel"] = df["FantasyTeamCanonical"].fillna(df["FantasyTeamRaw"])
 df["TeamLabel"] = df["TeamLabel"].astype(str).str.strip()
 df.loc[df["TeamLabel"].isin(["", "nan", "NaN", "None", "N/A", "(N/A)"]), "TeamLabel"] = pd.NA
+df["TeamLabelNorm"] = df["TeamLabel"].astype(str).str.strip().str.lower()
+if "FantasyTeamRaw" in df.columns:
+	df["FantasyTeamRawNorm"] = df["FantasyTeamRaw"].astype(str).str.strip().str.lower()
+else:
+	df["FantasyTeamRawNorm"] = ""
+if "FantasyTeamCanonical" in df.columns:
+	df["FantasyTeamCanonicalNorm"] = df["FantasyTeamCanonical"].astype(str).str.strip().str.lower()
+else:
+	df["FantasyTeamCanonicalNorm"] = ""
 
 # Normalize player names and treat placeholder nan strings as missing
 if "Player" in df.columns:
@@ -53,6 +63,21 @@ df = df[~drop_mask].copy()
 season_order = {f"S{i}": i for i in range(1, 10)}
 df["SeasonNum"] = df["SeasonKey"].map(season_order)
 
+mid_df = load_manager_ids()
+mgr_list = pd.DataFrame()
+if mid_df is not None and not mid_df.empty:
+    mgr_list = get_manager_list(mid_df)
+use_manager_ids = (
+    mid_df is not None
+    and not mid_df.empty
+    and mgr_list is not None
+    and not mgr_list.empty
+)
+selected_manager_id = None
+selected_manager_label = None
+manager_seasons_df = pd.DataFrame()
+selected_teams = []
+
 # --- Global controls ---
 
 st.markdown("## Filters & Settings")
@@ -68,12 +93,24 @@ with filters_col1:
     )
 
 with filters_col2:
-    all_teams = sorted(df["TeamLabel"].dropna().unique())
-    selected_teams = st.multiselect(
-        "Fantasy Teams (canonical)",
-        options=all_teams,
-        default=all_teams,
-    )
+    if use_manager_ids:
+        manager_options = mgr_list["label"].tolist()
+        if manager_options:
+            default_index = 0
+            selected_manager_label = st.selectbox(
+                "Manager",
+                options=manager_options,
+                index=default_index,
+            )
+            selected_row = mgr_list[mgr_list["label"] == selected_manager_label].iloc[0]
+            selected_manager_id = selected_row["managerid"]
+    else:
+        all_teams = sorted(df["TeamLabel"].dropna().unique())
+        selected_teams = st.multiselect(
+            "Fantasy Teams (canonical)",
+            options=all_teams,
+            default=all_teams,
+        )
 
 with filters_col3:
     player_query = st.text_input("Player name contains", "")
@@ -91,8 +128,23 @@ f = df.copy()
 if selected_seasons:
     f = f[f["SeasonKey"].isin(selected_seasons)]
 
-if selected_teams:
-    f = f[f["TeamLabel"].isin(selected_teams)]
+if use_manager_ids and selected_manager_id is not None:
+    manager_seasons_df = mid_df[mid_df["managerid"] == selected_manager_id].copy()
+    if not manager_seasons_df.empty:
+        team_names = manager_seasons_df["team_name"].astype(str).str.strip().str.lower()
+        team_abbrs = manager_seasons_df["team_abbreviation"].astype(str).str.strip().str.lower()
+        team_name_set = set(team_names[team_names.ne("")])
+        team_abbr_set = set(team_abbrs[team_abbrs.ne("")])
+        if team_name_set or team_abbr_set:
+            mask = pd.Series(False, index=f.index)
+            if team_name_set:
+                mask = mask | f["FantasyTeamRawNorm"].isin(team_name_set) | f["FantasyTeamCanonicalNorm"].isin(team_name_set) | f["TeamLabelNorm"].isin(team_name_set)
+            if team_abbr_set:
+                mask = mask | f["FantasyTeamRawNorm"].isin(team_abbr_set) | f["FantasyTeamCanonicalNorm"].isin(team_abbr_set) | f["TeamLabelNorm"].isin(team_abbr_set)
+            f = f[mask]
+else:
+    if selected_teams:
+        f = f[f["TeamLabel"].isin(selected_teams)]
 
 if player_query.strip():
     q = player_query.strip().lower()
@@ -110,6 +162,41 @@ else:
     f["BidPctOfTeamBudget"] = pd.NA
 
 # --- Season overview ---
+
+if use_manager_ids and selected_manager_id is not None:
+    st.markdown("## Manager History")
+    seasons_df = manager_seasons_df.copy()
+    if seasons_df.empty:
+        st.info("No season records found for this manager.")
+    else:
+        seasons_df = seasons_df.sort_values("season")
+        display_cols = [
+            "season",
+            "team_name",
+            "team_abbreviation",
+        ]
+        pretty = seasons_df[display_cols].rename(
+            columns={
+                "season": "Season",
+                "team_name": "Team Name",
+                "team_abbreviation": "Team Abbrev",
+            }
+        )
+        st.dataframe(pretty, hide_index=True, use_container_width=True)
+        st.markdown("### Timeline")
+        timeline_lines = []
+        for _, row in seasons_df.iterrows():
+            season = row.get("season", "?")
+            tname = row.get("team_name", "?")
+            tabbr = row.get("team_abbreviation", "")
+            if tabbr:
+                timeline_lines.append(f"- **{season}** – {tname} (`{tabbr}`)")
+            else:
+                timeline_lines.append(f"- **{season}** – {tname}")
+        if timeline_lines:
+            st.markdown("\n".join(timeline_lines))
+        else:
+            st.caption("No timeline entries available.")
 
 st.markdown("## Season Overview")
 
@@ -150,6 +237,18 @@ if "Bid" in f.columns and f["Bid"].notna().any():
         labels={"TotalSpend": "Total Spend ($)", "SeasonKey": "Season"},
     )
     st.plotly_chart(fig_season, use_container_width=True)
+
+    clean_bids = f.dropna(subset=["Bid"]).copy()
+    if not clean_bids.empty:
+        fig_bid_dist = px.box(
+            clean_bids,
+            x="SeasonKey",
+            y="Bid",
+            points="outliers",
+            title="Bid Distribution by Season",
+            labels={"Bid": "Bid ($)", "SeasonKey": "Season"},
+        )
+        st.plotly_chart(fig_bid_dist, use_container_width=True)
 
 # --- Player-level YoY trends ---
 
@@ -225,6 +324,34 @@ if "BidPctOfTeamBudget" in f.columns and f["BidPctOfTeamBudget"].notna().any():
 else:
     st.info("No bid data found to compute overpays.")
 
+st.markdown("## Rosters by Season")
+
+if use_manager_ids and selected_manager_id is not None:
+    roster_df = f.copy()
+    if not roster_df.empty:
+        roster_df = roster_df.sort_values(["SeasonNum", "Player"])
+        seasons_for_roster = roster_df["SeasonKey"].dropna().unique().tolist()
+        seasons_for_roster = sorted(seasons_for_roster, key=lambda k: season_order.get(k, 999))
+        if seasons_for_roster:
+            tabs = st.tabs([f"{sk} Roster" for sk in seasons_for_roster])
+            for sk, tab in zip(seasons_for_roster, tabs):
+                with tab:
+                    season_slice = roster_df[roster_df["SeasonKey"] == sk]
+                    if season_slice.empty:
+                        continue
+                    cols = [
+                        "Player",
+                        "Bid",
+                        "Pos",
+                    ]
+                    existing_cols = [c for c in cols if c in season_slice.columns]
+                    display_roster = season_slice[existing_cols].copy()
+                    if "Bid" in display_roster.columns:
+                        display_roster["Bid"] = display_roster["Bid"].round(1)
+                    st.dataframe(display_roster, hide_index=True, use_container_width=True)
+else:
+    st.caption("Rosters by season are available when ManagerIDs are configured.")
+
 # --- Raw table ---
 
 st.markdown("## Raw Draft Records (filtered)")
@@ -232,8 +359,7 @@ st.markdown("## Raw Draft Records (filtered)")
 display_cols = [
     "SeasonKey",
     "Player",
-    "FantasyTeamCanonical",
-    "FantasyTeamRaw",
+    "TeamLabel",
 ]
 for c in ("Bid", "BidPctOfTeamBudget", "Pick", "Pos", "Time (EST)"):
     if c in f.columns:
@@ -242,5 +368,7 @@ for c in ("Bid", "BidPctOfTeamBudget", "Pick", "Pos", "Time (EST)"):
 display_df = f[display_cols].copy()
 if "BidPctOfTeamBudget" in display_df.columns:
     display_df.rename(columns={"BidPctOfTeamBudget": "% of 200-budget"}, inplace=True)
+if "TeamLabel" in display_df.columns:
+    display_df.rename(columns={"TeamLabel": "Team"}, inplace=True)
 
 st.dataframe(display_df.round(1), use_container_width=True)

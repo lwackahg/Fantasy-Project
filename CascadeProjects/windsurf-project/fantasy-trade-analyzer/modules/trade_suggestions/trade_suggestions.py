@@ -439,6 +439,7 @@ def find_trade_suggestions(
 	exclude_opposing_players: List[str] = None,
 	player_fpts_overrides: Dict[str, float] = None,
 	require_all_include_players: bool = False,
+	min_incoming_fp_g: Optional[float] = None,
 ) -> List[Dict]:
 	"""
 	Find optimal trade suggestions based on exponential value calculations.
@@ -622,7 +623,13 @@ def find_trade_suggestions(
 			team_df = team_df[~team_df['Player'].isin(exclude_opposing_players)].copy()
 		# Exclude obvious drop-tier pieces from the opponent candidate pool
 		if 'Mean FPts' in team_df.columns:
-			eligible_opp = team_df[team_df['Mean FPts'] >= MIN_TRADE_FP_G]
+			cutoff = MIN_TRADE_FP_G
+			if min_incoming_fp_g is not None:
+				try:
+					cutoff = max(cutoff, float(min_incoming_fp_g))
+				except (TypeError, ValueError):
+					cutoff = MIN_TRADE_FP_G
+			eligible_opp = team_df[team_df['Mean FPts'] >= cutoff]
 			if not eligible_opp.empty:
 				team_df = eligible_opp.copy()
 		if len(team_df) > MAX_CANDIDATES_THEIR:

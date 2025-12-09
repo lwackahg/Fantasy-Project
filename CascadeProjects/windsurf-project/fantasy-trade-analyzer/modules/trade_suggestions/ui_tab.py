@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from modules.trade_suggestions import find_trade_suggestions, calculate_exponential_value, set_trade_balance_preset
+from modules.trade_suggestions.trade_suggestions_config import MIN_TRADE_FP_G
 from modules.player_game_log_scraper.logic import get_cache_directory
 from modules.player_game_log_scraper.ui_fantasy_teams import _build_fantasy_team_view
 from modules.trade_analysis.consistency_integration import (
@@ -184,6 +185,14 @@ def display_trade_suggestions_tab():
 				help="Opposing players you do NOT want to receive in trades",
 				key="tab_exclude_opposing_players",
 			)
+			min_incoming_fp_g = st.number_input(
+				"Min FP/G for incoming players",
+				min_value=0.0,
+				max_value=150.0,
+				value=float(MIN_TRADE_FP_G),
+				step=1.0,
+				key="tab_min_incoming_fp_g",
+			)
 
 	if st.button("🔍 Find Trade Suggestions (Tab)", type="primary", key="tab_find_trade_suggestions"):
 		with st.spinner("Analyzing trade opportunities..."):
@@ -205,6 +214,7 @@ def display_trade_suggestions_tab():
 				target_opposing_players=target_opposing_players if target_opposing_players else None,
 				exclude_opposing_players=exclude_opposing_players if exclude_opposing_players else None,
 				require_all_include_players=require_all_include_players,
+				min_incoming_fp_g=min_incoming_fp_g,
 			)
 
 			if not suggestions:
