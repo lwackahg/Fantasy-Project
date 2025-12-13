@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 from itertools import combinations
 import logging
+import numpy as np
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -359,3 +360,56 @@ def get_team_matchup_breakdown(schedule_df, team_name: str):
     breakdown_df["Cumulative Points For"] = breakdown_df["Points For"].cumsum()
     breakdown_df["Cumulative Points Against"] = breakdown_df["Points Against"].cumsum()
     return breakdown_df
+
+
+@st.cache_data
+def get_team_weekly_points_summary(schedule_df, team_name: str):
+    """Return season-to-date weekly scoring summary for a single team.
+
+    Uses the same matchup filtering rules as ``get_team_matchup_breakdown``
+    (future 0-0 weeks are ignored) and aggregates the ``Points For`` totals
+    for each completed scoring period.
+
+    The result is a lightweight dict with basic distribution stats that can
+    be used to compare or calibrate simulated weekly outcome curves.
+    """
+    if schedule_df is None or getattr(schedule_df, "empty", True) or not team_name:
+        return None
+
+    breakdown_df = get_team_matchup_breakdown(schedule_df, team_name)
+    if breakdown_df is None or breakdown_df.empty or "Points For" not in breakdown_df.columns:
+        return None
+
+    pts = breakdown_df["Points For"].astype(float)
+    if pts.empty:
+        return None
+
+    values = pts.to_numpy()
+    weeks_played = int(len(values))
+
+    mean_fpts = float(values.mean())
+    std_fpts = float(values.std(ddof=0))
+
+    p10 = float(np.percentile(values, 10))
+    p50 = float(np.percentile(values, 50))
+    p90 = float(np.percentile(values, 90))
+
+    thresholds = [1300, 1400, 1500, 1600]
+    hits = {f"hit_{t}": int((values >= t).sum()) for t in thresholds}
+    hit_rates = {
+        f"hit_{t}_rate": float((values >= t).mean() * 100.0) if weeks_played > 0 else 0.0
+        for t in thresholds
+    }
+
+    summary = {
+        "team_name": team_name,
+        "weeks_played": weeks_played,
+        "mean_fpts": mean_fpts,
+        "std_fpts": std_fpts,
+        "p10_fpts": p10,
+        "p50_fpts": p50,
+        "p90_fpts": p90,
+    }
+    summary.update(hits)
+    summary.update(hit_rates)
+    return summary

@@ -3,8 +3,30 @@
     "player_code": "03ajv",
     "league_id": "ifa1anexmdgtlk9s",
     "season": "2025-26",
-    "timestamp": 1765254521.9087462,
+    "timestamp": 1765640568.7650857,
     "data": [
+        {
+            "Date": "Dec 12",
+            "Team": "MIN",
+            "Opp": "@GS",
+            "Score": "W 127-120",
+            "FPts": 76,
+            "FG-": "7.0",
+            "3PTM": 2,
+            "FT-": "1",
+            "PTS": 27,
+            "OREB": "1",
+            "REB": 9,
+            "AST": 6,
+            "ST": 0,
+            "BLK": 0,
+            "TO": 3,
+            "TF": "0",
+            "EJ": "0",
+            "3D": "0",
+            "2D": "0",
+            "MIN": 34.083333333333336
+        },
         {
             "Date": "Dec 8",
             "Team": "MIN",
@@ -25,7 +47,7 @@
             "EJ": "0",
             "3D": "0",
             "2D": "0",
-            "MIN": 37.3
+            "MIN": 37.28333333333333
         },
         {
             "Date": "Dec 6",

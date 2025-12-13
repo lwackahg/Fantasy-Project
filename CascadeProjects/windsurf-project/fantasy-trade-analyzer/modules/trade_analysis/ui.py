@@ -9,6 +9,8 @@ import plotly.express as px
 import datetime
 from typing import Dict, Any, List, Tuple
 from modules.trade_analysis.logic import TradeAnalyzer, get_team_name, run_trade_analysis, get_all_teams
+from data_loader import load_schedule_data
+from logic.schedule_analysis import get_team_weekly_points_summary
 
 
 def _friend_dollar_value(fpg):
@@ -447,9 +449,9 @@ def display_trade_results(analysis_results: Dict[str, Dict[str, Any]], key_suffi
     for team_tab, (team, results) in zip(team_tabs, analysis_results.items()):
         with team_tab:
             _display_trade_overview(results, key_suffix)
-            _display_trade_impact_section(results, time_ranges)
+            _display_trade_impact_section(team, results, time_ranges)
 
-def _display_trade_impact_section(results: Dict[str, Any], time_ranges: List[str]):
+def _display_trade_impact_section(team_id: str, results: Dict[str, Any], time_ranges: List[str]):
     """Display the main trade impact analysis section for a single team tab."""
     
     # Calculate common metrics needed for insights
@@ -494,7 +496,7 @@ def _display_trade_impact_section(results: Dict[str, Any], time_ranges: List[str
         if has_ytd:
             _display_statistical_analysis(results, time_ranges, ytd_pre, ytd_post)
             st.markdown("---")
-            _display_monte_carlo_simulation(results)
+            _display_monte_carlo_simulation(results, team_id=team_id)
         else:
              st.info("Insufficient data for advanced analysis.")
 
@@ -1081,8 +1083,14 @@ def _display_statistical_analysis(results, time_ranges, ytd_pre, ytd_post):
     st.caption("**Box plots** show the distribution of expected performance. The box represents the middle 50% of outcomes, with the line showing the median.")
 
 
-def _display_monte_carlo_simulation(results: Dict[str, Any]):
-    """Display Monte Carlo simulation of weekly outcomes before/after trade."""
+def _display_monte_carlo_simulation(results: Dict[str, Any], team_id: str | None = None):
+    """Display Monte Carlo simulation of weekly outcomes before/after trade.
+
+    When schedule data is available, also compares the simulated weekly
+    distribution to this team's actual season-to-date weekly scores and offers
+    an optional calibration toggle that blends the simulation toward the
+    historical distribution as more weeks are completed.
+    """
     import plotly.graph_objects as go
     from scipy import stats as scipy_stats
     
@@ -1126,42 +1134,123 @@ def _display_monte_carlo_simulation(results: Dict[str, Any]):
             before_stats = simulate_weekly_outcome(pre_sim_df, n_simulations=1000, games_target=25)
             after_stats = simulate_weekly_outcome(post_sim_df, n_simulations=1000, games_target=25)
         
+        # Optional season-to-date diagnostics and calibration
+        hist_summary = None
+        if team_id is not None:
+            try:
+                schedule_df = load_schedule_data()
+            except Exception:
+                schedule_df = None
+
+            if schedule_df is not None and not getattr(schedule_df, "empty", True):
+                team_name = get_team_name(team_id)
+                hist_summary = get_team_weekly_points_summary(schedule_df, team_name)
+
+        use_calibration = False
+        display_before = before_stats
+        display_after = after_stats
+
+        if hist_summary and isinstance(hist_summary, dict):
+            weeks_played = int(hist_summary.get("weeks_played", 0) or 0)
+            has_hist = weeks_played > 0
+
+            if has_hist:
+                default_calibrate = True
+                use_calibration = st.checkbox(
+                    "Use season-to-date calibration",
+                    value=default_calibrate,
+                    help=(
+                        "Blend simulated weekly distribution with this team's actual "
+                        "season scores. Calibration weight increases as more weeks "
+                        "are completed."
+                    ),
+                    key=f"mc_calibration_{team_id or 'unknown'}",
+                )
+
+                if use_calibration:
+                    w = min(1.0, weeks_played / 10.0)
+                    hist_mean = float(hist_summary.get("mean_fpts", 0.0) or 0.0)
+                    hist_std = float(hist_summary.get("std_fpts", 0.0) or 0.0)
+
+                    # Calibrate the pre-trade distribution toward season-to-date
+                    b_mean = float(before_stats.get("mean", 0.0) or 0.0)
+                    b_std = float(before_stats.get("std", 0.0) or 0.0)
+
+                    before_mean_cal = (1.0 - w) * b_mean + w * hist_mean
+                    if b_std > 0 and hist_std > 0:
+                        before_std_cal = (1.0 - w) * b_std + w * hist_std
+                    else:
+                        before_std_cal = b_std
+
+                    # Preserve the trade's relative effect when calibrating "after"
+                    a_mean = float(after_stats.get("mean", 0.0) or 0.0)
+                    a_std = float(after_stats.get("std", 0.0) or 0.0)
+                    mean_delta = a_mean - b_mean
+                    std_delta = a_std - b_std
+
+                    after_mean_cal = before_mean_cal + mean_delta
+                    after_std_cal = max(1e-6, before_std_cal + std_delta)
+
+                    def _rebuild_gaussian_stats(mu: float, sigma: float) -> Dict[str, float]:
+                        if sigma <= 0:
+                            return {
+                                "mean": float(mu),
+                                "std": float(0.0),
+                                "p10": float(mu),
+                                "p25": float(mu),
+                                "p50": float(mu),
+                                "p75": float(mu),
+                                "p90": float(mu),
+                            }
+                        return {
+                            "mean": float(mu),
+                            "std": float(sigma),
+                            "p10": float(scipy_stats.norm.ppf(0.10, loc=mu, scale=sigma)),
+                            "p25": float(scipy_stats.norm.ppf(0.25, loc=mu, scale=sigma)),
+                            "p50": float(scipy_stats.norm.ppf(0.50, loc=mu, scale=sigma)),
+                            "p75": float(scipy_stats.norm.ppf(0.75, loc=mu, scale=sigma)),
+                            "p90": float(scipy_stats.norm.ppf(0.90, loc=mu, scale=sigma)),
+                        }
+
+                    display_before = _rebuild_gaussian_stats(before_mean_cal, before_std_cal)
+                    display_after = _rebuild_gaussian_stats(after_mean_cal, after_std_cal)
+
         # Display metrics
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            mean_change = after_stats['mean'] - before_stats['mean']
+            mean_change = display_after['mean'] - display_before['mean']
             st.metric(
                 "Expected Weekly FP",
-                f"{after_stats['mean']:.0f}",
+                f"{display_after['mean']:.0f}",
                 f"{mean_change:+.0f}",
                 help="Average weekly fantasy points across 1000 simulations"
             )
         
         with col2:
-            floor_change = after_stats['p10'] - before_stats['p10']
+            floor_change = display_after['p10'] - display_before['p10']
             st.metric(
                 "Floor (10th %ile)",
-                f"{after_stats['p10']:.0f}",
+                f"{display_after['p10']:.0f}",
                 f"{floor_change:+.0f}",
                 help="Worst-case weekly outcome (10th percentile)"
             )
         
         with col3:
-            ceiling_change = after_stats['p90'] - before_stats['p90']
+            ceiling_change = display_after['p90'] - display_before['p90']
             st.metric(
                 "Ceiling (90th %ile)",
-                f"{after_stats['p90']:.0f}",
+                f"{display_after['p90']:.0f}",
                 f"{ceiling_change:+.0f}",
                 help="Best-case weekly outcome (90th percentile)"
             )
         
         with col4:
-            variance_change = after_stats['std'] - before_stats['std']
+            variance_change = display_after['std'] - display_before['std']
             variance_emoji = "📉" if variance_change < 0 else "📈"
             st.metric(
                 "Volatility",
-                f"{variance_emoji} {after_stats['std']:.0f}",
+                f"{variance_emoji} {display_after['std']:.0f}",
                 f"{variance_change:+.0f}",
                 delta_color="inverse",
                 help="Standard deviation of weekly outcomes (lower = more predictable)"
@@ -1172,12 +1261,12 @@ def _display_monte_carlo_simulation(results: Dict[str, Any]):
         st.markdown("##### Weekly FP Distribution Comparison")
         
         # Create distribution curves
-        x_min = min(before_stats['p10'], after_stats['p10']) - 100
-        x_max = max(before_stats['p90'], after_stats['p90']) + 100
+        x_min = min(display_before['p10'], display_after['p10']) - 100
+        x_max = max(display_before['p90'], display_after['p90']) + 100
         x_range = np.linspace(x_min, x_max, 200)
         
-        before_curve = scipy_stats.norm.pdf(x_range, before_stats['mean'], before_stats['std'])
-        after_curve = scipy_stats.norm.pdf(x_range, after_stats['mean'], after_stats['std'])
+        before_curve = scipy_stats.norm.pdf(x_range, display_before['mean'], max(display_before['std'], 1e-6))
+        after_curve = scipy_stats.norm.pdf(x_range, display_after['mean'], max(display_after['std'], 1e-6))
         
         # Normalize for display
         before_curve = before_curve / before_curve.max()
@@ -1202,8 +1291,8 @@ def _display_monte_carlo_simulation(results: Dict[str, Any]):
         ))
         
         # Add vertical lines for means
-        fig.add_vline(x=before_stats['mean'], line_dash='dash', line_color='#FF9800')
-        fig.add_vline(x=after_stats['mean'], line_dash='dash', line_color='#4CAF50')
+        fig.add_vline(x=display_before['mean'], line_dash='dash', line_color='#FF9800')
+        fig.add_vline(x=display_after['mean'], line_dash='dash', line_color='#4CAF50')
         
         fig.update_layout(
             title='Projected Weekly FP Distribution',
