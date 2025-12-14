@@ -290,10 +290,9 @@ def load_schedule_data():
         
         logging.info(f"Successfully parsed {len(df)} rows from schedule file.")
         return df
-    
+	
     except Exception as e:
         logging.error(f"An exception occurred while loading schedule data: {e}", exc_info=True)
-        return None
         return None
 
 

@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from streamlit_compat import plotly_chart
+from streamlit_compat import dataframe, plotly_chart
 from modules.trade_suggestions import find_trade_suggestions, calculate_exponential_value, set_trade_balance_preset
 from modules.player_game_log_scraper.logic import get_cache_directory
 from modules.player_game_log_scraper.ui_fantasy_teams import _load_fantasy_team_rosters, _build_fantasy_team_view
@@ -201,7 +201,7 @@ def display_trade_suggestion(suggestion, rank):
 			'FP/G': suggestion['your_fpts'],
 			'CV%': suggestion['your_cv']
 		})
-		st.dataframe(give_df, hide_index=True, width="stretch")
+		dataframe(give_df, width="stretch", hide_index=True)
 		your_avg_fpts = sum(suggestion['your_fpts']) / len(suggestion['your_fpts'])
 		st.caption(f"Package avg: {your_avg_fpts:.1f} FP/G")
 	
@@ -212,7 +212,7 @@ def display_trade_suggestion(suggestion, rank):
 			'FP/G': suggestion['their_fpts'],
 			'CV%': suggestion['their_cv']
 		})
-		st.dataframe(get_df, hide_index=True, width="stretch")
+		dataframe(get_df, width="stretch", hide_index=True)
 		their_avg_fpts = sum(suggestion['their_fpts']) / len(suggestion['their_fpts'])
 		st.caption(f"Package avg: {their_avg_fpts:.1f} FP/G")
 	
@@ -508,22 +508,22 @@ def display_trade_suggestion(suggestion, rank):
 						view = view.head(top_n)
 					cols = [c for c in ['Player', 'Team', 'Mean FPts', 'FP/G', 'GP', 'Trade Status'] if c in view.columns]
 					return view[cols] if cols else view
-				
+		
 				col1, col2 = st.columns(2)
 				with col1:
 					st.markdown("**Your Team**")
 					st.caption("Top roster slots before and after this trade.")
 					st.write("Before")
-					st.dataframe(_prepare_roster(your_before, suggestion['you_give'], []), hide_index=True, width="stretch")
+					dataframe(_prepare_roster(your_before, suggestion['you_give'], []), width="stretch", hide_index=True)
 					st.write("After")
-					st.dataframe(_prepare_roster(your_after, suggestion['you_give'], suggestion['you_get']), hide_index=True, width="stretch")
+					dataframe(_prepare_roster(your_after, suggestion['you_give'], suggestion['you_get']), width="stretch", hide_index=True)
 				with col2:
 					st.markdown(f"**{suggestion['team']}**")
 					st.caption("Top roster slots before and after this trade.")
 					st.write("Before")
-					st.dataframe(_prepare_roster(opp_before, suggestion['you_get'], []), hide_index=True, width="stretch")
+					dataframe(_prepare_roster(opp_before, suggestion['you_get'], []), width="stretch", hide_index=True)
 					st.write("After")
-					st.dataframe(_prepare_roster(opp_after, suggestion['you_get'], suggestion['you_give']), hide_index=True, width="stretch")
+					dataframe(_prepare_roster(opp_after, suggestion['you_get'], suggestion['you_give']), width="stretch", hide_index=True)
 
 # Generate Suggestions Button
 if st.button("🔍 Find Trade Suggestions", type="primary"):

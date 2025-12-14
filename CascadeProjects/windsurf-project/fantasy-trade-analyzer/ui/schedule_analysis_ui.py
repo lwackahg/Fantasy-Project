@@ -5,7 +5,7 @@ UI components for the schedule analysis feature.
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from streamlit_compat import plotly_chart
+from streamlit_compat import dataframe, plotly_chart
 from logic.schedule_analysis import calculate_team_stats, swap_team_schedules, compare_team_stats
 
 def display_list_view(filtered_df):
@@ -40,7 +40,7 @@ def display_table_view(filtered_df):
         "Team 1": "Home Team", "Team 2": "Away Team",
         "Score 1 Display": "Home Score", "Score 2 Display": "Away Score"
     })
-    st.dataframe(display_df, width="stretch", hide_index=True)
+    dataframe(display_df, width="stretch", hide_index=True)
 
 def display_team_stats(schedule_df, calculate_team_stats):
     """
@@ -63,7 +63,7 @@ def _display_team_standings_from_stats(team_stats, heading: str = "Current Stand
     display_columns = ["Team", "Record", "Win %", "Points For", "Points Against"]
 
     st.write(f"#### {heading}")
-    st.dataframe(
+    dataframe(
         formatted_stats[display_columns],
         width="stretch",
         hide_index=True,
@@ -173,10 +173,10 @@ def _display_swap_matchups(original_schedule: pd.DataFrame, swapped_schedule: pd
     col_before, col_after = st.columns(2)
     with col_before:
         st.write("Before Swap")
-        st.dataframe(before_df, width="stretch", hide_index=True)
+        dataframe(before_df, width="stretch", hide_index=True)
     with col_after:
         st.write("After Swap")
-        st.dataframe(after_df, width="stretch", hide_index=True)
+        dataframe(after_df, width="stretch", hide_index=True)
 
 def display_swap_selection(all_teams, schedule_df):
     """
@@ -308,7 +308,7 @@ def display_all_swaps_analysis(all_teams, all_swaps_df, schedule_df):
         if c in display_df.columns
     ]
 
-    st.dataframe(
+    dataframe(
         display_df.style.map(style_change, subset=style_cols),
         width="stretch", hide_index=True,
         column_config={
@@ -355,7 +355,7 @@ def display_current_period_overview(schedule_df, current_period: int | None):
         "Score 2 Display": "Away Score",
     })
 
-    st.dataframe(
+    dataframe(
         display_df,
         width="stretch",
         hide_index=True,
