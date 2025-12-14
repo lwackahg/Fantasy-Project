@@ -5,6 +5,7 @@ UI components for the schedule analysis feature.
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from streamlit_compat import plotly_chart
 
 def display_list_view(filtered_df):
     """
@@ -63,7 +64,7 @@ def display_table_view(filtered_df):
     # Show the table
     st.dataframe(
         display_df,
-        use_container_width=True,
+        width="stretch",
         hide_index=True
     )
 
@@ -100,7 +101,7 @@ def display_team_stats(schedule_df, calculate_team_stats):
     # Display the stats table
     st.dataframe(
         formatted_stats,
-        use_container_width=True
+        width="stretch"
     )
 
 def create_win_change_barchart(comparison, team1, team2):
@@ -216,8 +217,7 @@ def display_swap_selection(all_teams, schedule_df, swap_team_schedules, compare_
             display_team_impact_metrics(comparison, original_stats, new_stats, team2)
         
         # Display bar chart
-        st.plotly_chart(create_win_change_barchart(comparison, team1, team2), use_container_width=True)
-
+        plotly_chart(create_win_change_barchart(comparison, team1, team2), width="stretch")
 
 def display_all_swaps_analysis(all_swaps_df, all_teams):
     """
@@ -276,8 +276,8 @@ def display_all_swaps_analysis(all_swaps_df, all_teams):
     }, inplace=True)
     
     st.dataframe(
-        display_df.style.applymap(style_change, subset=['Team 1 ∆', 'Team 2 ∆', 'Winner ∆', 'Loser ∆']),
-        use_container_width=True,
+        display_df.style.map(style_change, subset=['Team 1 ∆', 'Team 2 ∆', 'Winner ∆', 'Loser ∆']),
+        width="stretch",
         hide_index=True,
         column_config={
             "Team 1": st.column_config.TextColumn(width="medium"),
@@ -308,7 +308,7 @@ def display_all_swaps_analysis(all_swaps_df, all_teams):
             changes_df = changes_df.sort_values(by='Position Change', ascending=False).reset_index(drop=True)
             
             st.dataframe(
-                changes_df.style.applymap(style_change, subset=['Position Change']),
-                use_container_width=True,
+                changes_df.style.map(style_change, subset=['Position Change']),
+                width="stretch",
                 hide_index=True
             )

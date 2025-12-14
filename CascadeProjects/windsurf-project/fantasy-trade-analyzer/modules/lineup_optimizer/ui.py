@@ -98,7 +98,7 @@ def show_tonight_decision_helper(default_league_id: str | None = None):
 	player_df = st.data_editor(
 		pd.DataFrame(default_rows),
 		key="tonight_players_editor",
-		use_container_width=True,
+		width="stretch",
 		num_rows="dynamic",
 		column_config={
 			"Player": st.column_config.SelectboxColumn(
@@ -215,7 +215,7 @@ def show_tonight_decision_helper(default_league_id: str | None = None):
 
 	st.dataframe(
 		display_df,
-		use_container_width=True,
+		width="stretch",
 		hide_index=True,
 		column_config={
 			"expected_fpts": st.column_config.NumberColumn(
@@ -493,7 +493,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 	combined_df = st.data_editor(
 		pd.DataFrame(combined_base),
 		key="weekly_combined_editor",
-		use_container_width=True,
+		width="stretch",
 		num_rows="fixed",
 		column_config={
 			**{f"{label} ✓": st.column_config.CheckboxColumn(
@@ -522,7 +522,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 	injury_df = st.data_editor(
 		pd.DataFrame(injury_base),
 		key="weekly_injury_editor",
-		use_container_width=True,
+		width="stretch",
 		num_rows="fixed",
 	)
 
@@ -612,7 +612,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 				)
 		if played_rows:
 			played_df = pd.DataFrame(played_rows)
-			st.dataframe(played_df, use_container_width=True, hide_index=True)
+			st.dataframe(played_df, width="stretch", hide_index=True)
 			# Also show a grid in the same shape as the schedule, but with FPts in
 			# each cell instead of opponent strings so it is easy to see which
 			# games have already contributed to your weekly total.
@@ -635,7 +635,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 				fpts_grid.loc[mask, day_label] = fpts_str
 			st.dataframe(
 				fpts_grid,
-				use_container_width=True,
+				width="stretch",
 				hide_index=True,
 			)
 		else:
@@ -770,7 +770,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 
 				st.dataframe(
 					display_df,
-					use_container_width=True,
+					width="stretch",
 					hide_index=True,
 					column_config={
 						"expected_fpts": st.column_config.NumberColumn(
@@ -1080,14 +1080,14 @@ def show_weekly_planner(default_league_id: str | None = None):
 		# Daily summary table
 		st.markdown("#### Daily Summary")
 		summary_df = pd.DataFrame(daily_summaries)
-		st.dataframe(summary_df, use_container_width=True, hide_index=True)
+		st.dataframe(summary_df, width="stretch", hide_index=True)
 
 		# Recommendations views
 		st.markdown("#### Recommendations")
 		rec_df = pd.DataFrame(recommendations)
 		tab_by_game, tab_by_player = st.tabs(["By game", "By player"])
 		with tab_by_game:
-			st.dataframe(rec_df, use_container_width=True, hide_index=True)
+			st.dataframe(rec_df, width="stretch", hide_index=True)
 		with tab_by_player:
 			if rec_df.empty:
 				st.info("No recommended starts to summarize by player.")
@@ -1126,7 +1126,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 					["Player", "Starts", "Days / Opponents", "Expected FPts / start", "TotalUtility"]
 				]
 
-				st.dataframe(per_player_df, use_container_width=True, hide_index=True)
+				st.dataframe(per_player_df, width="stretch", hide_index=True)
 	else:
 		st.warning("No recommendations generated. Check that players have scheduled games for remaining days.")
 
@@ -1303,4 +1303,4 @@ def show_stat_line_calculator() -> None:
 		)
 
 	breakdown_df = pd.DataFrame(breakdown_rows)
-	st.dataframe(breakdown_df, use_container_width=True, hide_index=True)
+	st.dataframe(breakdown_df, width="stretch", hide_index=True)

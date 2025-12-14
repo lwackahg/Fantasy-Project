@@ -7,6 +7,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from typing import Dict, List, Optional, Any
+from streamlit_compat import plotly_chart
 
 
 # ============================================================================
@@ -211,7 +212,7 @@ def _style_player_table(df: pd.DataFrame, is_giving: bool = True):
     st.dataframe(
         df,
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         column_config={
             "Player": st.column_config.TextColumn("Player", width="medium"),
             "FP/G": st.column_config.TextColumn("FP/G", width="small"),
@@ -273,7 +274,7 @@ def render_impact_chart(suggestion: Dict, key_prefix: str = ""):
         plot_bgcolor="rgba(0,0,0,0)",
     )
     
-    st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_impact_chart")
+    plotly_chart(fig, width="stretch", key=f"{key_prefix}_impact_chart")
 
 
 # ============================================================================

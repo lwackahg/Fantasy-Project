@@ -181,6 +181,6 @@ with tab7:
 					"Duration": f"{val.get('duration_value', '')} {val.get('duration_unit', '')}",
 					"Added": val.get("added", ""),
 				})
-		st.dataframe(rows, hide_index=True, use_container_width=True)
+		st.dataframe(rows, hide_index=True, width="stretch")
 	else:
 		st.caption("No overrides currently set.")

@@ -150,24 +150,58 @@ def _find_1_for_1_trades(
 	accepted = 0
 	combo_counter = 0
 
-	your_rows = your_team.to_dict("records")
-	their_rows = other_team.to_dict("records")
+	required_cols = {"Player", "Mean FPts", "Value", "CV %"}
+	if not required_cols.issubset(set(your_team.columns)) or not required_cols.issubset(set(other_team.columns)):
+		return trades
+
+	your_cols = list(your_team.columns)
+	their_cols = list(other_team.columns)
+
+	y_idx_player = your_cols.index("Player")
+	y_idx_fpts = your_cols.index("Mean FPts")
+	y_idx_value = your_cols.index("Value")
+	y_idx_cv = your_cols.index("CV %")
+	y_idx_gp = your_cols.index("GP") if "GP" in your_cols else None
+
+	t_idx_player = their_cols.index("Player")
+	t_idx_fpts = their_cols.index("Mean FPts")
+	t_idx_value = their_cols.index("Value")
+	t_idx_cv = their_cols.index("CV %")
+	t_idx_gp = their_cols.index("GP") if "GP" in their_cols else None
+
+	def _row_to_player_dict(row, idx_player, idx_fpts, idx_value, idx_cv, idx_gp):
+		player = {
+			"Player": row[idx_player],
+			"Mean FPts": row[idx_fpts],
+			"Value": row[idx_value],
+			"CV %": row[idx_cv],
+		}
+		if idx_gp is not None:
+			player["GP"] = row[idx_gp]
+		return player
+
+	your_rows = [
+		_row_to_player_dict(row, y_idx_player, y_idx_fpts, y_idx_value, y_idx_cv, y_idx_gp)
+		for row in your_team.itertuples(index=False, name=None)
+	]
+	their_rows = [
+		_row_to_player_dict(row, t_idx_player, t_idx_fpts, t_idx_value, t_idx_cv, t_idx_gp)
+		for row in other_team.itertuples(index=False, name=None)
+	]
+
+	target_set = set(target_opposing_players) if target_opposing_players else None
 
 	for your_player in your_rows:
+		# Enforce must-include constraint if provided (your side)
+		if not _check_include_players_constraint([your_player], include_players, require_all_include_players):
+			continue
 		for their_player in their_rows:
 			combo_counter += 1
 			if combo_counter > cfg.MAX_COMBINATIONS_PER_PATTERN:
 				return trades
 			# Enforce target_opposing_players constraint (their side)
-			if target_opposing_players:
-				if their_player.get("Player") not in target_opposing_players:
-					continue
-			# Enforce must-include constraint if provided (your side)
-			if not _check_include_players_constraint([your_player], include_players, require_all_include_players):
-				continue
-			# Enforce target_opposing_players constraint (their side) again (defensive)
-			if target_opposing_players:
-				if their_player.get("Player") not in target_opposing_players:
+			if target_set is not None:
+				if their_player.get("Player") not in target_set:
 					continue
 
 			# Your core gain

@@ -8,6 +8,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import json
+from streamlit_compat import plotly_chart
 from pathlib import Path
 from modules.player_game_log_scraper.logic import (
 	calculate_variability_stats,
@@ -505,7 +506,7 @@ def _display_cv_distribution(overview_df):
 	fig_cv_dist.add_vline(x=CONSISTENCY_MODERATE_MAX_CV, line_dash="dash", line_color="red", annotation_text="Volatile / Boom-Bust")
 	
 	fig_cv_dist.update_layout(height=400)
-	st.plotly_chart(fig_cv_dist, width="stretch")
+	plotly_chart(fig_cv_dist, width="stretch")
 
 def _display_consistency_vs_production(overview_df):
 	"""Display consistency vs production scatter plot."""
@@ -526,7 +527,7 @@ def _display_consistency_vs_production(overview_df):
 	fig_scatter.add_hline(y=25, line_dash="dot", line_color="gray")
 	
 	fig_scatter.update_layout(height=500)
-	st.plotly_chart(fig_scatter, width="stretch")
+	plotly_chart(fig_scatter, width="stretch")
 	
 	st.caption("**Top Right:** High production, high variance | **Top Left:** Low production, high variance")
 	st.caption("**Bottom Right:** High production, consistent | **Bottom Left:** Low production, consistent")
@@ -557,7 +558,7 @@ def _display_boom_bust_scatter(overview_df):
 		height=500
 	)
 	
-	st.plotly_chart(fig_boom_bust, width="stretch")
+	plotly_chart(fig_boom_bust, width="stretch")
 	st.caption("**Bubble size** = Average FPts/Game | **Color** = CV% (red = volatile, green = consistent)")
 
 def _display_performance_ranges(overview_df):
@@ -593,7 +594,7 @@ def _display_performance_ranges(overview_df):
 		showlegend=False
 	)
 	
-	st.plotly_chart(fig_range, width="stretch")
+	plotly_chart(fig_range, width="stretch")
 	
 	# Range statistics
 	col1, col2, col3, col4 = st.columns(4)
@@ -643,7 +644,7 @@ def _display_tier_breakdown(overview_df):
 			title="Player Distribution by Tier",
 			color_discrete_sequence=px.colors.sequential.RdBu_r
 		)
-		st.plotly_chart(fig_pie, width="stretch")
+		plotly_chart(fig_pie, width="stretch")
 	
 	with col2:
 		# Consistency by tier
@@ -669,7 +670,7 @@ def _display_tier_breakdown(overview_df):
 			yaxis_title="CV%",
 			showlegend=False
 		)
-		st.plotly_chart(fig_tier_cv, width="stretch")
+		plotly_chart(fig_tier_cv, width="stretch")
 	
 	# Detailed tier table
 	st.markdown("#### Tier Details")
@@ -702,7 +703,7 @@ def _display_advanced_metrics(overview_df):
 		title="Correlation Matrix of Performance Metrics",
 		labels=dict(color="Correlation")
 	)
-	st.plotly_chart(fig_corr, width="stretch")
+	plotly_chart(fig_corr, width="stretch")
 	
 	st.caption("**Interpretation:** Values close to 1 or -1 indicate strong correlation. Look for unexpected relationships!")
 	
@@ -790,4 +791,4 @@ def _display_advanced_metrics(overview_df):
 							text="Low Prod, High Risk", showarrow=False, font=dict(size=10, color="red"))
 	
 	fig_quad.update_layout(height=600)
-	st.plotly_chart(fig_quad, width="stretch")
+	plotly_chart(fig_quad, width="stretch")

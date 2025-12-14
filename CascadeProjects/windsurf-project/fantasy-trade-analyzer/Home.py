@@ -2,6 +2,7 @@ import streamlit as st
 from pathlib import Path
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT, MENUITEMS
 from data_loader import csv_time, load_schedule_data
+from session_manager import init_session_state
 from logic.schedule_analysis import calculate_all_schedule_swaps
 from modules.sidebar.ui import display_global_sidebar
 from modules.legacy.data_loader_ui.ui import find_default_files_to_load, process_files_into_session_state
@@ -14,18 +15,7 @@ def main():
     st.set_page_config(page_title=PAGE_TITLE, page_icon=PAGE_ICON, layout=LAYOUT, menu_items=MENUITEMS)
 
     # Consolidate session state initialization
-    session_defaults = {
-        'data_ranges': {},
-        'combined_data': None,
-        'current_range': None,
-        'debug_manager': type('DebugManager', (), {'debug_mode': False, 'toggle_debug': lambda: None}),
-        'trade_analyzer': None,
-        'trade_analysis': None,
-        'csv_timestamp': "CSV timestamp not available"
-    }
-    for key, default in session_defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = default
+    init_session_state()
 
     # Define data directory path relative to the Home.py script location
     data_dir = Path(__file__).resolve().parent / "data"

@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from streamlit_compat import plotly_chart
 from modules.trade_suggestions import find_trade_suggestions, calculate_exponential_value, set_trade_balance_preset
 from modules.trade_suggestions.trade_suggestions_config import MIN_TRADE_FP_G
 from modules.player_game_log_scraper.logic import get_cache_directory
@@ -77,6 +78,8 @@ def display_trade_suggestions_tab():
 		)
 
 	with col2:
+		if "tab_trade_patterns" not in st.session_state:
+			st.session_state["tab_trade_patterns"] = ['1-for-1', '2-for-1', '1-for-2', '2-for-2']
 		trade_patterns = st.multiselect(
 			"Trade Patterns",
 			options=[
@@ -91,7 +94,6 @@ def display_trade_suggestions_tab():
 				'4-for-3', '3-for-4',
 				'4-for-4',
 			],
-			default=['1-for-1', '2-for-1', '1-for-2', '2-for-2'],
 			help="Select which trade patterns to consider",
 			key="tab_trade_patterns",
 		)
@@ -281,4 +283,4 @@ def display_trade_suggestions_tab():
 			hovermode='x unified'
 		)
 
-		st.plotly_chart(fig, use_container_width=True, key="tab_exponential_curve_chart")
+		plotly_chart(fig, width="stretch", key="tab_exponential_curve_chart")

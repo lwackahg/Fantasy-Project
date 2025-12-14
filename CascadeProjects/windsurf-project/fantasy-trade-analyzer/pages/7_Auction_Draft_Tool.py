@@ -12,102 +12,14 @@ from logic.ui_components import (
     render_player_analysis_metrics, render_draft_summary
 )
 from modules.team_mappings import TEAM_MAPPINGS
+from session_manager import init_session_state, init_auction_draft_session_state
 
 st.set_page_config(layout="wide", page_title="Auction Draft Tool")
 
 # --- Centralized Session State Initialization ---
 def initialize_session_state():
-    # Draft status and settings
-    if 'draft_started' not in st.session_state:
-        st.session_state.draft_started = False
-    if 'draft_history' not in st.session_state:
-        st.session_state.draft_history = []
-    if 'teams' not in st.session_state:
-        st.session_state.teams = {}
-    if 'main_team' not in st.session_state:
-        st.session_state.main_team = None
-    if 'my_team_name' not in st.session_state:
-        st.session_state.my_team_name = None
-
-    # Draft flow control
-    if 'current_nominating_team_index' not in st.session_state:
-        st.session_state.current_nominating_team_index = 0
-    if 'player_on_the_block' not in st.session_state:
-        st.session_state.player_on_the_block = None
-    if '_reset_player_on_block' not in st.session_state:
-        st.session_state._reset_player_on_block = False
-
-    # Other session state variables
-    if 'projections_generated' not in st.session_state:
-        st.session_state.projections_generated = False
-    if 'num_teams' not in st.session_state:
-        st.session_state.num_teams = len(TEAM_MAPPINGS)
-    if 'budget_per_team' not in st.session_state:
-        st.session_state.budget_per_team = 200
-    if 'roster_spots_per_team' not in st.session_state:
-        st.session_state.roster_spots_per_team = 10
-    if 'games_in_season' not in st.session_state:
-        st.session_state.games_in_season = 75
-    if 'team_names' not in st.session_state:
-        st.session_state.team_names = list(TEAM_MAPPINGS.values())[:st.session_state.num_teams]
-    if 'available_players' not in st.session_state:
-        st.session_state.available_players = pd.DataFrame()
-    if 'initial_pos_counts' not in st.session_state:
-        st.session_state.initial_pos_counts = pd.Series(dtype='int64')
-    if 'initial_tier_counts' not in st.session_state:
-        st.session_state.initial_tier_counts = pd.Series(dtype='int64')
-    if 'drafted_players' not in st.session_state:
-        st.session_state.drafted_players = []
-    if 'total_money_spent' not in st.session_state:
-        st.session_state.total_money_spent = 0
-    if 'base_value_models' not in st.session_state:
-        st.session_state.base_value_models = [BASE_VALUE_MODELS[0]]
-    if 'scarcity_models' not in st.session_state:
-        st.session_state.scarcity_models = [SCARCITY_MODELS[0]]
-    if 'tier_cutoffs' not in st.session_state:
-        st.session_state.tier_cutoffs = {'Tier 1': 1.00, 'Tier 2': 0.88, 'Tier 3': 0.70, 'Tier 4': 0.45}
-    if 'draft_order' not in st.session_state:
-        st.session_state.draft_order = []
-    if 'trend_weights' not in st.session_state:
-        trend_weights = {'S1': 0.00, 'S2': 0.10, 'S3': 0.25, 'S4': 0.65}
-        total_weight = sum(trend_weights.values())
-        if total_weight > 0:
-            normalized_weights = {k: v / total_weight for k, v in trend_weights.items()}
-        else:
-            normalized_weights = trend_weights
-        st.session_state.trend_weights = normalized_weights
-    if 'roster_composition' not in st.session_state:
-        # Use session weights to avoid referencing a local variable that may not exist
-        st.session_state.roster_composition = {'G': 3, 'F': 3, 'C': 2, 'Flx': 2, 'Bench': 0}
-    # Realistic pricing controls
-    if 'realism_enabled' not in st.session_state:
-        st.session_state.realism_enabled = True
-    if 'realism_aggression' not in st.session_state:
-        st.session_state.realism_aggression = 1.0
-    # Nomination strategy defaults
-    if 'nomination_strategy' not in st.session_state:
-        st.session_state.nomination_strategy = 'Blended (recommended)'
-    if 'nomination_weights' not in st.session_state:
-        st.session_state.nomination_weights = {'budget_pressure': 0.5, 'positional_scarcity': 0.3, 'value_inflation': 0.2}
-
-    if not st.session_state.teams:
-        st.session_state.teams = {name: {'budget': st.session_state.budget_per_team, 'players': []} for name in st.session_state.team_names}
-
-    # Load injured players from JSON file, ensuring it runs only once
-    if 'injured_players_text' not in st.session_state:
-        try:
-            from pathlib import Path
-            import json
-            injured_players_path = Path(__file__).resolve().parent.parent / "data" / "injured_players.json"
-            if injured_players_path.exists():
-                with open(injured_players_path, 'r') as f:
-                    injured_players_dict = json.load(f)
-                    injured_text = "\n".join([f"{player} ({status})" for player, status in injured_players_dict.items()])
-                    st.session_state.injured_players_text = injured_text
-            else:
-                st.session_state.injured_players_text = ""
-        except Exception:
-            st.session_state.injured_players_text = "" # Default to empty if any error occurs
+    init_session_state()
+    init_auction_draft_session_state()
 
 initialize_session_state()
 
@@ -330,7 +242,7 @@ if not st.session_state.draft_started:
 
     with col1:
         if not st.session_state.projections_generated:
-            if st.button("Generate Projections", use_container_width=True):
+            if st.button("Generate Projections", width="stretch"):
                 with st.spinner("Generating PPS projections..."):
                     success = generate_pps_projections(trend_weights=st.session_state.trend_weights, games_in_season=st.session_state.games_in_season)
                     if success:
@@ -367,7 +279,7 @@ if not st.session_state.draft_started:
 
     with col2:
         if st.session_state.projections_generated:
-            if st.button("Start Draft", type="primary", use_container_width=True):
+            if st.button("Start Draft", type="primary", width="stretch"):
                 st.session_state.draft_started = True
                 injured_players = {}
                 text = st.session_state.get('injured_players_text', '').strip()

@@ -38,7 +38,7 @@ def render_setup_page():
         data=json.dumps(settings_data, indent=4),
         file_name="draft_settings.json",
         mime="application/json",
-        use_container_width=True
+        width="stretch"
     )
     
     uploaded_file = st.sidebar.file_uploader("Import Settings", type=['json'])
@@ -124,7 +124,7 @@ def render_setup_page():
                     key=f"status_btn_{i}", 
                     on_click=add_status_to_text,
                     args=(status,), # Pass the status string to the callback
-                    use_container_width=True
+                    width="stretch"
                 )
         with col2:
             st.subheader("Tier Percentiles")
@@ -387,7 +387,7 @@ def render_drafting_form(player_series, drafting_callback):
         
         assigned_position = st.radio("Assign Position", options=position_options, horizontal=True, key=f"pos_radio_{player_series.name}")
 
-        submitted = st.form_submit_button("Draft Player", use_container_width=True, type="primary")
+        submitted = st.form_submit_button("Draft Player", width="stretch", type="primary")
         if submitted:
             # Recompute max at submit time to guard against any stale widget state
             try:
@@ -468,7 +468,7 @@ def render_player_analysis_metrics(selected_player_name, recalculated_df):
         if sorted_seasons:
             perf_data = [[season, hist_data[season].get('GP', 'N/A'), hist_data[season].get('FP/G', 'N/A')] for season in sorted_seasons]
             df_perf = pd.DataFrame(perf_data, columns=["Season", "GP", "FP/G"])
-            st.dataframe(df_perf, hide_index=True, use_container_width=True)
+            st.dataframe(df_perf, hide_index=True, width="stretch")
         else:
             st.info("No historical performance data available.")
 
@@ -540,7 +540,7 @@ def render_draft_summary():
     pick_df['Total_BaseValue'] = pick_df['Total_BaseValue'].apply(lambda x: f"${x:,.0f}")
     pick_df['Total_AdjValue'] = pick_df['Total_AdjValue'].apply(lambda x: f"${x:,.0f}")
     
-    st.dataframe(pick_df[['Pick', 'Player', 'Position', 'Team', 'Price', 'Total_BaseValue', 'Total_AdjValue']], use_container_width=True)
+    st.dataframe(pick_df[['Pick', 'Player', 'Position', 'Team', 'Price', 'Total_BaseValue', 'Total_AdjValue']], width="stretch")
 
 
 

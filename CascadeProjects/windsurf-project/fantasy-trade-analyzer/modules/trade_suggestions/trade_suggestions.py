@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 import math
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Callable
 from itertools import combinations
 import streamlit as st
 
@@ -440,6 +440,7 @@ def find_trade_suggestions(
 	player_fpts_overrides: Dict[str, float] = None,
 	require_all_include_players: bool = False,
 	min_incoming_fp_g: Optional[float] = None,
+	progress_callback: Optional[Callable[[float, str], None]] = None,
 ) -> List[Dict]:
 	"""
 	Find optimal trade suggestions based on exponential value calculations.
@@ -593,9 +594,20 @@ def find_trade_suggestions(
 	core_size = _get_core_size()
 	baseline_core_value = _calculate_core_value(your_full_team, core_size)
 	
+	def _emit_progress(progress: float, message: str) -> None:
+		if progress_callback is None:
+			return
+		try:
+			progress_callback(progress, message)
+		except Exception:
+			return
+	
 	# Precompute opponent core values for symmetric evaluation
 	opponent_core_values = {}
-	for team_name, team_df in other_teams.items():
+	team_count = len(other_teams) if other_teams else 0
+	for idx, (team_name, team_df) in enumerate(other_teams.items(), 1):
+		if team_count > 0:
+			_emit_progress((idx - 1) / float(team_count * 2), f"Preparing {team_name}...")
 		if not team_df.empty:
 			# Calculate values for opponent's full roster
 			opp_full = team_df.copy()
@@ -608,7 +620,10 @@ def find_trade_suggestions(
 				'baseline_core': _calculate_core_value(opp_full, core_size),
 			}
 	
-	for team_name, team_df in other_teams.items():
+	_emit_progress(0.5, "Searching trade patterns...")
+	for idx, (team_name, team_df) in enumerate(other_teams.items(), 1):
+		if team_count > 0:
+			_emit_progress(0.5 + (idx - 1) / float(team_count * 2), f"Searching vs {team_name}...")
 		if team_df.empty:
 			continue
 		
@@ -951,4 +966,5 @@ def find_trade_suggestions(
 		per_bucket_counts[bucket] = count + 1
 		filtered.append(suggestion)
 
+	_emit_progress(1.0, "Done")
 	return filtered[:max_suggestions]

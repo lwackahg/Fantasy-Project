@@ -115,5 +115,7 @@ def load_draft_history(include_latest_fantrax: bool = True) -> pd.DataFrame:
 	if not frames:
 		return pd.DataFrame()
 
+	# Avoid pandas dtype warnings by removing columns that are entirely NA within a given season frame
+	frames = [f.dropna(axis=1, how="all") for f in frames]
 	combined = pd.concat(frames, ignore_index=True)
 	return combined

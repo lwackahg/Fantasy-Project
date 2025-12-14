@@ -4,7 +4,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 import re
-from modules.trade_suggestions import find_trade_suggestions, calculate_exponential_value, set_trade_balance_preset
+from streamlit_compat import plotly_chart
+from modules.trade_suggestions import find_trade_suggestions, estimate_trade_search_complexity, calculate_exponential_value, set_trade_balance_preset
 from modules.trade_suggestions.trade_suggestions_config import MIN_TRADE_FP_G
 from modules.player_game_log_scraper.logic import get_cache_directory
 from modules.player_game_log_scraper.ui_fantasy_teams import _build_fantasy_team_view
@@ -348,14 +349,14 @@ def _render_roster_snapshot(suggestion, rosters_by_team, your_team_name):
     with col1:
         st.markdown(f"**Your Team** (Top 8)")
         st.caption("Before")
-        st.dataframe(_prepare_roster(your_before, suggestion["you_give"], []), hide_index=True, use_container_width=True)
+        st.dataframe(_prepare_roster(your_before, suggestion["you_give"], []), hide_index=True, width="stretch")
         st.caption("After")
-        st.dataframe(_prepare_roster(your_after, [], suggestion["you_get"]), hide_index=True, use_container_width=True)
+        st.dataframe(_prepare_roster(your_after, [], suggestion["you_get"]), hide_index=True, width="stretch")
     
     with col2:
         st.markdown(f"**{suggestion['team']}** (Top 8)")
         st.caption("Before")
-        st.dataframe(_prepare_roster(opp_before, suggestion["you_get"], []), hide_index=True, use_container_width=True)
+        st.dataframe(_prepare_roster(opp_before, suggestion["you_get"], []), hide_index=True, width="stretch")
         st.caption("After")
         opp_after = opp_before
         if "Player" in opp_before.columns:
@@ -368,7 +369,7 @@ def _render_roster_snapshot(suggestion, rosters_by_team, your_team_name):
                     incoming_opp.append(src)
         if incoming_opp:
             opp_after = pd.concat([opp_after] + incoming_opp, ignore_index=True)
-        st.dataframe(_prepare_roster(opp_after, [], suggestion["you_give"]), hide_index=True, use_container_width=True)
+        st.dataframe(_prepare_roster(opp_after, [], suggestion["you_give"]), hide_index=True, width="stretch")
 
 
 def _render_similarity_analysis(suggestion, rosters_by_team, rank):
@@ -765,7 +766,6 @@ def display_trade_suggestions_tab():
         trade_patterns = st.multiselect(
             "Trade Patterns",
             options=all_patterns,
-            default=st.session_state.get("tab_trade_patterns", small_patterns),
             help="Select which trade patterns to consider",
             key="tab_trade_patterns",
         )
@@ -971,7 +971,6 @@ def display_trade_suggestions_tab():
                             if val is not None and not pd.isna(val):
                                 current_fpts = float(val)
                             break
-                
                 with cols[i % 3]:
                     new_fpts = st.number_input(
                         f"{player}",
@@ -983,12 +982,43 @@ def display_trade_suggestions_tab():
                     player_fpts_overrides[player] = new_fpts
 
     suggestions_session_key = "tab_trade_suggestions_results"
+    try:
+        your_team_df = rosters_by_team[your_team_name]
+        other_teams = {k: v for k, v in rosters_by_team.items() if k != your_team_name}
+        est_ops = estimate_trade_search_complexity(
+            your_team_df,
+            other_teams,
+            trade_patterns,
+            target_teams=target_teams if target_teams else None,
+            exclude_players=exclude_players if exclude_players else None,
+            exclude_teams=exclude_teams if exclude_teams else None,
+            exclude_opposing_players=exclude_opposing_players if exclude_opposing_players else None,
+        )
+        st.caption(f"Estimated combinations to evaluate: {int(est_ops):,}")
+    except Exception:
+        pass
+
     if st.button("🔍 Find Trade Suggestions (Tab)", type="primary", key="tab_find_trade_suggestions"):
         with st.spinner("Analyzing trade opportunities..."):
             set_trade_balance_preset(trade_balance_level)
 
             your_team_df = rosters_by_team[your_team_name]
             other_teams = {k: v for k, v in rosters_by_team.items() if k != your_team_name}
+
+            progress_container = st.empty()
+            status_container = st.empty()
+            progress_bar = progress_container.progress(0)
+
+            def _progress_cb(progress: float, message: str) -> None:
+                try:
+                    progress_bar.progress(int(min(max(float(progress), 0.0), 1.0) * 100))
+                except Exception:
+                    pass
+                if message:
+                    try:
+                        status_container.caption(str(message))
+                    except Exception:
+                        pass
 
             suggestions = find_trade_suggestions(
                 your_team=your_team_df,
@@ -1005,7 +1035,13 @@ def display_trade_suggestions_tab():
                 player_fpts_overrides=player_fpts_overrides if "player_fpts_overrides" in locals() and player_fpts_overrides else None,
                 require_all_include_players=require_all_include_players,
                 min_incoming_fp_g=min_incoming_fp_g,
+                progress_callback=_progress_cb,
             )
+
+            try:
+                progress_bar.progress(100)
+            except Exception:
+                pass
 
             if not suggestions:
                 st.session_state[suggestions_session_key] = []
@@ -1014,7 +1050,6 @@ def display_trade_suggestions_tab():
                 for s in suggestions:
                     your_avg_fpts = sum(s["your_fpts"]) / max(len(s["your_fpts"]), 1)
                     their_avg_fpts = sum(s["their_fpts"]) / max(len(s["their_fpts"]), 1)
-                    # From opponent optics: positive = you give them more FP/G than you get
                     opp_pkg_fp_advantage = your_avg_fpts - their_avg_fpts
                     if opp_pkg_fp_advantage >= realism_min_opp_core:
                         filtered_suggestions.append(s)
@@ -1155,4 +1190,4 @@ def display_trade_suggestions_tab():
             hovermode="x unified",
         )
 
-        st.plotly_chart(fig, width="stretch", key="tab_exponential_curve_chart")
+        plotly_chart(fig, width="stretch", key="tab_exponential_curve_chart")

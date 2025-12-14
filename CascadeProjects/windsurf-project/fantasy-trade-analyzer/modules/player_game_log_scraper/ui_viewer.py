@@ -2,6 +2,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+from streamlit_compat import plotly_chart
 from modules.player_game_log_scraper.logic import (
 	calculate_variability_stats,
 	get_cache_directory,
@@ -584,7 +585,7 @@ def show_multi_season_overview(player_code, league_id, seasons, selected_player)
 			yaxis_title="Fantasy Points Per Game",
 			hovermode='x unified'
 		)
-		st.plotly_chart(fig, width="stretch")
+		plotly_chart(fig, width="stretch")
 	
 	with chart_tab2:
 		# Consistency metrics
@@ -604,7 +605,7 @@ def show_multi_season_overview(player_code, league_id, seasons, selected_player)
 			yaxis_title="Coefficient of Variation %",
 			hovermode='x unified'
 		)
-		st.plotly_chart(fig, width="stretch")
+		plotly_chart(fig, width="stretch")
 	
 	with chart_tab3:
 		# Games played trends
@@ -622,4 +623,4 @@ def show_multi_season_overview(player_code, league_id, seasons, selected_player)
 			yaxis_title="Games Played",
 			showlegend=False
 		)
-		st.plotly_chart(fig, width="stretch")
+		plotly_chart(fig, width="stretch")

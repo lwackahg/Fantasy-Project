@@ -302,20 +302,43 @@ def load_draft_results(file_path: str) -> pd.DataFrame:
     """Load and process the draft results from a CSV file."""
     try:
         draft_df = pd.read_csv(file_path)
-        # Ensure necessary columns are present
-        required_columns = ['Player ID', 'Pick', 'Pos', 'Player', 'Team', 'Bid', 'Fantasy Team', 'Time (EDT)']
-        if not all(col in draft_df.columns for col in required_columns):
-            raise ValueError(f"Missing required columns in draft results. Required: {required_columns}")
-        
-        # Process data as needed (e.g., convert types, handle missing values)
-        draft_df['Bid'] = pd.to_numeric(draft_df['Bid'], errors='coerce').fillna(0)
-        draft_df['Time (EDT)'] = pd.to_datetime(draft_df['Time (EDT)'], errors='coerce')
+        # Normalize columns and accept common variants
+        draft_df = draft_df.rename(columns={c: str(c).strip() for c in draft_df.columns})
 
-       
-        
+        def _norm(col: str) -> str:
+            return "".join(ch for ch in str(col).strip().lower() if ch.isalnum())
+
+        normalized_to_actual = {_norm(c): c for c in draft_df.columns}
+
+        def _rename_if_present(canonical: str, aliases: list[str]) -> None:
+            if canonical in draft_df.columns:
+                return
+            for a in aliases:
+                actual = normalized_to_actual.get(_norm(a))
+                if actual and actual in draft_df.columns:
+                    draft_df.rename(columns={actual: canonical}, inplace=True)
+                    return
+
+        _rename_if_present("Player ID", ["Player ID", "PlayerId", "PlayerID", "Player Id"])
+        _rename_if_present("Fantasy Team", ["Fantasy Team", "FantasyTeam", "Fantasy Team Name", "Team Name", "Owner"])
+        _rename_if_present("Time (EDT)", ["Time (EDT)", "Time (EST)", "Time (ET)", "Time", "Timestamp"])
+
+        # Ensure necessary columns are present
+        required_columns = ["Player ID", "Pick", "Pos", "Player", "Team", "Bid", "Fantasy Team", "Time (EDT)"]
+        missing = [c for c in required_columns if c not in draft_df.columns]
+        if missing:
+            raise ValueError(
+                "Missing required columns in draft results. "
+                f"Missing: {missing}. Required: {required_columns}. Found: {list(draft_df.columns)}"
+            )
+
+        # Process data as needed (e.g., convert types, handle missing values)
+        draft_df["Bid"] = pd.to_numeric(draft_df["Bid"], errors="coerce").fillna(0)
+        draft_df["Time (EDT)"] = pd.to_datetime(draft_df["Time (EDT)"], errors="coerce")
+
         return draft_df
     except Exception as e:
-        print(f"Error loading draft results: {e}")
+        logging.error(f"Error loading draft results: {e}")
         return pd.DataFrame()
 
 # Example usage

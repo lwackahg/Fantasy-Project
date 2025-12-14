@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
+from streamlit_compat import plotly_chart
 from modules.player_game_log_scraper.logic import (
 	get_player_game_log,
 	get_player_game_log_full,
@@ -318,7 +319,7 @@ def show_player_game_log_scraper():
 								height=400
 							)
 						
-							st.plotly_chart(fig_trend, width="stretch")
+							plotly_chart(fig_trend, width="stretch")
 					
 						with viz_tab2:
 							# Histogram showing distribution
@@ -356,7 +357,7 @@ def show_player_game_log_scraper():
 								height=400
 							)
 						
-							st.plotly_chart(fig_hist, width="stretch")
+							plotly_chart(fig_hist, width="stretch")
 						
 							# Add distribution stats
 							col1, col2, col3 = st.columns(3)
@@ -421,7 +422,7 @@ def show_player_game_log_scraper():
 								height=400
 							)
 						
-							st.plotly_chart(fig_zones, width="stretch")
+							plotly_chart(fig_zones, width="stretch")
 						
 							# Summary table
 							category_counts = df_viz['Category'].value_counts()
@@ -459,7 +460,7 @@ def show_player_game_log_scraper():
 									height=400
 								)
 							
-								st.plotly_chart(fig_cats, width="stretch")
+								plotly_chart(fig_cats, width="stretch")
 							
 								# Show detailed stats table
 								st.write("**Detailed Category Statistics:**")

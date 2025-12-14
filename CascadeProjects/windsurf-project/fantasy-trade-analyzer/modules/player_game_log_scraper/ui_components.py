@@ -3,6 +3,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
+from streamlit_compat import plotly_chart
 
 def display_variability_metrics(stats, player_name):
 	"""Display variability statistics in a clean metric layout."""
@@ -105,7 +106,7 @@ def display_fpts_trend_chart(df, stats, player_name):
 		height=400
 	)
 	
-	st.plotly_chart(fig_trend, width="stretch")
+	plotly_chart(fig_trend, width="stretch")
 
 def display_distribution_chart(df, stats, player_name):
 	"""Display FPts distribution histogram."""
@@ -143,7 +144,7 @@ def display_distribution_chart(df, stats, player_name):
 		height=400
 	)
 	
-	st.plotly_chart(fig_hist, width="stretch")
+	plotly_chart(fig_hist, width="stretch")
 	
 	# Add distribution stats
 	col1, col2, col3 = st.columns(3)
@@ -208,7 +209,7 @@ def display_boom_bust_zones_chart(df, stats, player_name):
 		height=400
 	)
 	
-	st.plotly_chart(fig_zones, width="stretch")
+	plotly_chart(fig_zones, width="stretch")
 	
 	# Summary table
 	category_counts = df_viz['Category'].value_counts()
@@ -246,7 +247,7 @@ def display_category_breakdown(df, player_name):
 			height=400
 		)
 		
-		st.plotly_chart(fig_cats, width="stretch")
+		plotly_chart(fig_cats, width="stretch")
 		
 		# Show detailed stats table
 		st.write("**Detailed Category Statistics:**")

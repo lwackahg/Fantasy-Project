@@ -8,6 +8,7 @@ import numpy as np
 import plotly.express as px
 import datetime
 from typing import Dict, Any, List, Tuple
+from streamlit_compat import plotly_chart
 from modules.trade_analysis.logic import TradeAnalyzer, get_team_name, run_trade_analysis, get_all_teams
 from data_loader import load_schedule_data
 from logic.schedule_analysis import get_team_weekly_points_summary
@@ -607,7 +608,7 @@ def _display_performance_visualizations(results: Dict[str, Any], time_ranges: Li
         })
 
         fig = _create_performance_chart(metric_data, display_name)
-        st.plotly_chart(fig, use_container_width=True)
+        plotly_chart(fig, width="stretch")
     
 
 def _display_styled_roster(title: str, roster_data: List[Dict[str, Any]], players_to_highlight: List[str], highlight_color: str):
@@ -620,7 +621,7 @@ def _display_styled_roster(title: str, roster_data: List[Dict[str, Any]], player
             return [f'background-color: {highlight_color}' if row['Player'] in players_to_highlight else '' for _ in row]
 
         styled_roster = roster_df.style.apply(highlight_players, axis=1)
-        st.dataframe(styled_roster, hide_index=True, width='stretch')
+        st.dataframe(styled_roster, hide_index=True, width="stretch")
     else:
         st.write("No data available.")
 
@@ -690,7 +691,7 @@ def _display_traded_players_game_logs(results: Dict[str, Any], key_suffix: str =
                     
                     st.dataframe(
                         game_log_df[display_cols],
-                        use_container_width=True,
+                        width="stretch",
                         height=400
                     )
                     
@@ -863,7 +864,7 @@ def _render_trend_analysis(results, time_ranges):
         
         fig_trend.update_layout(height=500, showlegend=False)
         
-        st.plotly_chart(fig_trend, use_container_width=True)
+        plotly_chart(fig_trend, width="stretch")
         
         # Trend interpretation
         recent_trend = trend_df.iloc[-1]['FP/G Change']
@@ -1078,7 +1079,7 @@ def _display_statistical_analysis(results, time_ranges, ytd_pre, ytd_post):
     fig_dist.update_layout(height=400, showlegend=False)
     fig_dist.update_yaxes(title_text="Fantasy Points per Game")
     
-    st.plotly_chart(fig_dist, use_container_width=True)
+    plotly_chart(fig_dist, width="stretch")
     
     st.caption("**Box plots** show the distribution of expected performance. The box represents the middle 50% of outcomes, with the line showing the median.")
 
@@ -1302,7 +1303,7 @@ def _display_monte_carlo_simulation(results: Dict[str, Any], team_id: str | None
             showlegend=True,
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        plotly_chart(fig, width="stretch")
         
         # Interpretation
         if mean_change > 50:
@@ -1355,7 +1356,7 @@ def _display_player_comparison(outgoing_players, incoming_players, results):
                 })
         
         if outgoing_data:
-            st.dataframe(pd.DataFrame(outgoing_data), hide_index=True, width='stretch')
+            st.dataframe(pd.DataFrame(outgoing_data), hide_index=True, width="stretch")
             avg_fpg_out = sum([float(d['Mean FPts']) for d in outgoing_data]) / len(outgoing_data)
             st.caption(f"Average: {avg_fpg_out:.1f} FP/G")
         else:
@@ -1375,7 +1376,7 @@ def _display_player_comparison(outgoing_players, incoming_players, results):
                 })
         
         if incoming_data:
-            st.dataframe(pd.DataFrame(incoming_data), hide_index=True, use_container_width=True)
+            st.dataframe(pd.DataFrame(incoming_data), hide_index=True, width="stretch")
             avg_fpg_in = sum([float(d['Mean FPts']) for d in incoming_data]) / len(incoming_data)
             st.caption(f"Average: {avg_fpg_in:.1f} FP/G")
         else:

@@ -58,7 +58,7 @@ def show_standings_adjuster():
                 data=file_data,
                 file_name=filepath.name,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
+                width="stretch",
                 key="download_audit_log"
             )
     
@@ -88,7 +88,7 @@ def show_standings_adjuster():
             
             # Reset button only enabled after all confirmations
             if confirm1 and confirm2 and confirm3:
-                if st.button("🗑️ PERMANENTLY DELETE AUDIT LOG", type="secondary", use_container_width=True):
+                if st.button("🗑️ PERMANENTLY DELETE AUDIT LOG", type="secondary", width="stretch"):
                     success, message = reset_audit_log(league_id, selected_league_name)
                     if success:
                         st.success(message)
@@ -119,7 +119,7 @@ def show_standings_adjuster():
             col1, col2 = st.columns(2)
             
             with col1:
-                if st.button("📝 Log to Audit File", use_container_width=True, type="primary"):
+                if st.button("📝 Log to Audit File", width="stretch", type="primary"):
                     with st.spinner(f"Logging Period {selected_period} to audit file..."):
                         success, message, filepath = append_adjustment_to_log(
                             league_id, 
@@ -134,7 +134,7 @@ def show_standings_adjuster():
                             st.error(message)
             
             with col2:
-                if st.button("🚀 Submit to Fantrax", use_container_width=True):
+                if st.button("🚀 Submit to Fantrax", width="stretch"):
                     with st.spinner("Submitting adjustments..."):
                         success, message = submit_adjustments_to_fantrax(
                             league_id,

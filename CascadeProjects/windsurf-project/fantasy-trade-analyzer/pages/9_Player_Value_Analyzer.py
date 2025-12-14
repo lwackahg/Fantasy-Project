@@ -5,6 +5,7 @@ import os
 import re
 from typing import List
 import plotly.express as px
+from streamlit_compat import plotly_chart
 
 from modules.player_value.logic import build_player_value_profiles
 from modules.player_game_log_scraper.logic import load_league_cache_index
@@ -217,7 +218,7 @@ def main():
 					yaxis_title="Composite Value Score",
 					hovermode="closest",
 				)
-				st.plotly_chart(fig, width="stretch")
+				plotly_chart(fig, width="stretch")
 				# Download button
 				csv = df.to_csv(index=False)
 				st.download_button(

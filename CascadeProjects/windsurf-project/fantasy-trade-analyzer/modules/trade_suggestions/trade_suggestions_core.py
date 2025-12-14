@@ -213,18 +213,17 @@ def _estimate_team_cushion(team_df: pd.DataFrame) -> float:
 		"1/4 Season": 0.85,
 	}
 
-	adj_p = []
-	for idx, row in team_df.iterrows():
-		name = str(row.get("Player", "") or "")
-		p = float(base_p.loc[idx])
-		info = inj_tags.get(name)
+	active_injury_mult = {}
+	for name, info in (inj_tags or {}).items():
 		tag = _resolve_injury_tag(info)
 		if tag:
-			mult = inj_mult.get(tag, 1.0)
-			p = max(0.2, min(1.0, p * mult))
-		adj_p.append(p)
+			active_injury_mult[str(name)] = float(inj_mult.get(tag, 1.0))
 
-	adj_p_series = pd.Series(adj_p, index=team_df.index)
+	inj_factor = 1.0
+	if "Player" in team_df.columns and active_injury_mult:
+		inj_factor = team_df["Player"].astype(str).map(active_injury_mult).fillna(1.0).astype(float)
+
+	adj_p_series = (base_p * inj_factor).clip(lower=0.2, upper=1.0)
 	e_games = adj_p_series * float(AVG_GAMES_PER_PLAYER)
 	total_e_games = float(e_games.sum())
 	return total_e_games - float(MIN_GAMES_REQUIRED)

@@ -5,6 +5,7 @@ UI components for the schedule analysis feature.
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from streamlit_compat import plotly_chart
 from logic.schedule_analysis import calculate_team_stats, swap_team_schedules, compare_team_stats
 
 def display_list_view(filtered_df):
@@ -39,7 +40,7 @@ def display_table_view(filtered_df):
         "Team 1": "Home Team", "Team 2": "Away Team",
         "Score 1 Display": "Home Score", "Score 2 Display": "Away Score"
     })
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
+    st.dataframe(display_df, width="stretch", hide_index=True)
 
 def display_team_stats(schedule_df, calculate_team_stats):
     """
@@ -64,7 +65,7 @@ def _display_team_standings_from_stats(team_stats, heading: str = "Current Stand
     st.write(f"#### {heading}")
     st.dataframe(
         formatted_stats[display_columns],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
             "Team": st.column_config.TextColumn(width="medium"),
@@ -172,10 +173,10 @@ def _display_swap_matchups(original_schedule: pd.DataFrame, swapped_schedule: pd
     col_before, col_after = st.columns(2)
     with col_before:
         st.write("Before Swap")
-        st.dataframe(before_df, use_container_width=True, hide_index=True)
+        st.dataframe(before_df, width="stretch", hide_index=True)
     with col_after:
         st.write("After Swap")
-        st.dataframe(after_df, use_container_width=True, hide_index=True)
+        st.dataframe(after_df, width="stretch", hide_index=True)
 
 def display_swap_selection(all_teams, schedule_df):
     """
@@ -209,7 +210,7 @@ def display_swap_selection(all_teams, schedule_df):
             display_team_impact_metrics(results['comparison'], results['original_stats'], results['new_stats'], results['team1'])
         with res_col2:
             display_team_impact_metrics(results['comparison'], results['original_stats'], results['new_stats'], results['team2'])
-        st.plotly_chart(create_win_change_barchart(results['comparison'], results['team1'], results['team2']), use_container_width=True)
+        plotly_chart(create_win_change_barchart(results['comparison'], results['team1'], results['team2']), width="stretch")
 
         st.markdown("---")
         standings_col1, standings_col2 = st.columns(2)
@@ -308,8 +309,8 @@ def display_all_swaps_analysis(all_teams, all_swaps_df, schedule_df):
     ]
 
     st.dataframe(
-        display_df.style.applymap(style_change, subset=style_cols),
-        use_container_width=True, hide_index=True,
+        display_df.style.map(style_change, subset=style_cols),
+        width="stretch", hide_index=True,
         column_config={
             "Team 1": st.column_config.TextColumn("Team 1", help="The first team in the schedule swap.", width="medium"),
             "Team 2": st.column_config.TextColumn("Team 2", help="The second team in the schedule swap.", width="medium"),
@@ -356,6 +357,6 @@ def display_current_period_overview(schedule_df, current_period: int | None):
 
     st.dataframe(
         display_df,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )

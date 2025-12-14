@@ -65,7 +65,16 @@ def get_combined_data() -> pd.DataFrame:
     """Get combined player data, deduplicated."""
     if 'combined_data' in st.session_state and st.session_state.combined_data is not None:
         df = st.session_state.combined_data.reset_index()
-        
+
+        # combined_data can include multiple time ranges per player (Timestamp column).
+        # For this page, we want a stable, user-expected view (not "best 7-day spike").
+        if 'Timestamp' in df.columns and 'Player' in df.columns:
+            preferred_range = st.session_state.get('current_range') or 'YTD'
+            if preferred_range in df['Timestamp'].astype(str).unique().tolist():
+                df = df[df['Timestamp'].astype(str) == str(preferred_range)].copy()
+            elif 'YTD' in df['Timestamp'].astype(str).unique().tolist():
+                df = df[df['Timestamp'].astype(str) == 'YTD'].copy()
+
         if 'Player' in df.columns:
             fpg_col = _get_fpg_column(df)
             if fpg_col in df.columns:
@@ -277,7 +286,7 @@ with tab1:
                 })
             
             results_df = pd.DataFrame(results)
-            st.dataframe(results_df, hide_index=True, use_container_width=True)
+            st.dataframe(results_df, hide_index=True, width="stretch")
             
             st.caption("**Similarity** = how close their production profile is. **Trade Angle** = upgrade/downgrade/lateral move.")
         elif run_search:
@@ -314,26 +323,26 @@ with tab2:
     # consistency stats (game logs) before giving up.
     has_mins = 'Min' in df.columns or 'MPG' in df.columns
     mins_col = 'Min' if 'Min' in df.columns else 'MPG' if 'MPG' in df.columns else None
-    
+
     if not has_mins and league_id:
         # This will pull mean_minutes out of the DB-backed consistency index
         # when available, and attach a 'Min' column to df.
         df = enrich_with_consistency(df)
         has_mins = 'Min' in df.columns or 'MPG' in df.columns
         mins_col = 'Min' if 'Min' in df.columns else 'MPG' if 'MPG' in df.columns else None
-    
-    if not has_mins:
+
+    if (not has_mins) or (mins_col is None):
         st.warning("⚠️ Minutes data not available. This analysis requires MPG (minutes per game) data.")
         st.info("Load player data that includes minutes to use this feature, or ensure game logs/DB stats are available for your league.")
     else:
         # Calculate efficiency metrics
         analysis_df = df.copy()
         analysis_df['FP/G'] = analysis_df.apply(lambda r: _get_fpg_value(r, 0), axis=1)
-        analysis_df['Minutes'] = analysis_df[mins_col].fillna(0)
+        analysis_df['Minutes'] = pd.to_numeric(analysis_df[mins_col], errors="coerce").fillna(0)
         analysis_df['FP_per_Min'] = np.where(
             analysis_df['Minutes'] > 0,
             analysis_df['FP/G'] / analysis_df['Minutes'],
-            0
+            0,
         )
         
         # Filter to meaningful players (min 15 MPG, min 40 FP/G)
@@ -379,7 +388,7 @@ with tab2:
                             'Expected FP/G': f"{expected_fpg:.1f}",
                             'Upside': f"+{upside:.1f}",
                         })
-                    st.dataframe(pd.DataFrame(buy_results), hide_index=True, use_container_width=True)
+                    st.dataframe(pd.DataFrame(buy_results), hide_index=True, width="stretch")
                     st.caption("**Upside** = potential FP/G gain if they played at league-average efficiency")
             
             with col2:
@@ -408,7 +417,7 @@ with tab2:
                             'Expected FP/G': f"{expected_fpg:.1f}",
                             'Risk': f"-{risk:.1f}",
                         })
-                    st.dataframe(pd.DataFrame(sell_results), hide_index=True, use_container_width=True)
+                    st.dataframe(pd.DataFrame(sell_results), hide_index=True, width="stretch")
                     st.caption("**Risk** = potential FP/G loss if they regress to league-average efficiency")
 
 

@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from streamlit_compat import plotly_chart
 from modules.trade_suggestions import find_trade_suggestions, calculate_exponential_value, set_trade_balance_preset
 from modules.player_game_log_scraper.logic import get_cache_directory
 from modules.player_game_log_scraper.ui_fantasy_teams import _load_fantasy_team_rosters, _build_fantasy_team_view
@@ -200,7 +201,7 @@ def display_trade_suggestion(suggestion, rank):
 			'FP/G': suggestion['your_fpts'],
 			'CV%': suggestion['your_cv']
 		})
-		st.dataframe(give_df, hide_index=True, use_container_width=True)
+		st.dataframe(give_df, hide_index=True, width="stretch")
 		your_avg_fpts = sum(suggestion['your_fpts']) / len(suggestion['your_fpts'])
 		st.caption(f"Package avg: {your_avg_fpts:.1f} FP/G")
 	
@@ -211,7 +212,7 @@ def display_trade_suggestion(suggestion, rank):
 			'FP/G': suggestion['their_fpts'],
 			'CV%': suggestion['their_cv']
 		})
-		st.dataframe(get_df, hide_index=True, use_container_width=True)
+		st.dataframe(get_df, hide_index=True, width="stretch")
 		their_avg_fpts = sum(suggestion['their_fpts']) / len(suggestion['their_fpts'])
 		st.caption(f"Package avg: {their_avg_fpts:.1f} FP/G")
 	
@@ -246,7 +247,7 @@ def display_trade_suggestion(suggestion, rank):
 		yaxis_title="Weekly Core FP Change"
 	)
 	
-	st.plotly_chart(fig, use_container_width=True, key=f"trade_value_chart_{rank}")
+	plotly_chart(fig, width="stretch", key=f"trade_value_chart_{rank}")
 	
 	# Trade assessment based on core impact
 	if weekly_core_fp_change > 30:
@@ -513,16 +514,16 @@ def display_trade_suggestion(suggestion, rank):
 					st.markdown("**Your Team**")
 					st.caption("Top roster slots before and after this trade.")
 					st.write("Before")
-					st.dataframe(_prepare_roster(your_before, suggestion['you_give'], []), hide_index=True, use_container_width=True)
+					st.dataframe(_prepare_roster(your_before, suggestion['you_give'], []), hide_index=True, width="stretch")
 					st.write("After")
-					st.dataframe(_prepare_roster(your_after, suggestion['you_give'], suggestion['you_get']), hide_index=True, use_container_width=True)
+					st.dataframe(_prepare_roster(your_after, suggestion['you_give'], suggestion['you_get']), hide_index=True, width="stretch")
 				with col2:
 					st.markdown(f"**{suggestion['team']}**")
 					st.caption("Top roster slots before and after this trade.")
 					st.write("Before")
-					st.dataframe(_prepare_roster(opp_before, suggestion['you_get'], []), hide_index=True, use_container_width=True)
+					st.dataframe(_prepare_roster(opp_before, suggestion['you_get'], []), hide_index=True, width="stretch")
 					st.write("After")
-					st.dataframe(_prepare_roster(opp_after, suggestion['you_get'], suggestion['you_give']), hide_index=True, use_container_width=True)
+					st.dataframe(_prepare_roster(opp_after, suggestion['you_get'], suggestion['you_give']), hide_index=True, width="stretch")
 
 # Generate Suggestions Button
 if st.button("🔍 Find Trade Suggestions", type="primary"):
@@ -655,6 +656,6 @@ with st.expander("📈 Exponential Value Curve", expanded=False):
 		hovermode='x unified'
 	)
 	
-	st.plotly_chart(fig, use_container_width=True, key="exponential_curve_chart")
+	plotly_chart(fig, width="stretch", key="exponential_curve_chart")
 	
 	st.caption("Notice how the exponential curve (blue) grows much faster than linear (gray) at higher FPts levels. This is why elite players are so valuable!")

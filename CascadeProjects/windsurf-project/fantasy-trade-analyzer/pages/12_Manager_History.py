@@ -58,7 +58,7 @@ with right_col:
                 "team_abbreviation": "Team Abbrev",
             }
         )
-        st.dataframe(pretty, hide_index=True, use_container_width=True)
+        st.dataframe(pretty, hide_index=True, width="stretch")
 
         # Simple timeline-style text summary
         st.markdown("### Timeline")

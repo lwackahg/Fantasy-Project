@@ -1,4 +1,5 @@
 from .trade_suggestions import (
+	estimate_trade_search_complexity,
     calculate_exponential_value,
     calculate_player_value,
     calculate_league_scarcity_context,
@@ -38,6 +39,7 @@ from .advanced_stats import (
 
 __all__ = [
     # Trade suggestions
+    "estimate_trade_search_complexity",
     "calculate_exponential_value",
     "calculate_player_value",
     "calculate_league_scarcity_context",

@@ -67,7 +67,7 @@ def show_weekly_standings_analyzer():
                 st.dataframe(
                     cache_df,
                     hide_index=True,
-                    use_container_width=True,
+                    width="stretch",
                     height=min(len(cache_df) * 35 + 38, 300)  # Dynamic height, max 300px
                 )
                 st.caption(f"Total: {len(cached_periods_with_min)} period(s) cached")
@@ -75,7 +75,7 @@ def show_weekly_standings_analyzer():
             with col2:
                 st.write("")  # Spacing
                 st.write("")  # Spacing
-                if st.button("📥 Export All to Excel", use_container_width=True):
+                if st.button("📥 Export All to Excel", width="stretch"):
                     try:
                         with st.spinner("Generating Excel..."):
                             filepath = generate_comprehensive_excel(league_id, selected_league_name)
@@ -85,7 +85,7 @@ def show_weekly_standings_analyzer():
                                     data=f,
                                     file_name=filepath.name,
                                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                    use_container_width=True,
+                                    width="stretch",
                                     key="analyzer_export_all"
                                 )
                     except Exception as e:

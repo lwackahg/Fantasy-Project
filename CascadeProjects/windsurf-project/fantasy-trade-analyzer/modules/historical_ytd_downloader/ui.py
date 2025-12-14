@@ -70,10 +70,10 @@ def display_historical_ytd_ui():
 	
 	with col2:
 		st.markdown("**Quick Select:**")
-		if st.button("Last 3 Seasons", use_container_width=True):
+		if st.button("Last 3 Seasons", width="stretch"):
 			selected_seasons = available_seasons[:3]
 			st.rerun()
-		if st.button("All Seasons", use_container_width=True):
+		if st.button("All Seasons", width="stretch"):
 			selected_seasons = available_seasons
 			st.rerun()
 	
@@ -87,7 +87,7 @@ def display_historical_ytd_ui():
 	# Download button
 	st.markdown("---")
 	
-	if st.button("🚀 Download Historical YTD Data", type="primary", use_container_width=True):
+	if st.button("🚀 Download Historical YTD Data", type="primary", width="stretch"):
 		progress_bar = st.progress(0)
 		status_text = st.empty()
 		
@@ -154,7 +154,7 @@ def display_historical_ytd_ui():
 			st.dataframe(
 				file_data,
 				hide_index=True,
-				use_container_width=True,
+				width="stretch",
 				column_config={
 					"Filename": st.column_config.TextColumn("Filename", width="large"),
 					"Size (KB)": st.column_config.TextColumn("Size (KB)", width="small"),

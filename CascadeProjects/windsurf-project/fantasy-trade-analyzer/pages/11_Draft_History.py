@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from streamlit_compat import plotly_chart
 
 from modules.draft_history import load_draft_history
 from modules.manager_ids import load_manager_ids, get_manager_list
@@ -182,7 +183,7 @@ if use_manager_ids and selected_manager_id is not None:
                 "team_abbreviation": "Team Abbrev",
             }
         )
-        st.dataframe(pretty, hide_index=True, use_container_width=True)
+        st.dataframe(pretty, hide_index=True, width="stretch")
         st.markdown("### Timeline")
         timeline_lines = []
         for _, row in seasons_df.iterrows():
@@ -224,7 +225,7 @@ season_summary = season_summary.sort_values("SeasonKey", key=lambda s: s.map(sea
 
 st.dataframe(
     season_summary.round({"TotalSpend": 1, "MaxBid": 1, "AvgBid": 2, "UtilizationPct": 1}),
-    use_container_width=True,
+    width="stretch",
 )
 
 if "Bid" in f.columns and f["Bid"].notna().any():
@@ -236,7 +237,7 @@ if "Bid" in f.columns and f["Bid"].notna().any():
         title="Total Draft Spend by Season",
         labels={"TotalSpend": "Total Spend ($)", "SeasonKey": "Season"},
     )
-    st.plotly_chart(fig_season, use_container_width=True)
+    plotly_chart(fig_season, width="stretch")
 
     clean_bids = f.dropna(subset=["Bid"]).copy()
     if not clean_bids.empty:
@@ -248,7 +249,7 @@ if "Bid" in f.columns and f["Bid"].notna().any():
             title="Bid Distribution by Season",
             labels={"Bid": "Bid ($)", "SeasonKey": "Season"},
         )
-        st.plotly_chart(fig_bid_dist, use_container_width=True)
+        plotly_chart(fig_bid_dist, width="stretch")
 
 # --- Player-level YoY trends ---
 
@@ -277,7 +278,7 @@ if selected_player:
                 title=f"{selected_player} - Draft Price by Season",
                 labels={"Bid": "Bid ($)", "SeasonKey": "Season"},
             )
-            st.plotly_chart(fig_player, use_container_width=True)
+            plotly_chart(fig_player, width="stretch")
         else:
             st.info("No bid data available for this player across the selected seasons.")
 
@@ -289,7 +290,7 @@ if selected_player:
                 p_df[["SeasonKey", "Bid", "BidPctOfTeamBudget", "FantasyTeamCanonical", "FantasyTeamRaw"]]
                 .rename(columns={"BidPctOfTeamBudget": "% of 200-budget"})
                 .round({"Bid": 1, "% of 200-budget": 1}),
-                use_container_width=True,
+                width="stretch",
             )
         else:
             st.info("No bid data to compute % of budget.")
@@ -319,7 +320,7 @@ if "BidPctOfTeamBudget" in f.columns and f["BidPctOfTeamBudget"].notna().any():
         ]
         .rename(columns={"BidPctOfTeamBudget": "% of 200-budget"})
         .round({"Bid": 1, "% of 200-budget": 1}),
-        use_container_width=True,
+        width="stretch",
     )
 else:
     st.info("No bid data found to compute overpays.")
@@ -348,7 +349,7 @@ if use_manager_ids and selected_manager_id is not None:
                     display_roster = season_slice[existing_cols].copy()
                     if "Bid" in display_roster.columns:
                         display_roster["Bid"] = display_roster["Bid"].round(1)
-                    st.dataframe(display_roster, hide_index=True, use_container_width=True)
+                    st.dataframe(display_roster, hide_index=True, width="stretch")
 else:
     st.caption("Rosters by season are available when ManagerIDs are configured.")
 
@@ -371,4 +372,4 @@ if "BidPctOfTeamBudget" in display_df.columns:
 if "TeamLabel" in display_df.columns:
     display_df.rename(columns={"TeamLabel": "Team"}, inplace=True)
 
-st.dataframe(display_df.round(1), use_container_width=True)
+st.dataframe(display_df.round(1), width="stretch")

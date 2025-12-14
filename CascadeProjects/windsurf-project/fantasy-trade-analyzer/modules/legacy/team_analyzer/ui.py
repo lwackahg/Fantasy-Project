@@ -2,6 +2,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+from streamlit_compat import plotly_chart
 from .logic import calculate_team_stats, calculate_league_ranks, STAT_CATEGORIES
 from modules.trade_analysis.consistency_integration import (
 	enrich_roster_with_consistency,
@@ -73,7 +74,7 @@ def display_team_analyzer():
             height=500
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        plotly_chart(fig, width="stretch")
         st.caption("The outer edge represents a rank of 1 (best in the league), while the center is the worst.")
 
         # --- Ranks Table ---
@@ -143,4 +144,4 @@ def display_team_analyzer():
                 else:
                     merged = roster_with_consistency
 
-                st.dataframe(merged.set_index("Player"), use_container_width=True)
+                st.dataframe(merged.set_index("Player"), width="stretch")

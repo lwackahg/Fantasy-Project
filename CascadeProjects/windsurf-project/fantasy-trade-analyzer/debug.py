@@ -15,22 +15,43 @@ class DebugManager:
     def _setup_logger(self):
         logger = logging.getLogger('FantasyTradeAnalyzer')
         logger.setLevel(logging.DEBUG)
-        
-        # File handler
-        fh = logging.FileHandler('debug.log')
-        fh.setLevel(logging.DEBUG)
-        
-        # Console handler
-        ch = logging.StreamHandler()
-        ch.setLevel(logging.INFO)
+        logger.propagate = False
         
         # Formatter
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        fh.setFormatter(formatter)
-        ch.setFormatter(formatter)
         
-        logger.addHandler(fh)
-        logger.addHandler(ch)
+        # File handler
+        file_handlers = [
+            h
+            for h in list(logger.handlers)
+            if isinstance(h, logging.FileHandler)
+            and str(getattr(h, 'baseFilename', '')).lower().endswith('debug.log')
+        ]
+        if file_handlers:
+            fh = file_handlers[0]
+            for extra in file_handlers[1:]:
+                logger.removeHandler(extra)
+        else:
+            fh = logging.FileHandler('debug.log')
+            logger.addHandler(fh)
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(formatter)
+        
+        # Console handler
+        stream_handlers = [
+            h
+            for h in list(logger.handlers)
+            if isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler)
+        ]
+        if stream_handlers:
+            ch = stream_handlers[0]
+            for extra in stream_handlers[1:]:
+                logger.removeHandler(extra)
+        else:
+            ch = logging.StreamHandler()
+            logger.addHandler(ch)
+        ch.setLevel(logging.INFO)
+        ch.setFormatter(formatter)
         
         return logger
     
