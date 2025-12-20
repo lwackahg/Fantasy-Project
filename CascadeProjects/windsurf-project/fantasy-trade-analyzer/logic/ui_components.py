@@ -3,6 +3,7 @@ import pandas as pd
 import re
 from st_aggrid import AgGrid, GridOptionsBuilder, JsCode, GridUpdateMode
 import json
+from streamlit_compat import dataframe
 from logic.auction_tool import BASE_VALUE_MODELS, SCARCITY_MODELS
 from logic.team_optimizer import run_team_optimizer
 
@@ -303,7 +304,7 @@ def render_team_rosters():
                     with st.expander(f"{team_name} (${team_data['budget']})", expanded=False):
                         if team_data['players']:
                             roster_df = pd.DataFrame(team_data['players'])
-                            st.dataframe(roster_df[['Player', 'Position', 'Price']])
+                            dataframe(roster_df[['Player', 'Position', 'Price']], hide_index=True, width="stretch")
                         else:
                             st.write("No players drafted.")
 
@@ -468,7 +469,7 @@ def render_player_analysis_metrics(selected_player_name, recalculated_df):
         if sorted_seasons:
             perf_data = [[season, hist_data[season].get('GP', 'N/A'), hist_data[season].get('FP/G', 'N/A')] for season in sorted_seasons]
             df_perf = pd.DataFrame(perf_data, columns=["Season", "GP", "FP/G"])
-            st.dataframe(df_perf, hide_index=True, width="stretch")
+            dataframe(df_perf, hide_index=True, width="stretch")
         else:
             st.info("No historical performance data available.")
 
@@ -540,9 +541,7 @@ def render_draft_summary():
     pick_df['Total_BaseValue'] = pick_df['Total_BaseValue'].apply(lambda x: f"${x:,.0f}")
     pick_df['Total_AdjValue'] = pick_df['Total_AdjValue'].apply(lambda x: f"${x:,.0f}")
     
-    st.dataframe(pick_df[['Pick', 'Player', 'Position', 'Team', 'Price', 'Total_BaseValue', 'Total_AdjValue']], width="stretch")
-
-
+    dataframe(pick_df[['Pick', 'Player', 'Position', 'Team', 'Price', 'Total_BaseValue', 'Total_AdjValue']], width="stretch")
 
 def render_sidebar_in_draft():
     """Renders the sidebar controls for an active draft."""

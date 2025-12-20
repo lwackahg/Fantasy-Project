@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from streamlit_compat import plotly_chart
+from streamlit_compat import dataframe
 from .logic import calculate_team_stats, calculate_league_ranks, STAT_CATEGORIES
 from modules.trade_analysis.consistency_integration import (
 	enrich_roster_with_consistency,
@@ -79,7 +80,7 @@ def display_team_analyzer():
 
         # --- Ranks Table ---
         with st.expander("View Full League Rankings"):
-            st.dataframe(league_ranks.style.format("{:}"))
+            dataframe(league_ranks.style.format("{:}"), width="stretch")
 
         # --- Player Consistency & Value ---
         with st.expander(f"Player Consistency & Value for {selected_team}"):
@@ -144,4 +145,4 @@ def display_team_analyzer():
                 else:
                     merged = roster_with_consistency
 
-                st.dataframe(merged.set_index("Player"), width="stretch")
+                dataframe(merged.set_index("Player"), width="stretch")

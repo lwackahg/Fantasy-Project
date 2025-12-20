@@ -15,6 +15,9 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional
 
+from modules.sidebar.ui import display_global_sidebar
+from streamlit_compat import dataframe
+
 try:
 	from league_config import FANTRAX_DEFAULT_LEAGUE_ID
 except ImportError:
@@ -46,6 +49,14 @@ st.set_page_config(
     page_icon="🎯",
     layout="wide",
 )
+
+display_global_sidebar()
+
+# Ensure data is loaded before displaying the page
+if not st.session_state.get('data_loaded', False):
+    st.warning("Please load a league dataset on the Home page before using Trade Targets.")
+    st.page_link("Home.py", label="Go to Home", icon="🏠")
+    st.stop()
 
 st.title("🎯 Trade Target Finder")
 st.caption("Find actionable trade targets to gain competitive advantages")
@@ -286,7 +297,7 @@ with tab1:
                 })
             
             results_df = pd.DataFrame(results)
-            st.dataframe(results_df, hide_index=True, width="stretch")
+            dataframe(results_df, hide_index=True, width="stretch")
             
             st.caption("**Similarity** = how close their production profile is. **Trade Angle** = upgrade/downgrade/lateral move.")
         elif run_search:
@@ -295,6 +306,7 @@ with tab1:
             st.info("Adjust filters and click 'Find Similar Players' to see suggested targets.")
 
 
+# =============================================================================
 # Tab 2: Buy Low / Sell High
 # =============================================================================
 
@@ -388,7 +400,7 @@ with tab2:
                             'Expected FP/G': f"{expected_fpg:.1f}",
                             'Upside': f"+{upside:.1f}",
                         })
-                    st.dataframe(pd.DataFrame(buy_results), hide_index=True, width="stretch")
+                    dataframe(pd.DataFrame(buy_results), hide_index=True, width="stretch")
                     st.caption("**Upside** = potential FP/G gain if they played at league-average efficiency")
             
             with col2:
@@ -417,7 +429,7 @@ with tab2:
                             'Expected FP/G': f"{expected_fpg:.1f}",
                             'Risk': f"-{risk:.1f}",
                         })
-                    st.dataframe(pd.DataFrame(sell_results), hide_index=True, width="stretch")
+                    dataframe(pd.DataFrame(sell_results), hide_index=True, width="stretch")
                     st.caption("**Risk** = potential FP/G loss if they regress to league-average efficiency")
 
 

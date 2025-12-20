@@ -8,6 +8,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from typing import Dict, List, Optional, Any
 from streamlit_compat import plotly_chart
+from streamlit_compat import dataframe
 
 
 # ============================================================================
@@ -209,7 +210,7 @@ def _build_player_df(
 
 def _style_player_table(df: pd.DataFrame, is_giving: bool = True):
     """Display a styled player table."""
-    st.dataframe(
+    dataframe(
         df,
         hide_index=True,
         width="stretch",

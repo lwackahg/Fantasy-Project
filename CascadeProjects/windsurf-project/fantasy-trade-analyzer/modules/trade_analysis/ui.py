@@ -9,6 +9,7 @@ import plotly.express as px
 import datetime
 from typing import Dict, Any, List, Tuple
 from streamlit_compat import plotly_chart
+from streamlit_compat import dataframe
 from modules.trade_analysis.logic import TradeAnalyzer, get_team_name, run_trade_analysis, get_all_teams
 from data_loader import load_schedule_data
 from logic.schedule_analysis import get_team_weekly_points_summary
@@ -123,6 +124,49 @@ def display_trade_analysis_page():
                 # Render the replay OUTSIDE the narrow column → full width
                 if selected_entry is not None:
                     _replay_trade_from_history(selected_entry)
+
+def _friend_dollar_value(fpg):
+	if fpg is None:
+		return 0.0
+	try:
+		v = float(fpg)
+	except Exception:
+		return 0.0
+	if v >= 125:
+		return 22.0
+	elif v >= 120:
+		return 20.0
+	elif v >= 115:
+		return 18.0
+	elif v >= 110:
+		return 16.0
+	elif v >= 105:
+		return 15.0
+	elif v >= 100:
+		return 14.0
+	elif v >= 95:
+		return 12.0
+	elif v >= 90:
+		return 10.0
+	elif v >= 85:
+		return 9.0
+	elif v >= 80:
+		return 8.0
+	elif v >= 75:
+		return 6.0
+	elif v >= 70:
+		return 4.0
+	elif v >= 65:
+		return 3.0
+	elif v >= 60:
+		return 2.0
+	elif v >= 55:
+		return 1.0
+	elif v >= 50:
+		return 0.5
+	elif v >= 40:
+		return 0.0
+	return 0.0
 
 def _display_player_selection_interface(selected_teams: List[str], key_suffix: str = "") -> Tuple[Dict[str, Dict[str, str]], Dict[str, float]]:
 	"""Displays the UI for selecting players and their destinations."""
@@ -621,7 +665,7 @@ def _display_styled_roster(title: str, roster_data: List[Dict[str, Any]], player
             return [f'background-color: {highlight_color}' if row['Player'] in players_to_highlight else '' for _ in row]
 
         styled_roster = roster_df.style.apply(highlight_players, axis=1)
-        st.dataframe(styled_roster, hide_index=True, width="stretch")
+        dataframe(styled_roster, hide_index=True, width="stretch")
     else:
         st.write("No data available.")
 
@@ -689,7 +733,7 @@ def _display_traded_players_game_logs(results: Dict[str, Any], key_suffix: str =
                     other_cols = [col for col in game_log_df.columns if col not in priority_cols]
                     display_cols = [col for col in priority_cols if col in game_log_df.columns] + other_cols
                     
-                    st.dataframe(
+                    dataframe(
                         game_log_df[display_cols],
                         width="stretch",
                         height=400
@@ -1356,7 +1400,7 @@ def _display_player_comparison(outgoing_players, incoming_players, results):
                 })
         
         if outgoing_data:
-            st.dataframe(pd.DataFrame(outgoing_data), hide_index=True, width="stretch")
+            dataframe(pd.DataFrame(outgoing_data), hide_index=True, width="stretch")
             avg_fpg_out = sum([float(d['Mean FPts']) for d in outgoing_data]) / len(outgoing_data)
             st.caption(f"Average: {avg_fpg_out:.1f} FP/G")
         else:
@@ -1376,7 +1420,7 @@ def _display_player_comparison(outgoing_players, incoming_players, results):
                 })
         
         if incoming_data:
-            st.dataframe(pd.DataFrame(incoming_data), hide_index=True, width="stretch")
+            dataframe(pd.DataFrame(incoming_data), hide_index=True, width="stretch")
             avg_fpg_in = sum([float(d['Mean FPts']) for d in incoming_data]) / len(incoming_data)
             st.caption(f"Average: {avg_fpg_in:.1f} FP/G")
         else:

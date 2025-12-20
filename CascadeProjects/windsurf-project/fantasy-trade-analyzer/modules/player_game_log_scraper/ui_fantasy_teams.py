@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 import json
 from streamlit_compat import plotly_chart
+from streamlit_compat import dataframe
 from modules.player_game_log_scraper.logic import (
 	calculate_variability_stats,
 	calculate_multi_range_stats,
@@ -227,7 +228,7 @@ def _display_fantasy_teams_overview(rosters_by_team):
 	summary_df = pd.DataFrame(summary_rows).sort_values('Avg FPts', ascending=False)
 	
 	st.markdown("### Fantasy Team Performance Summary")
-	st.dataframe(
+	dataframe(
 		summary_df,
 		width="stretch",
 		height=400,
@@ -481,7 +482,7 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 		comp_df['Rank'] = range(1, len(comp_df) + 1)
 		display_df = comp_df[['Rank', 'Team', 'Avg FPts', 'Avg CV%', 'Elite Players', 'Consistent Players']].copy()
 		
-		st.dataframe(
+		dataframe(
 			display_df,
 			width="stretch",
 			height=400,
@@ -490,8 +491,8 @@ def _display_team_deep_analysis(team_name, team_df, all_rosters):
 				'Team': st.column_config.TextColumn('Team', width='large'),
 				'Avg FPts': st.column_config.NumberColumn('Avg FPts', format='%.1f'),
 				'Avg CV%': st.column_config.NumberColumn('Avg CV%', format='%.1f'),
-				'Elite Players': st.column_config.NumberColumn('Elite (80+)'),
-				'Consistent Players': st.column_config.NumberColumn('Consistent (<{:.0f}%)'.format(CONSISTENCY_VERY_MAX_CV))
+				'Elite Players': st.column_config.NumberColumn('Elite Players', help='80+ avg FPts'),
+				'Consistent Players': st.column_config.NumberColumn('Consistent Players', help=f'CV% < {int(CONSISTENCY_VERY_MAX_CV)}%')
 			}
 		)
 
@@ -598,7 +599,7 @@ def show_fantasy_teams_viewer(league_id, cache_files, selected_season):
 	st.markdown("---")
 	st.markdown("### 📋 Team Roster")
 	
-	st.dataframe(
+	dataframe(
 		filtered.drop(columns=['code']),
 		width="stretch",
 		height=400,
@@ -672,7 +673,7 @@ def show_fantasy_teams_viewer(league_id, cache_files, selected_season):
 	other_cols = [c for c in games.columns if c not in priority_cols]
 	display_cols = [c for c in priority_cols if c in games.columns] + other_cols
 	
-	st.dataframe(games[display_cols], width="stretch", height=350)
+	dataframe(games[display_cols], width="stretch", height=350)
 	
 	csv = games.to_csv(index=False)
 	st.download_button(

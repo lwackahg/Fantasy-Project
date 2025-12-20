@@ -6,6 +6,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from streamlit_compat import plotly_chart
+from streamlit_compat import dataframe
 
 def display_list_view(filtered_df):
     """
@@ -62,7 +63,7 @@ def display_table_view(filtered_df):
     })
     
     # Show the table
-    st.dataframe(
+    dataframe(
         display_df,
         width="stretch",
         hide_index=True
@@ -99,7 +100,7 @@ def display_team_stats(schedule_df, calculate_team_stats):
     formatted_stats = formatted_stats[display_columns]
     
     # Display the stats table
-    st.dataframe(
+    dataframe(
         formatted_stats,
         width="stretch"
     )
@@ -275,7 +276,7 @@ def display_all_swaps_analysis(all_swaps_df, all_teams):
         "Loser Change": "Loser ∆",
     }, inplace=True)
     
-    st.dataframe(
+    dataframe(
         display_df.style.map(style_change, subset=['Team 1 ∆', 'Team 2 ∆', 'Winner ∆', 'Loser ∆']),
         width="stretch",
         hide_index=True,
@@ -307,7 +308,7 @@ def display_all_swaps_analysis(all_swaps_df, all_teams):
             changes_df = pd.DataFrame(list(all_changes.items()), columns=['Team', 'Position Change'])
             changes_df = changes_df.sort_values(by='Position Change', ascending=False).reset_index(drop=True)
             
-            st.dataframe(
+            dataframe(
                 changes_df.style.map(style_change, subset=['Position Change']),
                 width="stretch",
                 hide_index=True

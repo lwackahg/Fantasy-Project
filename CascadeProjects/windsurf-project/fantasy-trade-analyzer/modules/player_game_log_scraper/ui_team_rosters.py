@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 import json
+from streamlit_compat import dataframe
 from modules.player_game_log_scraper.logic import (
 	calculate_variability_stats,
 	get_cache_directory,
@@ -134,7 +135,7 @@ def _display_teams_overview(rosters_by_team):
 	summary_df = pd.DataFrame(summary_rows).sort_values('Avg FPts', ascending=False)
 	
 	st.markdown("### Team Performance Summary")
-	st.dataframe(
+	dataframe(
 		summary_df,
 		width="stretch",
 		height=400,
@@ -187,7 +188,7 @@ def show_team_rosters_viewer(league_id, cache_files, selected_season):
 	def _consistency(cv):
 		return get_consistency_tier(cv)
 	filtered.insert(3, 'Consistency', filtered['CV %'].apply(_consistency))
-	st.dataframe(
+	dataframe(
 		filtered.drop(columns=['code']),
 		width="stretch",
 		height=500,
@@ -241,7 +242,7 @@ def show_team_rosters_viewer(league_id, cache_files, selected_season):
 	priority_cols = ['Date', 'Team', 'Opp', 'Score', 'FPts', 'MIN', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO']
 	other_cols = [c for c in games.columns if c not in priority_cols]
 	display_cols = [c for c in priority_cols if c in games.columns] + other_cols
-	st.dataframe(games[display_cols], width="stretch", height=350)
+	dataframe(games[display_cols], width="stretch", height=350)
 	csv = games.to_csv(index=False)
 	st.download_button(
 		label="📥 Download Player Game Log",

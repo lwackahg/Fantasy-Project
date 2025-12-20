@@ -6,6 +6,9 @@ import re
 from typing import List
 import plotly.express as px
 from streamlit_compat import plotly_chart
+from streamlit_compat import dataframe
+
+from modules.sidebar.ui import display_global_sidebar
 
 from modules.player_value.logic import build_player_value_profiles
 from modules.player_game_log_scraper.logic import load_league_cache_index
@@ -74,6 +77,7 @@ def _get_yoy_comparison_cached(league_name_sanitized: str, seasons: list[str]):
 
 def main():
 	st.set_page_config(page_title="Player Value & Consistency", page_icon="🏆", layout="wide")
+	display_global_sidebar()
 	st.title("🏆 Player Value & Consistency Hub")
 	st.write("Analyze multi-season player value profiles and detailed game-by-game consistency from one place.")
 
@@ -191,7 +195,7 @@ def main():
 				]:
 					if col in df_display.columns:
 						df_display[col] = df_display[col].round(2)
-				st.dataframe(
+				dataframe(
 					df_display.sort_values("TradeModelValue", ascending=False),
 					width="stretch",
 					height=600,
@@ -318,7 +322,7 @@ def main():
 						breakouts = len(filtered_df[filtered_df[pct_col] > 20])
 						st.metric("Breakouts (>20%)", breakouts)
 			st.markdown("#### Player Comparison")
-			st.dataframe(filtered_df, width="stretch", height=550)
+			dataframe(filtered_df, width="stretch", height=550)
 
 
 if __name__ == "__main__":

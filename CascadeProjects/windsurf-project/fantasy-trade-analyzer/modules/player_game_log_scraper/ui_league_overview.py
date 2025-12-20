@@ -9,6 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import json
 from streamlit_compat import plotly_chart
+from streamlit_compat import dataframe
 from pathlib import Path
 from modules.player_game_log_scraper.logic import (
 	calculate_variability_stats,
@@ -415,7 +416,7 @@ def _display_consistency_table(overview_df, league_id):
 	display_df = filtered_df.copy()
 	display_df.insert(6, 'Consistency', display_df['CV %'].apply(get_consistency_indicator))
 
-	st.dataframe(
+	dataframe(
 		display_df,
 		width="stretch",
 		height=600,
@@ -684,7 +685,7 @@ def _display_tier_breakdown(overview_df):
 	tier_summary.columns = ['Count', 'Avg FPts', 'Min FPts', 'Max FPts', 'Avg CV%', 'Avg Boom%', 'Avg Bust%']
 	tier_summary = tier_summary.reindex([t for t in tier_order if t in tier_summary.index])
 	
-	st.dataframe(tier_summary, width="stretch")
+	dataframe(tier_summary, width="stretch")
 
 def _display_advanced_metrics(overview_df):
 	"""Display advanced statistical analysis."""
@@ -716,17 +717,17 @@ def _display_advanced_metrics(overview_df):
 	with metric_col1:
 		st.markdown("**🏆 Highest Production**")
 		top_fpts = overview_df.nlargest(10, 'Mean FPts')[['Player', 'Mean FPts', 'CV %']]
-		st.dataframe(top_fpts, hide_index=True, width="stretch")
+		dataframe(top_fpts, hide_index=True, width="stretch")
 	
 	with metric_col2:
 		st.markdown("**🟢 Most Consistent**")
 		top_consistent = overview_df.nsmallest(10, 'CV %')[['Player', 'CV %', 'Mean FPts']]
-		st.dataframe(top_consistent, hide_index=True, width="stretch")
+		dataframe(top_consistent, hide_index=True, width="stretch")
 	
 	with metric_col3:
 		st.markdown("**💥 Highest Boom Rate**")
 		top_boom = overview_df.nlargest(10, 'Boom %')[['Player', 'Boom %', 'Mean FPts']]
-		st.dataframe(top_boom, hide_index=True, width="stretch")
+		dataframe(top_boom, hide_index=True, width="stretch")
 	
 	# Statistical outliers
 	st.markdown("---")
@@ -743,7 +744,7 @@ def _display_advanced_metrics(overview_df):
 		st.markdown("**🔴 Extremely Volatile Players** (CV% > 2 std dev)")
 		volatile_outliers = overview_df[overview_df['CV_zscore'] > 2][['Player', 'CV %', 'Mean FPts', 'Boom %', 'Bust %']].sort_values('CV %', ascending=False)
 		if not volatile_outliers.empty:
-			st.dataframe(volatile_outliers, hide_index=True, width="stretch")
+			dataframe(volatile_outliers, hide_index=True, width="stretch")
 		else:
 			st.info("No extreme outliers found")
 	
@@ -751,7 +752,7 @@ def _display_advanced_metrics(overview_df):
 		st.markdown("**🟢 Extremely Consistent Players** (CV% < -2 std dev)")
 		consistent_outliers = overview_df[overview_df['CV_zscore'] < -2][['Player', 'CV %', 'Mean FPts', 'Min', 'Max']].sort_values('CV %')
 		if not consistent_outliers.empty:
-			st.dataframe(consistent_outliers, hide_index=True, width="stretch")
+			dataframe(consistent_outliers, hide_index=True, width="stretch")
 		else:
 			st.info("No extreme outliers found")
 	

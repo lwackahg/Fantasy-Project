@@ -1,7 +1,9 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from streamlit_compat import plotly_chart
+from streamlit_compat import plotly_chart, dataframe
+
+from modules.sidebar.ui import display_global_sidebar
 
 from modules.draft_history import load_draft_history
 from modules.manager_ids import load_manager_ids, get_manager_list
@@ -9,18 +11,12 @@ from modules.manager_ids import load_manager_ids, get_manager_list
 
 st.set_page_config(page_title="Draft History", page_icon="📜", layout="wide")
 
-st.title("📜 Draft History - S1 (2021-22) to S5 (2025-26)")
+display_global_sidebar()
 
-st.markdown(
-    """
-Use this view to explore how draft prices and habits have evolved across seasons.
-
-- Inspect **per-season spend** and **max bids**.
-- Track **player price trajectories** year-over-year.
-- See how much of a **200-budget** a single player consumed (e.g., 190/200 on Jokic).
-- Compare **teams' total spend vs theoretical pots** as league size changes.
-"""
-)
+st.title("📜 Draft History")
+st.info("This view has been moved into the 📚 History Hub.")
+st.page_link("pages/12_Manager_History.py", label="Go to History Hub", icon="📚")
+st.stop()
 
 # --- Load unified draft history ---
 
@@ -39,13 +35,27 @@ if "Bid" in df.columns:
 df["TeamLabel"] = df["FantasyTeamCanonical"].fillna(df["FantasyTeamRaw"])
 df["TeamLabel"] = df["TeamLabel"].astype(str).str.strip()
 df.loc[df["TeamLabel"].isin(["", "nan", "NaN", "None", "N/A", "(N/A)"]), "TeamLabel"] = pd.NA
-df["TeamLabelNorm"] = df["TeamLabel"].astype(str).str.strip().str.lower()
+
+def _norm_text(val) -> str:
+	try:
+		s = "" if val is None else str(val)
+	except Exception:
+		s = ""
+	s = s.strip().lower()
+	# Normalize common apostrophes and mojibake artifacts
+	s = s.replace("’", "'").replace("‘", "'").replace("`", "'")
+	s = s.replace("â", "'").replace("â", "'")
+	s = s.replace("â€™", "'").replace("â€˜", "'")
+	s = " ".join(s.split())
+	return s
+
+df["TeamLabelNorm"] = df["TeamLabel"].map(_norm_text)
 if "FantasyTeamRaw" in df.columns:
-	df["FantasyTeamRawNorm"] = df["FantasyTeamRaw"].astype(str).str.strip().str.lower()
+	df["FantasyTeamRawNorm"] = df["FantasyTeamRaw"].map(_norm_text)
 else:
 	df["FantasyTeamRawNorm"] = ""
 if "FantasyTeamCanonical" in df.columns:
-	df["FantasyTeamCanonicalNorm"] = df["FantasyTeamCanonical"].astype(str).str.strip().str.lower()
+	df["FantasyTeamCanonicalNorm"] = df["FantasyTeamCanonical"].map(_norm_text)
 else:
 	df["FantasyTeamCanonicalNorm"] = ""
 
@@ -132,8 +142,8 @@ if selected_seasons:
 if use_manager_ids and selected_manager_id is not None:
     manager_seasons_df = mid_df[mid_df["managerid"] == selected_manager_id].copy()
     if not manager_seasons_df.empty:
-        team_names = manager_seasons_df["team_name"].astype(str).str.strip().str.lower()
-        team_abbrs = manager_seasons_df["team_abbreviation"].astype(str).str.strip().str.lower()
+        team_names = manager_seasons_df["team_name"].map(_norm_text)
+        team_abbrs = manager_seasons_df["team_abbreviation"].map(_norm_text)
         team_name_set = set(team_names[team_names.ne("")])
         team_abbr_set = set(team_abbrs[team_abbrs.ne("")])
         if team_name_set or team_abbr_set:
@@ -183,7 +193,7 @@ if use_manager_ids and selected_manager_id is not None:
                 "team_abbreviation": "Team Abbrev",
             }
         )
-        st.dataframe(pretty, hide_index=True, width="stretch")
+        dataframe(pretty, hide_index=True, width="stretch")
         st.markdown("### Timeline")
         timeline_lines = []
         for _, row in seasons_df.iterrows():
@@ -223,7 +233,7 @@ season_summary["UtilizationPct"] = (
 
 season_summary = season_summary.sort_values("SeasonKey", key=lambda s: s.map(season_order))
 
-st.dataframe(
+dataframe(
     season_summary.round({"TotalSpend": 1, "MaxBid": 1, "AvgBid": 2, "UtilizationPct": 1}),
     width="stretch",
 )
@@ -286,7 +296,7 @@ if selected_player:
         if "BidPctOfTeamBudget" in p_df.columns and p_df["BidPctOfTeamBudget"].notna().any():
             p_df["BidPctOfTeamBudget"] = p_df["BidPctOfTeamBudget"].astype(float)
             st.markdown("**Bid as % of team budget**")
-            st.dataframe(
+            dataframe(
                 p_df[["SeasonKey", "Bid", "BidPctOfTeamBudget", "FantasyTeamCanonical", "FantasyTeamRaw"]]
                 .rename(columns={"BidPctOfTeamBudget": "% of 200-budget"})
                 .round({"Bid": 1, "% of 200-budget": 1}),
@@ -307,7 +317,7 @@ if "BidPctOfTeamBudget" in f.columns and f["BidPctOfTeamBudget"].notna().any():
         .copy()
     )
     overpays["BidPctOfTeamBudget"] = overpays["BidPctOfTeamBudget"].astype(float)
-    st.dataframe(
+    dataframe(
         overpays[
             [
                 "SeasonKey",
@@ -349,7 +359,7 @@ if use_manager_ids and selected_manager_id is not None:
                     display_roster = season_slice[existing_cols].copy()
                     if "Bid" in display_roster.columns:
                         display_roster["Bid"] = display_roster["Bid"].round(1)
-                    st.dataframe(display_roster, hide_index=True, width="stretch")
+                    dataframe(display_roster, hide_index=True, width="stretch")
 else:
     st.caption("Rosters by season are available when ManagerIDs are configured.")
 
@@ -372,4 +382,4 @@ if "BidPctOfTeamBudget" in display_df.columns:
 if "TeamLabel" in display_df.columns:
     display_df.rename(columns={"TeamLabel": "Team"}, inplace=True)
 
-st.dataframe(display_df.round(1), width="stretch")
+dataframe(display_df.round(1), width="stretch")

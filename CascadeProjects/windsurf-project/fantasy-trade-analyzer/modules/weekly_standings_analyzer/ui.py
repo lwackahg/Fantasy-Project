@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from streamlit_compat import dataframe
 from .logic import (
     get_weekly_standings, 
     calculate_adjusted_scores,
@@ -64,7 +65,7 @@ def show_weekly_standings_analyzer():
                     {'Period': period, 'Min Games': min_games}
                     for period, min_games in sorted(cached_periods_with_min.items())
                 ])
-                st.dataframe(
+                dataframe(
                     cache_df,
                     hide_index=True,
                     width="stretch",

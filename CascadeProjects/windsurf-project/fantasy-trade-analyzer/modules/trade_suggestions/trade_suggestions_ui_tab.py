@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import os
 import re
 from streamlit_compat import plotly_chart
+from streamlit_compat import dataframe
 from modules.trade_suggestions import find_trade_suggestions, estimate_trade_search_complexity, calculate_exponential_value, set_trade_balance_preset
 from modules.trade_suggestions.trade_suggestions_config import MIN_TRADE_FP_G
 from modules.player_game_log_scraper.logic import get_cache_directory
@@ -349,14 +350,14 @@ def _render_roster_snapshot(suggestion, rosters_by_team, your_team_name):
     with col1:
         st.markdown(f"**Your Team** (Top 8)")
         st.caption("Before")
-        st.dataframe(_prepare_roster(your_before, suggestion["you_give"], []), hide_index=True, width="stretch")
+        dataframe(_prepare_roster(your_before, suggestion["you_give"], []), hide_index=True, width="stretch")
         st.caption("After")
-        st.dataframe(_prepare_roster(your_after, [], suggestion["you_get"]), hide_index=True, width="stretch")
+        dataframe(_prepare_roster(your_after, [], suggestion["you_get"]), hide_index=True, width="stretch")
     
     with col2:
         st.markdown(f"**{suggestion['team']}** (Top 8)")
         st.caption("Before")
-        st.dataframe(_prepare_roster(opp_before, suggestion["you_get"], []), hide_index=True, width="stretch")
+        dataframe(_prepare_roster(opp_before, suggestion["you_get"], []), hide_index=True, width="stretch")
         st.caption("After")
         opp_after = opp_before
         if "Player" in opp_before.columns:
@@ -369,7 +370,7 @@ def _render_roster_snapshot(suggestion, rosters_by_team, your_team_name):
                     incoming_opp.append(src)
         if incoming_opp:
             opp_after = pd.concat([opp_after] + incoming_opp, ignore_index=True)
-        st.dataframe(_prepare_roster(opp_after, [], suggestion["you_give"]), hide_index=True, width="stretch")
+        dataframe(_prepare_roster(opp_after, [], suggestion["you_give"]), hide_index=True, width="stretch")
 
 
 def _render_similarity_analysis(suggestion, rosters_by_team, rank):

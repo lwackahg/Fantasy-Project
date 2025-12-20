@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import date, timedelta
+from streamlit_compat import dataframe
 
 from modules.lineup_optimizer.logic import compare_players_for_date, get_actual_fpts_for_date
 from modules.player_game_log_scraper.logic import get_available_players_from_csv
@@ -213,7 +214,7 @@ def show_tonight_decision_helper(default_league_id: str | None = None):
 	else:
 		display_df = result_df
 
-	st.dataframe(
+	dataframe(
 		display_df,
 		width="stretch",
 		hide_index=True,
@@ -612,7 +613,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 				)
 		if played_rows:
 			played_df = pd.DataFrame(played_rows)
-			st.dataframe(played_df, width="stretch", hide_index=True)
+			dataframe(played_df, width="stretch", hide_index=True)
 			# Also show a grid in the same shape as the schedule, but with FPts in
 			# each cell instead of opponent strings so it is easy to see which
 			# games have already contributed to your weekly total.
@@ -633,7 +634,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 				except Exception:
 					fpts_str = ""
 				fpts_grid.loc[mask, day_label] = fpts_str
-			st.dataframe(
+			dataframe(
 				fpts_grid,
 				width="stretch",
 				hide_index=True,
@@ -768,7 +769,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 				else:
 					display_df = result_df
 
-				st.dataframe(
+				dataframe(
 					display_df,
 					width="stretch",
 					hide_index=True,
@@ -1080,14 +1081,14 @@ def show_weekly_planner(default_league_id: str | None = None):
 		# Daily summary table
 		st.markdown("#### Daily Summary")
 		summary_df = pd.DataFrame(daily_summaries)
-		st.dataframe(summary_df, width="stretch", hide_index=True)
+		dataframe(summary_df, width="stretch", hide_index=True)
 
 		# Recommendations views
 		st.markdown("#### Recommendations")
 		rec_df = pd.DataFrame(recommendations)
 		tab_by_game, tab_by_player = st.tabs(["By game", "By player"])
 		with tab_by_game:
-			st.dataframe(rec_df, width="stretch", hide_index=True)
+			dataframe(rec_df, width="stretch", hide_index=True)
 		with tab_by_player:
 			if rec_df.empty:
 				st.info("No recommended starts to summarize by player.")
@@ -1126,7 +1127,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 					["Player", "Starts", "Days / Opponents", "Expected FPts / start", "TotalUtility"]
 				]
 
-				st.dataframe(per_player_df, width="stretch", hide_index=True)
+				dataframe(per_player_df, width="stretch", hide_index=True)
 	else:
 		st.warning("No recommendations generated. Check that players have scheduled games for remaining days.")
 
@@ -1303,4 +1304,4 @@ def show_stat_line_calculator() -> None:
 		)
 
 	breakdown_df = pd.DataFrame(breakdown_rows)
-	st.dataframe(breakdown_df, width="stretch", hide_index=True)
+	dataframe(breakdown_df, width="stretch", hide_index=True)

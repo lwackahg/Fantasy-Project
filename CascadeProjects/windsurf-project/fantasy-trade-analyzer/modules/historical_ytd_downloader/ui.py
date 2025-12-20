@@ -4,6 +4,7 @@ UI for Historical YTD Downloader
 
 import streamlit as st
 from pathlib import Path
+from streamlit_compat import dataframe
 from .logic import (
 	download_all_historical_seasons,
 	get_available_seasons,
@@ -151,7 +152,7 @@ def display_historical_ytd_ui():
 					"Modified": mod_time
 				})
 			
-			st.dataframe(
+			dataframe(
 				file_data,
 				hide_index=True,
 				width="stretch",

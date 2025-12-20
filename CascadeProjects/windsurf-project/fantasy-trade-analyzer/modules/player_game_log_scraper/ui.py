@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
 from streamlit_compat import plotly_chart
+from streamlit_compat import dataframe
 from modules.player_game_log_scraper.logic import (
 	get_player_game_log,
 	get_player_game_log_full,
@@ -488,7 +489,7 @@ def show_player_game_log_scraper():
 					other_cols = [col for col in df.columns if col not in priority_cols]
 					display_cols = [col for col in priority_cols if col in df.columns] + other_cols
 				
-					st.dataframe(
+					dataframe(
 						df[display_cols],
 						width="stretch",
 						height=400

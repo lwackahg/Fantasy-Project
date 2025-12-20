@@ -15,13 +15,13 @@ from modules.sidebar.ui import display_global_sidebar
 
 st.set_page_config(page_title=f"Schedule Analysis - {PAGE_TITLE}", page_icon=PAGE_ICON, layout=LAYOUT, menu_items=MENUITEMS)
 
+display_global_sidebar()
+
 # Ensure data is loaded before displaying the page
 if not st.session_state.get('data_loaded', False):
     st.warning("Please load a league dataset on the Home page before using the analyzer.")
     st.page_link("Home.py", label="Go to Home", icon="🏠")
     st.stop()
-
-display_global_sidebar()
 
 st.title(":green[Schedule Analysis]")
 st.write(

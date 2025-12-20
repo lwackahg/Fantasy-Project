@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from streamlit_compat import plotly_chart
+from streamlit_compat import dataframe
 from modules.player_game_log_scraper.logic import (
 	calculate_variability_stats,
 	get_cache_directory,
@@ -472,7 +473,7 @@ def show_single_season_analysis(player_code, league_id, season, selected_player)
 	other_cols = [col for col in df.columns if col not in priority_cols]
 	display_cols = [col for col in priority_cols if col in df.columns] + other_cols
 	
-	st.dataframe(
+	dataframe(
 		df[display_cols],
 		width="stretch",
 		height=400
@@ -533,7 +534,7 @@ def show_multi_season_overview(player_code, league_id, seasons, selected_player)
 	
 	season_df = pd.DataFrame(season_data)
 	
-	st.dataframe(
+	dataframe(
 		season_df,
 		width="stretch",
 		height=300

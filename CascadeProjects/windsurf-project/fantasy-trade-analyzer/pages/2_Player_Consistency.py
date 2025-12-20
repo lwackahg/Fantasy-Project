@@ -7,7 +7,11 @@ there without loading any heavy modules.
 
 import streamlit as st
 
+from modules.sidebar.ui import display_global_sidebar
+
 st.set_page_config(page_title="Player Consistency (Moved)", page_icon="📊", layout="wide")
+
+display_global_sidebar()
 
 st.title("📊 Player Consistency")
 st.info(

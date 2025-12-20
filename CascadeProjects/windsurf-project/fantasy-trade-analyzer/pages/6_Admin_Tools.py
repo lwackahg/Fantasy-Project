@@ -7,11 +7,16 @@ from modules.weekly_standings_analyzer.ui import show_weekly_standings_analyzer
 from modules.historical_ytd_downloader.ui import display_historical_ytd_ui
 from modules.historical_trade_analyzer.ui import show_historical_trade_analyzer
 from modules.legacy.data_loader_ui.ui import display_data_loader_ui
+import pandas as pd
+from streamlit_compat import dataframe
+from modules.sidebar.ui import display_global_sidebar
 import json
 from pathlib import Path
-from datetime import date
+from datetime import date, timedelta
 
 st.set_page_config(page_title="Admin Tools", page_icon="🔐", layout="wide")
+
+display_global_sidebar()
 
 # Password protection
 if not check_password():
@@ -76,6 +81,101 @@ with tab7:
 	if not isinstance(inj_data, dict):
 		inj_data = {}
 
+	st.markdown("#### Current Injuries / Overrides")
+	col_a, col_b, col_c = st.columns([1.2, 1, 1])
+	with col_a:
+		filter_text = st.text_input("Filter player", value="", key="inj_override_filter")
+	with col_b:
+		show_expired = st.checkbox("Show expired", value=False, key="inj_override_show_expired")
+	with col_c:
+		only_overrides = st.checkbox("Only overrides", value=False, key="inj_override_only_overrides")
+
+	rows = []
+	for pname, val in sorted(inj_data.items()):
+		if isinstance(val, str):
+			rows.append({"Player": pname, "Tag": val, "Duration": "", "Added": "", "Expires": "", "Active": True, "Source": "Override"})
+		elif isinstance(val, dict):
+			added_str = str(val.get("added") or "").strip()
+			added_dt = None
+			try:
+				parts = [int(p) for p in added_str.split("-")]
+				if len(parts) == 3:
+					added_dt = date(parts[0], parts[1], parts[2])
+			except Exception:
+				added_dt = None
+
+			dv = val.get("duration_value")
+			du = str(val.get("duration_unit") or "").strip().lower()
+			days = None
+			try:
+				if dv is not None and str(dv).strip() != "":
+					dv_int = int(dv)
+					if dv_int > 0:
+						if du == "days":
+							days = dv_int
+						elif du == "weeks":
+							days = dv_int * 7
+						elif du == "months":
+							days = dv_int * 30
+			except Exception:
+				days = None
+
+			expires = ""
+			active = True
+			if added_dt is not None and days is not None:
+				exp_dt = added_dt + timedelta(days=int(days))
+				expires = exp_dt.strftime("%Y-%m-%d")
+				active = exp_dt >= date.today()
+
+			rows.append({
+				"Player": pname,
+				"Tag": str(val.get("tag") or ""),
+				"Duration": f"{val.get('duration_value', '')} {val.get('duration_unit', '')}".strip(),
+				"Added": added_str,
+				"Expires": expires,
+				"Active": active,
+				"Source": "Override",
+			})
+
+	inj_df = pd.DataFrame(rows)
+
+	player_df = st.session_state.get("combined_data")
+	if not only_overrides and player_df is not None and not getattr(player_df, "empty", True):
+		try:
+			flat = player_df.reset_index() if "Player" not in player_df.columns else player_df.copy()
+			non_override_cols = [c for c in flat.columns if str(c).lower() not in {"player", "timestamp"}]
+			candidate_cols = [
+				c for c in non_override_cols
+				if any(k in str(c).lower() for k in ("inj", "availability", "health", "il", "ir"))
+			]
+			if candidate_cols:
+				inj_col = candidate_cols[0]
+				inj_vals = flat[["Player", inj_col]].copy()
+				inj_vals[inj_col] = inj_vals[inj_col].astype(str).str.strip()
+				inj_vals = inj_vals[inj_vals[inj_col].ne("") & ~inj_vals[inj_col].str.lower().isin(["nan", "none"])]
+				if not inj_vals.empty:
+					inj_vals = inj_vals.rename(columns={inj_col: "Tag"})
+					inj_vals["Duration"] = ""
+					inj_vals["Added"] = ""
+					inj_vals["Expires"] = ""
+					inj_vals["Active"] = True
+					inj_vals["Source"] = "Data"
+					inj_df = pd.concat([inj_df, inj_vals[["Player", "Tag", "Duration", "Added", "Expires", "Active", "Source"]]], ignore_index=True)
+		except Exception:
+			pass
+
+	if not inj_df.empty:
+		inj_df = inj_df.copy()
+		if filter_text.strip():
+			q = filter_text.strip().lower()
+			inj_df = inj_df[inj_df["Player"].astype(str).str.lower().str.contains(q, na=False)]
+		if not show_expired and "Active" in inj_df.columns:
+			inj_df = inj_df[inj_df["Active"] == True]
+		inj_df = inj_df.sort_values(["Source", "Active", "Player"], ascending=[True, False, True])
+		dataframe(inj_df, width="stretch", hide_index=True)
+	else:
+		st.caption("No overrides currently set.")
+
 	players_existing = sorted(list(inj_data.keys()))
 	players_options = ["<Add new player>"] + players_existing
 
@@ -85,8 +185,20 @@ with tab7:
 	with col_new:
 		new_name = st.text_input("Or type a new player name", value="")
 
+	picked_loaded = ""
+	player_df = st.session_state.get("combined_data")
+	if player_df is not None and not getattr(player_df, "empty", True):
+		try:
+			flat = player_df.reset_index() if "Player" not in player_df.columns else player_df.copy()
+			player_names = sorted(flat["Player"].dropna().astype(str).str.strip().unique().tolist())
+			picked_loaded = st.selectbox("Or pick from loaded players", options=[""] + player_names, index=0)
+		except Exception:
+			picked_loaded = ""
+
 	if new_name.strip():
 		player_name = new_name.strip()
+	elif picked_loaded.strip():
+		player_name = picked_loaded.strip()
 	elif selected != "<Add new player>":
 		player_name = selected
 	else:
@@ -181,6 +293,6 @@ with tab7:
 					"Duration": f"{val.get('duration_value', '')} {val.get('duration_unit', '')}",
 					"Added": val.get("added", ""),
 				})
-		st.dataframe(rows, hide_index=True, width="stretch")
+		dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 	else:
 		st.caption("No overrides currently set.")

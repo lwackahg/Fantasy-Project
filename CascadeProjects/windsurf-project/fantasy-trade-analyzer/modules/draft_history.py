@@ -17,9 +17,19 @@ def _normalize_team_name(raw: str) -> str:
 	if raw is None:
 		return ""
 	name = str(raw).strip()
+	name_fixed = (
+		name
+		.replace("’", "'")
+		.replace("‘", "'")
+		.replace("`", "'")
+		.replace("â", "'")
+		.replace("â", "'")
+		.replace("â€™", "'")
+		.replace("â€˜", "'")
+	)
 	if not name:
 		return ""
-	return TEAM_ALIASES.get(name, name)
+	return TEAM_ALIASES.get(name_fixed, TEAM_ALIASES.get(name, name_fixed))
 
 
 def _load_single_draft(csv_path: Path, season_key: str) -> pd.DataFrame:
@@ -33,7 +43,12 @@ def _load_single_draft(csv_path: Path, season_key: str) -> pd.DataFrame:
 	if not csv_path.exists():
 		return pd.DataFrame()
 
-	df = pd.read_csv(csv_path)
+	try:
+		df = pd.read_csv(csv_path, encoding="utf-8")
+	except UnicodeDecodeError:
+		df = pd.read_csv(csv_path, encoding="cp1252")
+	except Exception:
+		df = pd.read_csv(csv_path)
 	if df.empty:
 		return pd.DataFrame()
 
