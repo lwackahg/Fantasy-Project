@@ -1,11 +1,14 @@
+import json
+from typing import Optional
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import random
-from pathlib import Path
-from logic.auction_tool import (calculate_initial_values, recalculate_dynamic_values, BASE_VALUE_MODELS, SCARCITY_MODELS, calculate_realistic_price)
+from logic.auction_tool import calculate_realistic_price
 from modules.data_preparation import generate_pps_projections
 from logic.smart_auction_bot import SmartAuctionBot
+from logic.valuation_service import ValuationService
 from logic.ui_components import (
     render_setup_page, render_sidebar_in_draft, render_value_calculation_expander,
     render_draft_board, render_team_rosters, render_drafting_form, 
@@ -15,17 +18,275 @@ from modules.team_mappings import TEAM_MAPPINGS
 from session_manager import init_session_state, init_auction_draft_session_state
 from modules.sidebar.ui import display_global_sidebar
 from streamlit_compat import dataframe
+from pathlib import Path
 
 st.set_page_config(layout="wide", page_title="Auction Draft Tool")
+
+
+def _load_default_injuries() -> dict:
+    """Load default injuries from data/injured_players.json if available."""
+    injury_file = Path(__file__).resolve().parents[1] / "data" / "injured_players.json"
+    if injury_file.exists():
+        try:
+            with injury_file.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+    return {}
+
 
 # --- Centralized Session State Initialization ---
 def initialize_session_state():
     init_session_state()
     init_auction_draft_session_state()
+    if 'injury_map' not in st.session_state:
+        st.session_state.injury_map = _load_default_injuries()
 
 initialize_session_state()
 
+def _get_valuation_service() -> ValuationService:
+    if 'valuation_service' not in st.session_state:
+        st.session_state.valuation_service = ValuationService()
+    return st.session_state.valuation_service
+
+def _sync_league_context():
+    service = _get_valuation_service()
+    service.update_league_context(
+        num_teams=st.session_state.num_teams,
+        budget_per_team=st.session_state.budget_per_team,
+        roster_composition=st.session_state.roster_composition,
+        tier_cutoffs=st.session_state.tier_cutoffs,
+        base_value_models=st.session_state.base_value_models,
+    )
+
+def _render_sidebar_setup_wizard():
+    """Lightweight sidebar wizard to lock core league settings before running valuations."""
+    with st.sidebar.expander("⚡ Quick Setup Wizard", expanded=True):
+        st.markdown(
+            """
+            <style>
+            .preset-btn button {width:100%; border-radius:8px; border:1px solid var(--secondary-border, #4a4a4a);}
+            .preset-btn button:hover {border-color:#8bc34a;}
+            .compact-label {font-size:0.85rem; opacity:0.85;}
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.caption("Pick a preset, tweak, apply. Everything stays in sync with session state.")
+
+        presets = [
+            ("12T / $200 (Std)", 12, 200, {"PG": 1, "SG": 1, "SF": 1, "PF": 1, "C": 1, "Flx": 2, "Bench": 3}),
+            ("10T / $180 (Shallow)", 10, 180, {"PG": 1, "SG": 1, "SF": 1, "PF": 1, "C": 1, "Flx": 1, "Bench": 3}),
+            ("14T / $200 (Deep)", 14, 200, {"PG": 1, "SG": 1, "SF": 1, "PF": 1, "C": 1, "Flx": 3, "Bench": 4}),
+        ]
+        preset_cols = st.columns(len(presets))
+        for col, (label, t, b, roster) in zip(preset_cols, presets):
+            with col.container():
+                col.markdown(f"<div class='compact-label'>{label}</div>", unsafe_allow_html=True)
+                if col.button("Apply", key=f"preset_{label}", help=label):
+                    st.session_state.num_teams = t
+                    st.session_state.budget_per_team = b
+                    st.session_state.roster_composition = roster
+                    _sync_league_context()
+                    st.rerun()
+
+        base_cols = st.columns(2)
+        num_teams = base_cols[0].number_input("Teams", min_value=4, max_value=30, value=int(st.session_state.num_teams), step=1)
+        budget = base_cols[1].number_input("Budget ($)", min_value=50, max_value=400, value=int(st.session_state.budget_per_team), step=5)
+
+        st.markdown("**Roster Slots (G/F/C/Flx only)**")
+        roster_comp = {}
+        slot_keys = ["G", "F", "C", "Flx", "Bench"]
+        slot_defaults = st.session_state.roster_composition
+        for left, right in zip(slot_keys[0::2], slot_keys[1::2] + [None] if len(slot_keys) % 2 else slot_keys[1::2]):
+            cols = st.columns(2)
+            for idx, pos in enumerate([left, right]):
+                if pos is None:
+                    continue
+                roster_comp[pos] = cols[idx].number_input(
+                    f"{pos}", min_value=0, max_value=10, value=int(slot_defaults.get(pos, 0)), step=1, key=f"wiz_roster_{pos}"
+                )
+
+        st.markdown("**Valuation Models (read-only here)**")
+        st.caption(f"Base models: {', '.join(st.session_state.get('base_value_models', [])) or 'Default'}")
+        st.caption(f"Scarcity models: {', '.join(st.session_state.get('scarcity_models', [])) or 'None'}")
+
+        if st.button("Apply setup", use_container_width=True, key="apply_setup_wizard"):
+            st.session_state.num_teams = int(num_teams)
+            st.session_state.budget_per_team = int(budget)
+            st.session_state.roster_composition = {k: int(v) for k, v in roster_comp.items()}
+            _sync_league_context()
+            st.success("Setup applied.")
+            st.rerun()
+
 display_global_sidebar()
+_render_sidebar_setup_wizard()
+_sync_league_context()
+
+def _render_value_tabs(player_name: str, player_series: pd.Series, recalculated_df: pd.DataFrame):
+    service = _get_valuation_service()
+    tabs = st.tabs(["💡 Insights", "📊 Value Breakdown", "📈 Trends", "📂 Backtesting"])
+    with tabs[0]:
+        render_player_analysis_metrics(player_name, recalculated_df)
+    with tabs[1]:
+        _render_value_breakdown_panel(player_series)
+    with tabs[2]:
+        _render_trend_panel(player_name, service)
+    with tabs[3]:
+        _render_historical_backtest_panel(service, focus_player=player_name)
+
+def _render_value_breakdown_panel(player_series: pd.Series):
+    cols = st.columns(3)
+    def _metric(col, label, value, suffix=""):
+        try:
+            col.metric(label, f"{value}{suffix}")
+        except Exception:
+            col.metric(label, value)
+    _metric(cols[0], "Adj $", int(player_series.get('AdjValue', 0)))
+    _metric(cols[1], "Base $", int(player_series.get('BaseValue', 0)))
+    _metric(cols[2], "Friend Dollar", player_series.get('FriendDollarValue', 0))
+    cols2 = st.columns(3)
+    _metric(cols2[0], "Realistic $", int(player_series.get('RealisticPrice', player_series.get('AdjValue', 0))))
+    _metric(cols2[1], "Range Low", int(player_series.get('RealisticLow', 0)))
+    _metric(cols2[2], "Range High", int(player_series.get('RealisticHigh', 0)))
+    slot_equiv = player_series.get('SlotEquivalent', 0)
+    st.caption(f"Slot Equivalent: {slot_equiv} baseline starters | Tier: {int(player_series.get('Tier', 0))}")
+    breakdown = player_series.get('ValueBreakdown')
+    if breakdown:
+        st.code(breakdown, language='text')
+
+def _render_trend_panel(player_name: str, service: ValuationService):
+    st.markdown("### Year-over-Year Signals")
+    seasons = service.get_available_yoy_seasons()
+    if not seasons:
+        st.info("No historical YTD files detected.")
+        return
+    default_sel = st.session_state.get('yoy_selected_seasons') or seasons[:2]
+    league_name = st.text_input("League archive name (matches filenames)", value=st.session_state.get('yoy_league_name', ''), key="yoy_league_name")
+    season_selection = st.multiselect("Seasons to compare", options=seasons, default=default_sel, key="yoy_selected_seasons")
+    if league_name and len(season_selection) >= 2:
+        yoy_df = service.get_yoy_comparison(league_name, season_selection)
+        if yoy_df is not None and not yoy_df.empty:
+            player_rows = yoy_df[yoy_df['Player'] == player_name]
+            if not player_rows.empty:
+                dataframe(player_rows, hide_index=True, width="stretch")
+            else:
+                st.info("Player not found in selected seasons.")
+        else:
+            st.info("No YoY comparison data available for the selected seasons.")
+    else:
+        st.info("Provide a league name and at least two seasons to view YoY data.")
+
+def _render_historical_backtest_panel(service: ValuationService, focus_player: Optional[str] = None):
+    st.markdown("### Historical Draft Calibration")
+    summary = st.session_state.get('historical_backtest_summary')
+    if summary:
+        cols = st.columns(4)
+        cols[0].metric("Samples", summary.get('samples', 0))
+        cols[1].metric("Avg Bid", f"${summary.get('avg_bid', 0):.1f}")
+        cols[2].metric("Adj MAE", f"${summary.get('mae_adj', 0):.1f}")
+        cols[3].metric("Base MAE", f"${summary.get('mae_base', 0):.1f}")
+    sources = service.list_draft_history_sources()
+    if not sources:
+        st.info("No draft history files detected in data directory.")
+        return
+    source = st.selectbox("Draft history source", options=sources, key=f"history_source_{'player' if focus_player else 'global'}")
+    history_df = service.get_draft_history_by_source(source)
+    if history_df is None or history_df.empty:
+        st.warning("No entries found for this history.")
+        return
+    # Normalize player column
+    if 'PlayerName' not in history_df.columns:
+        if 'Player' in history_df.columns:
+            history_df = history_df.rename(columns={'Player': 'PlayerName'})
+        else:
+            st.warning("Draft history file is missing PlayerName/Player column.")
+            return
+    valuations_df = st.session_state.get('available_players', pd.DataFrame())
+    merged = history_df
+    if valuations_df is not None and not valuations_df.empty:
+        cols_wanted = ['PlayerName','BaseValue','AdjValue','FriendDollarValue']
+        cols_present = [c for c in cols_wanted if c in valuations_df.columns]
+        if 'PlayerName' not in cols_present and valuations_df.index.name == 'PlayerName':
+            valuations_df = valuations_df.reset_index()
+            if 'PlayerName' not in valuations_df.columns:
+                valuations_df.rename(columns={'index': 'PlayerName'}, inplace=True)
+            cols_present = [c for c in cols_wanted if c in valuations_df.columns]
+        if 'PlayerName' in cols_present:
+            merged = history_df.merge(
+                valuations_df[cols_present],
+                on='PlayerName',
+                how='left'
+            )
+    if focus_player:
+        merged = merged[merged['PlayerName'] == focus_player]
+    if merged.empty:
+        st.info("No matching players in this context.")
+        return
+    merged['BaseError'] = merged['Bid'] - merged.get('BaseValue', 0)
+    merged['AdjError'] = merged['Bid'] - merged.get('AdjValue', 0)
+    dataframe(merged, hide_index=True, width="stretch")
+
+def _render_global_backtest_dashboard(service: ValuationService):
+    st.markdown("### Historical Backtest Dashboard")
+    _render_historical_backtest_panel(service)
+
+def _render_fp_gp_lookup():
+    st.markdown("### Quick FP/G + GP Lookup")
+    st.caption("Paste player names (one per line). Uses data/auction/player_projections.csv (S4_FP/G, S4_GP).")
+    names_raw = st.text_area("Players", value="\n".join([
+        "Jalen Williams","Victor Wembanyama","Trae Young","Anthony Edwards",
+        "Derrick White","Ivica Zubac","Jalen Duren","Josh Hart","Coby White",
+        "Amen Thompson","Austin Reaves","Domantas Sabonis","Mikal Bridges",
+        "Isaiah Hartenstein","Walker Kessler","Nikola Vucevic","Devin Booker"
+    ]), height=180, key="fp_lookup_names")
+    if st.button("Lookup FP/G & GP", key="fp_lookup_btn"):
+        names = [n.strip() for n in names_raw.splitlines() if n.strip()]
+        if not names:
+            st.warning("Paste at least one player name.")
+            return
+        try:
+            import pandas as pd
+            from pathlib import Path
+            path = Path(__file__).resolve().parents[1] / "data" / "auction" / "player_projections.csv"
+            df = pd.read_csv(path)
+            df = df.rename(columns={"PlayerName": "Player"})
+            cols = ["Player"] + [c for c in ["S4_FP/G", "S4_GP"] if c in df.columns]
+            subset = df[df["Player"].isin(names)][cols].copy()
+            subset = subset.sort_values("Player")
+            if subset.empty:
+                st.warning("No matches found in projections file.")
+            else:
+                dataframe(subset, width="stretch", hide_index=True)
+        except Exception as exc:
+            st.error(f"Lookup failed: {exc}")
+
+def _render_historical_replay_panel(service: ValuationService):
+    st.markdown("### Historical Draft Replay")
+    st.caption("Rebuild a past league state using cached game logs for practice drafts.")
+    league_id = st.text_input("League ID", key="hist_replay_league")
+    season = st.text_input("Season (e.g., 2024-25)", key="hist_replay_season")
+    trade_date = st.text_input("Snapshot Date (YYYY-MM-DD)", key="hist_replay_date")
+    rosters_raw = st.text_area("Rosters JSON (team -> [players])", key="hist_replay_rosters", height=200)
+    if st.button("Build Historical Snapshot", key="hist_replay_btn"):
+        try:
+            rosters = json.loads(rosters_raw) if rosters_raw.strip() else {}
+        except json.JSONDecodeError as exc:
+            st.error(f"Invalid JSON: {exc}")
+            return
+        snapshot = service.build_historical_snapshot(
+            league_id=league_id,
+            season=season,
+            trade_date=trade_date,
+            rosters_by_team=rosters
+        )
+        if snapshot is None or snapshot.empty:
+            st.warning("No snapshot data produced. Check inputs and cached game logs.")
+        else:
+            st.success("Historical snapshot generated. Use this data with Trade Analysis for replay.")
+            dataframe(snapshot.reset_index(), hide_index=True, width="stretch")
 
 def _parse_injured_players_text(raw_text: str) -> dict:
     """Convert the injured players textarea text into a mapping of name -> status."""
@@ -57,6 +318,19 @@ def _annotate_injury_flags(df: pd.DataFrame, injury_map: dict) -> pd.DataFrame:
     out['IsInjured'] = out['InjuryStatus'].ne('')
     out['DisplayName'] = np.where(out['IsInjured'], base_names + ' (INJ)', base_names)
     return out
+
+def _load_default_injuries() -> dict:
+    """Load default injuries from data/injured_players.json if available."""
+    injury_file = Path(__file__).resolve().parents[1] / "data" / "injured_players.json"
+    if injury_file.exists():
+        try:
+            with injury_file.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+        except Exception:
+            pass
+    return {}
 
 def clear_player_on_block():
     """Callback function to reset the player on the block."""
@@ -299,27 +573,21 @@ if not st.session_state.draft_started:
                 st.session_state.injury_map = injured_players
                 
                 with st.spinner("Calculating initial player values..."):
-                    data_dir = Path(__file__).resolve().parent.parent / "data"
-                    auction_dir = data_dir / "auction"
-                    proj_path = auction_dir / 'player_projections.csv'
-                    if not proj_path.exists():
-                        proj_path = data_dir / 'player_projections.csv'
-                    pps_df = pd.read_csv(proj_path)
-                    st.session_state.available_players, st.session_state.initial_pos_counts, st.session_state.initial_tier_counts = calculate_initial_values(
-                        pps_df=pps_df,
-                        num_teams=st.session_state.num_teams,
-                        budget_per_team=st.session_state.budget_per_team,
-                        roster_composition=st.session_state.roster_composition,
-                        base_value_models=st.session_state.base_value_models,
-                        tier_cutoffs=st.session_state.tier_cutoffs,
+                    _sync_league_context()
+                    service = _get_valuation_service()
+                    valuations, pos_counts, tier_counts = service.build_initial_valuations(
                         injured_players=injured_players,
+                        tier_cutoffs=st.session_state.tier_cutoffs,
+                        base_value_models=st.session_state.base_value_models,
                         ec_settings=(st.session_state.get('ec_settings', None) if st.session_state.get('ec_enabled', True) else None),
                         gp_rel_settings=st.session_state.get('gp_rel_settings', None)
                     )
-                    # Annotate for UI so injury is obvious
                     st.session_state.available_players = _annotate_injury_flags(
-                        st.session_state.available_players, st.session_state.get('injury_map', {})
+                        valuations, st.session_state.get('injury_map', {})
                     )
+                    st.session_state.initial_pos_counts = pos_counts
+                    st.session_state.initial_tier_counts = tier_counts
+                    st.session_state.historical_backtest_summary = service.get_backtest_summary(valuations)
                 st.rerun()
         else:
             st.info("Generate projections before you can start the draft.")
@@ -344,7 +612,9 @@ else: # Draft is in progress
         total_money_spent = sum(p['DraftPrice'] for p in st.session_state.drafted_players)
         remaining_money_pool = total_league_money - total_money_spent
 
-        recalculated_df = recalculate_dynamic_values(
+        _sync_league_context()
+        service = _get_valuation_service()
+        recalculated_df = service.recalc_dynamic_values(
             available_players_df=st.session_state.available_players.copy(),
             remaining_money_pool=remaining_money_pool,
             total_league_money=total_league_money,
@@ -353,9 +623,6 @@ else: # Draft is in progress
             initial_tier_counts=st.session_state.initial_tier_counts,
             initial_pos_counts=st.session_state.initial_pos_counts,
             teams_data=st.session_state.teams,
-            tier_cutoffs=st.session_state.tier_cutoffs,
-            roster_composition=st.session_state.roster_composition,
-            num_teams=st.session_state.num_teams
         )
         # Carry injury flags forward for UI
         recalculated_df = _annotate_injury_flags(recalculated_df, st.session_state.get('injury_map', {}))
@@ -381,8 +648,8 @@ else: # Draft is in progress
         except Exception:
             pass
 
-    # --- Main 3-Column Layout ---
-    left_col, mid_col, right_col = st.columns([1.2, 2, 1])
+    # --- Main Layout ---
+    left_col, right_col = st.columns([1.5, 1])
 
     with left_col:
         nominating_team_name = st.session_state.draft_order[st.session_state.current_nominating_team_index] if st.session_state.draft_order else 'N/A'
@@ -431,9 +698,7 @@ else: # Draft is in progress
         if st.session_state.get('player_on_the_block') and not recalculated_df.empty:
             player_series = recalculated_df.loc[st.session_state.player_on_the_block]
             render_drafting_form(player_series, drafting_callback)
-
-    with mid_col:
-        render_team_rosters()
+            _render_value_tabs(st.session_state.player_on_the_block, player_series, recalculated_df)
 
     # --- Bot Recommendations (calculated once per run) ---
     drafted_player_names = [p['Player'] for p in st.session_state.draft_history]
@@ -704,7 +969,8 @@ else: # Draft is in progress
             st.warning(f"Could not compute residuals: {e}")
 
     # --- All Player Values Table (based on selected models) ---
-    st.markdown("---_**All Player Values**_---")
+    st.markdown("---")
+    st.subheader("All Player Values (compact)")
     if not recalculated_df.empty:
         display_df = recalculated_df.copy()
         if display_df.index.name == 'PlayerName':
@@ -883,6 +1149,17 @@ else: # Draft is in progress
             st.markdown("- **Adj $**: Current value after scarcity models\n- **Base $**: Average of base models\n- **Realistic $ / R Low / R High**: Realistic target with P10–P90 range (room dynamics + bounded noise)\n- **Market $**: Raw market estimate (if available)\n- **Conf %**: Agreement across models (higher = more consistent)\n- **Scarcity %**: Avg scarcity premium applied across selected scarcity models")
     else:
         st.info("Values will appear here once players are loaded.")
+
+    # --- Rosters (moved to bottom) ---
+    st.markdown("---")
+    st.subheader("Team Rosters & Budgets")
+    render_team_rosters()
+
+    # --- Historical Backtests & Replay ---
+    st.markdown("---")
+    service = _get_valuation_service()
+    _render_global_backtest_dashboard(service)
+    _render_historical_replay_panel(service)
 
     if recalculated_df.empty and st.session_state.draft_started:
         st.balloons()

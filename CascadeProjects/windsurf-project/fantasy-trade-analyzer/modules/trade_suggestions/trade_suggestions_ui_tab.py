@@ -839,14 +839,14 @@ def display_trade_suggestions_tab():
             )
 
             max_per_opponent_display = st.number_input(
-                "Max suggestions per opponent (display-only)",
+                "Max suggestions per team",
                 min_value=0,
                 max_value=10,
                 value=0,
                 step=1,
                 help=(
-                    "0 = no limit. >0 caps how many suggestions a single opponent can occupy "
-                    "in the displayed list so one manager cannot dominate the top N slots."
+                    "0 = no limit. >0 caps how many suggestions are generated for each team "
+                    "so one manager cannot dominate the results. This affects the trade search engine."
                 ),
                 key="tab_max_per_opponent_display",
             )
@@ -1036,6 +1036,7 @@ def display_trade_suggestions_tab():
                 player_fpts_overrides=player_fpts_overrides if "player_fpts_overrides" in locals() and player_fpts_overrides else None,
                 require_all_include_players=require_all_include_players,
                 min_incoming_fp_g=min_incoming_fp_g,
+                max_suggestions_per_team=max_per_opponent_display if max_per_opponent_display > 0 else None,
                 progress_callback=_progress_cb,
             )
 
@@ -1108,20 +1109,6 @@ def display_trade_suggestions_tab():
 
         # Build an indexed list so we can preserve global rank while grouping by opponent
         indexed_suggestions = list(enumerate(sorted_suggestions, 1))
-
-        # Optionally cap how many suggestions any single opponent can occupy
-        max_per_opp = int(max_per_opponent_display or 0)
-        if max_per_opp > 0:
-            team_counts = {}
-            pruned = []
-            for rank, s in indexed_suggestions:
-                team_name = s.get("team", "?")
-                current = team_counts.get(team_name, 0)
-                if current >= max_per_opp:
-                    continue
-                team_counts[team_name] = current + 1
-                pruned.append((rank, s))
-            indexed_suggestions = pruned
 
         # Trim to the overall display limit
         indexed_suggestions = indexed_suggestions[:display_n]

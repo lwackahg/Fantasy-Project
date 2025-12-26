@@ -308,7 +308,8 @@ def calculate_initial_values(pps_df, num_teams, budget_per_team, roster_composit
                 if player not in pps_df['PlayerName'].values:
                     continue
                 idx = pps_df['PlayerName'] == player
-                is_young = (pps_df.loc[idx, 'SeasonsPlayed'] <= 3).bool()
+                sp_series = pps_df.loc[idx, 'SeasonsPlayed']
+                is_young = bool((sp_series <= 3).any())
                 if is_young:
                     # Gentler for young players
                     if status == "Full Season":

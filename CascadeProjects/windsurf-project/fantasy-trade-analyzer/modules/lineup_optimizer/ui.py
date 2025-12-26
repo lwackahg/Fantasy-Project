@@ -519,6 +519,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 	for label in day_labels:
 		injury_base[f"{label} injured?"] = False
 	injury_base["Injured all week"] = False
+	injury_base["Returning/cleared?"] = False
 
 	injury_df = st.data_editor(
 		pd.DataFrame(injury_base),
@@ -545,6 +546,10 @@ def show_weekly_planner(default_league_id: str | None = None):
 		flags_base["Injured all week"] = injury_df["Injured all week"].tolist()
 	else:
 		flags_base["Injured all week"] = [False] * len(schedule_df)
+	if "Returning/cleared?" in injury_df.columns:
+		flags_base["Returning/cleared?"] = injury_df["Returning/cleared?"].tolist()
+	else:
+		flags_base["Returning/cleared?"] = [False] * len(schedule_df)
 	flags_df = pd.DataFrame(flags_base)
 
 	st.markdown("---")
@@ -696,6 +701,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 			player_names: list[str] = []
 			opponent_by_player: dict[str, str] = {}
 			injured_flags: dict[str, bool] = {}
+			returning_flags: dict[str, bool] = {}
 			day_injured_col = f"{day_label} injured?"
 			for _, row in day_rows.iterrows():
 				name = str(row["Player"]).strip()
@@ -718,13 +724,18 @@ def show_weekly_planner(default_league_id: str | None = None):
 					continue
 				opponent_by_player[name] = opp
 				is_injured = False
+				is_returning = False
 				if flags_row is not None:
 					if day_injured_col in flags_row.index and bool(flags_row.get(day_injured_col, False)):
 						is_injured = True
 					if "Injured all week" in flags_row.index and bool(flags_row.get("Injured all week", False)):
 						is_injured = True
+					if "Returning/cleared?" in flags_row.index and bool(flags_row.get("Returning/cleared?", False)):
+						is_returning = True
 				if is_injured:
 					injured_flags[name] = True
+				if is_returning:
+					returning_flags[name] = True
 				player_names.append(name)
 
 			with st.spinner("Analyzing selected day from cached game logs..."):
@@ -736,6 +747,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 					opponent_by_player=opponent_by_player if opponent_by_player else None,
 					opponent_strength=None,
 					injured_flags=injured_flags if injured_flags else None,
+					returning_flags=returning_flags if returning_flags else None,
 					min_games_required=min_games_required if current_week_ppg is not None else None,
 					games_played_so_far=games_played_so_far if current_week_ppg is not None else None,
 					current_week_ppg=current_week_ppg if current_week_ppg is not None else None,
@@ -756,6 +768,8 @@ def show_weekly_planner(default_league_id: str | None = None):
 					display_cols = [
 						"player_name",
 						"decision",
+						"returning_override",
+						"heater",
 						"expected_fpts",
 						"confidence",
 						"utility",
@@ -778,6 +792,14 @@ def show_weekly_planner(default_league_id: str | None = None):
 							"expected_fpts",
 							help="Blended projection using Empirical Bayes shrinkage (recent form regressed toward baseline).",
 							format="%.1f",
+						),
+						"returning_override": st.column_config.CheckboxColumn(
+							"Returning?",
+							help="Return-to-form override applied: baseline floor + trimmed volatility.",
+						),
+						"heater": st.column_config.CheckboxColumn(
+							"Heater?",
+							help="Auto-detected heater: minutes/FPts trending up (>=28 mpg and +15%/+6 FPts); capped boost.",
 						),
 						"confidence": st.column_config.NumberColumn(
 							"confidence",
@@ -825,6 +847,11 @@ def show_weekly_planner(default_league_id: str | None = None):
 		for _, row in flags_df.iterrows():
 			if bool(row.get("Injured all week", False)):
 				injured_all_week_set.add(str(row.get("Player", "")).strip())
+	returning_set: set[str] = set()
+	if "Returning/cleared?" in flags_df.columns:
+		for _, row in flags_df.iterrows():
+			if bool(row.get("Returning/cleared?", False)):
+				returning_set.add(str(row.get("Player", "")).strip())
 
 	# Count games already started (before today)
 	games_already_started = 0
@@ -885,6 +912,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 		day_players: list[str] = []
 		day_opponents: dict[str, str] = {}
 		day_injured: dict[str, bool] = {}
+		day_returning: dict[str, bool] = {}
 
 		flags_lookup_opt = None
 		if "Player" in flags_df.columns:
@@ -913,6 +941,10 @@ def show_weekly_planner(default_league_id: str | None = None):
 				day_injured_col_opt = f"{label_rec} injured?"
 				if day_injured_col_opt in flags_row_opt.index and bool(flags_row_opt.get(day_injured_col_opt, False)):
 					day_injured[player_name] = True
+				if "Returning/cleared?" in flags_row_opt.index and bool(flags_row_opt.get("Returning/cleared?", False)):
+					day_returning[player_name] = True
+			if player_name in returning_set:
+				day_returning[player_name] = True
 
 		if not day_players:
 			day_available_counts[label_rec] = 0
@@ -927,6 +959,7 @@ def show_weekly_planner(default_league_id: str | None = None):
 			opponent_by_player=day_opponents,
 			opponent_strength=None,
 			injured_flags=day_injured if day_injured else None,
+			returning_flags=day_returning if day_returning else None,
 			min_games_required=min_games_required,
 			games_played_so_far=base_games,
 			current_week_ppg=base_points / float(base_games) if base_games > 0 else None,
@@ -946,6 +979,11 @@ def show_weekly_planner(default_league_id: str | None = None):
 
 		for _, rec_row in available_players.iterrows():
 			exp_fpts = float(rec_row.get("expected_fpts", 0) or 0.0)
+			returning_override = bool(rec_row.get("returning_override", False))
+			heater_flag = bool(rec_row.get("heater", False))
+			# Nudge expected slightly for returners/heaters to break ties in optimizer.
+			nudge = 1.5 if returning_override or heater_flag else 0.0
+			adjusted_exp = exp_fpts + nudge
 			all_candidates.append(
 				{
 					"DayIndex": idx_rec,
@@ -953,8 +991,13 @@ def show_weekly_planner(default_league_id: str | None = None):
 					"Player": rec_row["player_name"],
 					"Opponent": day_opponents.get(rec_row["player_name"], ""),
 					"Expected FPts": exp_fpts,
+					"AdjExpected": adjusted_exp,
 					"Utility": float(rec_row.get("utility", 0) or 0.0),
 					"Decision": rec_row.get("decision", ""),
+					"Returning": returning_override,
+					"Heater": heater_flag,
+					"PPGDelta": rec_row.get("ppg_delta"),
+					"PPGBefore": rec_row.get("ppg_before"),
 				}
 			)
 
@@ -967,9 +1010,9 @@ def show_weekly_planner(default_league_id: str | None = None):
 	# take to maximize final PPG, subject to meeting the minimum if enough slots
 	# exist.
 	cand_df = pd.DataFrame(all_candidates)
-	cand_df = cand_df.sort_values(["Expected FPts", "Utility"], ascending=[False, False]).reset_index(drop=True)
+	cand_df = cand_df.sort_values(["AdjExpected", "Utility"], ascending=[False, False]).reset_index(drop=True)
 
-	expected_vals = [float(x or 0.0) for x in cand_df["Expected FPts"].tolist()]
+	expected_vals = [float(x or 0.0) for x in cand_df["AdjExpected"].tolist()]
 	prefix_sums: list[float] = []
 	_running = 0.0
 	for val in expected_vals:
@@ -1006,6 +1049,24 @@ def show_weekly_planner(default_league_id: str | None = None):
 		cand_df.loc[: chosen_n - 1, "chosen"] = True
 
 	chosen_df = cand_df[cand_df["chosen"]].copy()
+
+	# If we are recommending more than the needed_games, drop starts that do not
+	# improve PPG by at least a threshold when we are already over the minimum.
+	# Threshold: positive delta AND delta >= 5% of current baseline (if known).
+	if chosen_n > needed_games and {"PPGDelta", "PPGBefore"}.issubset(chosen_df.columns):
+		pct_threshold = 0.05
+		filtered = chosen_df[
+			(chosen_df["PPGDelta"].isna())
+			| (
+				(chosen_df["PPGDelta"] > 0)
+				& (
+					(chosen_df["PPGBefore"].isna())
+					| (chosen_df["PPGDelta"] >= pct_threshold * chosen_df["PPGBefore"])
+				)
+			)
+		].copy()
+		if not filtered.empty:
+			chosen_df = filtered
 	if chosen_df.empty:
 		st.warning("No recommendations generated. Check that players have scheduled games for remaining days.")
 		return
@@ -1056,6 +1117,8 @@ def show_weekly_planner(default_league_id: str | None = None):
 					"Expected FPts": round(exp_fpts, 1),
 					"Utility": round(float(row.get("Utility", 0.0) or 0.0), 2),
 					"Decision": row.get("Decision", ""),
+					"Returning": bool(row.get("Returning", False)),
+					"Heater": bool(row.get("Heater", False)),
 				}
 			)
 			# Update running totals for projections
@@ -1088,7 +1151,29 @@ def show_weekly_planner(default_league_id: str | None = None):
 		rec_df = pd.DataFrame(recommendations)
 		tab_by_game, tab_by_player = st.tabs(["By game", "By player"])
 		with tab_by_game:
-			dataframe(rec_df, width="stretch", hide_index=True)
+			dataframe(
+				rec_df,
+				width="stretch",
+				hide_index=True,
+				column_config={
+					"Expected FPts": st.column_config.NumberColumn(
+						"Expected FPts",
+						format="%.1f",
+					),
+					"Utility": st.column_config.NumberColumn(
+						"Utility",
+						format="%.2f",
+					),
+					"Returning": st.column_config.CheckboxColumn(
+						"Returning?",
+						help="Return-to-form override applied: baseline floor + trimmed volatility.",
+					),
+					"Heater": st.column_config.CheckboxColumn(
+						"Heater?",
+						help="Auto-detected heater: minutes/FPts trending up (>=26–28 mpg and +12%/+5 FPts); capped boost.",
+					),
+				},
+			)
 		with tab_by_player:
 			if rec_df.empty:
 				st.info("No recommended starts to summarize by player.")

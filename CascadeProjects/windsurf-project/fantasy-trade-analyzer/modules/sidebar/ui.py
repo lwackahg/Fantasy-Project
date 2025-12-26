@@ -37,6 +37,7 @@ def display_global_sidebar():
         st.page_link("pages/3_Schedule_Analysis.py", label="Schedule Analysis", icon="📅")
         st.page_link("pages/10_Lineup_Optimizer.py", label="Lineup Optimizer", icon="🧮")
         st.page_link("pages/7_Auction_Draft_Tool.py", label="Auction Draft Tool", icon="🧾")
+        st.page_link("pages/99_FP_GP_Lookup.py", label="FP/G + GP Lookup", icon="📈")
         st.page_link("pages/9_Player_Value_Analyzer.py", label="Player Value & Consistency", icon="🏆")
         st.page_link("pages/12_Manager_History.py", label="History Hub", icon="📚")
         st.page_link("pages/6_Admin_Tools.py", label="Admin Tools", icon="🔐")

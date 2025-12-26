@@ -4,7 +4,7 @@ import pandas as pd
 from modules.manager_ids import load_manager_ids, get_manager_list
 from modules.sidebar.ui import display_global_sidebar
 from streamlit_compat import dataframe
-from ui.history_hub import render_draft_history
+from ui.history_hub import render_best_team_optimizer, render_draft_history
 
 
 st.set_page_config(page_title="Manager History", page_icon="👤", layout="wide")
@@ -14,7 +14,7 @@ display_global_sidebar()
 st.title("👤 Manager History")
 st.caption("Manager timeline + Draft history in one place.")
 
-tab_mgr, tab_draft = st.tabs(["👤 Manager History", "📜 Draft History"])
+tab_mgr, tab_draft, tab_best = st.tabs(["👤 Manager History", "📜 Draft History", "🧠 Best $200 Team"])
 
 with tab_mgr:
     # Load manager identity data
@@ -91,3 +91,6 @@ with tab_mgr:
 
 with tab_draft:
     render_draft_history()
+
+with tab_best:
+    render_best_team_optimizer()

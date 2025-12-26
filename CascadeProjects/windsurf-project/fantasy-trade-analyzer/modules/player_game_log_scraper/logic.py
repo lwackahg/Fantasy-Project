@@ -1008,15 +1008,38 @@ def calculate_multi_range_stats(game_log_df):
 			mean_fpts = fpts.mean()
 			std_fpts = fpts.std()
 			
-			results[range_name] = {
+			stats = {
 				'games_played': len(fpts),
 				'mean_fpts': mean_fpts,
 				'median_fpts': fpts.median(),
 				'std_dev': std_fpts,
 				'coefficient_of_variation': (std_fpts / mean_fpts * 100) if mean_fpts > 0 else 0,
 				'min_fpts': fpts.min(),
-				'max_fpts': fpts.max()
+				'max_fpts': fpts.max(),
 			}
+			# Minutes-based fields for heater detection and FPPM
+			min_col = None
+			for candidate in ("MIN", "Min", "Minutes", "MINUTES"):
+				if candidate in range_df.columns:
+					min_col = candidate
+					break
+			if min_col:
+				mins = pd.to_numeric(range_df[min_col], errors="coerce").dropna()
+				if not mins.empty and mins.sum() > 0:
+					mean_minutes = float(mins.mean())
+					stats["mean_minutes"] = mean_minutes
+					stats["total_minutes"] = float(mins.sum())
+					stats["fppm_mean"] = float(mean_fpts / mean_minutes) if mean_minutes > 0 else None
+				else:
+					stats["mean_minutes"] = None
+					stats["total_minutes"] = None
+					stats["fppm_mean"] = None
+			else:
+				stats["mean_minutes"] = None
+				stats["total_minutes"] = None
+				stats["fppm_mean"] = None
+
+			results[range_name] = stats
 	else:
 		for range_name, num_games in range_days.items():
 			range_df = df.head(min(num_games, len(df)))

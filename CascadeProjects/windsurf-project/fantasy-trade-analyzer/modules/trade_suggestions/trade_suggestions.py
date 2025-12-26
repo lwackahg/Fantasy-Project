@@ -440,6 +440,7 @@ def find_trade_suggestions(
 	player_fpts_overrides: Dict[str, float] = None,
 	require_all_include_players: bool = False,
 	min_incoming_fp_g: Optional[float] = None,
+	max_suggestions_per_team: Optional[int] = None,
 	progress_callback: Optional[Callable[[float, str], None]] = None,
 ) -> List[Dict]:
 	"""
@@ -454,6 +455,7 @@ def find_trade_suggestions(
 		target_teams: Optional list of teams to target (None = all teams)
 		exclude_players: Optional list of players to exclude from your side
 		player_fpts_overrides: Optional dict mapping player names to assumed FP/G
+		max_suggestions_per_team: Optional max suggestions per team (None = use default 4)
 	
 	Returns:
 		List of trade suggestions sorted by value gain
@@ -954,16 +956,16 @@ def find_trade_suggestions(
 		seen_keys.add(key)
 		deduped.append(suggestion)
 
-	# Limit per opponent/pattern to keep variety (e.g., top 4 each)
-	per_bucket_counts = {}
+	# Limit per team to keep variety (use configured value or default 4)
+	team_counts = {}
 	filtered = []
-	max_per_bucket = 4
+	max_per_team = max_suggestions_per_team if max_suggestions_per_team is not None else 4
 	for suggestion in deduped:
-		bucket = (suggestion['pattern'], suggestion['team'])
-		count = per_bucket_counts.get(bucket, 0)
-		if count >= max_per_bucket:
+		team_name = suggestion['team']
+		count = team_counts.get(team_name, 0)
+		if count >= max_per_team:
 			continue
-		per_bucket_counts[bucket] = count + 1
+		team_counts[team_name] = count + 1
 		filtered.append(suggestion)
 
 	_emit_progress(1.0, "Done")
