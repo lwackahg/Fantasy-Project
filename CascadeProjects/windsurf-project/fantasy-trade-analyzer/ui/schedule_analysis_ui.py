@@ -6,7 +6,12 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from streamlit_compat import dataframe, plotly_chart
-from logic.schedule_analysis import calculate_team_stats, swap_team_schedules, compare_team_stats
+from ui.playoff_odds_ui import display_playoff_odds as display_playoff_odds_tab
+from logic.schedule_analysis import (
+    calculate_team_stats,
+    swap_team_schedules,
+    compare_team_stats,
+)
 
 def display_list_view(filtered_df):
     """
@@ -360,3 +365,21 @@ def display_current_period_overview(schedule_df, current_period: int | None):
         width="stretch",
         hide_index=True,
     )
+
+
+def display_playoff_odds(schedule_df):
+    """Compatibility wrapper; delegates to modules.schedule_analysis.ui."""
+    from modules.schedule_analysis.ui import display_playoff_odds as _display_playoff_odds
+
+    return _display_playoff_odds(schedule_df)
+
+
+# Compatibility re-exports (ensure any old imports use the new module implementation)
+from modules.schedule_analysis.ui import (  # noqa: E402
+    display_list_view as display_list_view,
+    display_table_view as display_table_view,
+    display_team_stats as display_team_stats,
+    display_swap_selection as display_swap_selection,
+    display_all_swaps_analysis as display_all_swaps_analysis,
+    display_current_period_overview as display_current_period_overview,
+)

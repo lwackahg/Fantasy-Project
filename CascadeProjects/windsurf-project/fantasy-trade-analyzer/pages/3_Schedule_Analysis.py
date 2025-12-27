@@ -3,13 +3,14 @@ import pandas as pd
 from config import PAGE_TITLE, PAGE_ICON, LAYOUT, MENUITEMS
 from data_loader import load_schedule_data
 from logic.schedule_analysis import calculate_team_stats, calculate_all_schedule_swaps
-from ui.schedule_analysis_ui import (
+from modules.schedule_analysis.ui import (
     display_list_view,
     display_table_view,
     display_team_stats,
     display_swap_selection,
     display_all_swaps_analysis,
     display_current_period_overview,
+    display_playoff_odds,
 )
 from modules.sidebar.ui import display_global_sidebar
 
@@ -93,8 +94,9 @@ if "Period Number" in schedule_df.columns:
         completed_schedule_df = schedule_df[schedule_df["Period Number"] <= completed_through_period].copy()
 
 all_teams = sorted(list(set(schedule_df["Team 1"]).union(set(schedule_df["Team 2"]))))
+all_teams = [t for t in all_teams if not str(t).startswith("Scoring Period")]
 
-swap_tab, standings_tab = st.tabs(["Swap / What-Ifs", "Standings & Schedule"])
+swap_tab, standings_tab, odds_tab = st.tabs(["Swap / What-Ifs", "Standings & Schedule", "Odds"])
 
 with swap_tab:
     # Main analysis section
@@ -165,3 +167,6 @@ with standings_tab:
             display_table_view(filtered_df)
         else:
             st.info("No matchups found with the selected filters.")
+
+with odds_tab:
+    display_playoff_odds(schedule_df)
