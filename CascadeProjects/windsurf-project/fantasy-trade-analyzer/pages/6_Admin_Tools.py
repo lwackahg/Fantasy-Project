@@ -13,6 +13,12 @@ from modules.sidebar.ui import display_global_sidebar
 import json
 from pathlib import Path
 from datetime import date, timedelta
+from modules.newsletter_exporter import (
+	build_newsletter_export_json,
+	build_newsletter_export_json_bundle,
+	build_newsletter_export_message_bundle,
+	build_newsletter_export_zip,
+)
 
 st.set_page_config(page_title="Admin Tools", page_icon="🔐", layout="wide")
 
@@ -26,7 +32,7 @@ st.title("🔐 Admin Tools")
 st.write("Commissioner-only tools for league management and data scraping.")
 
 # Create tabs for different admin tools
-tab_league, tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+tab_league, tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
 	"📂 League Data / CSV Loader",
 	"📥 Downloader for Current Season (Trading Files)",
 	"📅 Historical YTD (When Significant Data Available)",
@@ -35,6 +41,7 @@ tab_league, tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
 	"⚙️ Weekly Standings Adjuster",
 	"📜 Historical Trade Analyzer",
 	"🩺 Injury & Availability Overrides",
+	"📰 Newsletter Export",
 ])
 
 with tab_league:
@@ -60,7 +67,6 @@ with tab5:
 
 with tab6:
 	show_historical_trade_analyzer()
-
 
 with tab7:
 	st.subheader("🩺 Injury & Availability Overrides")
@@ -206,78 +212,82 @@ with tab7:
 
 	if not player_name:
 		st.info("Select or type a player name to edit their injury override.")
-		st.stop()
+		player_name = None
 
-	entry = inj_data.get(player_name)
-	if isinstance(entry, str):
-		current_tag = entry
-		current_duration_value = 0
-		current_duration_unit = "weeks"
-		current_added = None
-	elif isinstance(entry, dict):
-		current_tag = entry.get("tag") or ""
-		current_duration_value = int(entry.get("duration_value") or 0)
-		current_duration_unit = str(entry.get("duration_unit") or "weeks")
-		current_added = entry.get("added")
+	if not player_name:
+		pass
 	else:
-		current_tag = ""
-		current_duration_value = 0
-		current_duration_unit = "weeks"
-		current_added = None
 
-	st.markdown(f"### Editing override for **{player_name}**")
+		entry = inj_data.get(player_name)
+		if isinstance(entry, str):
+			current_tag = entry
+			current_duration_value = 0
+			current_duration_unit = "weeks"
+			current_added = None
+		elif isinstance(entry, dict):
+			current_tag = entry.get("tag") or ""
+			current_duration_value = int(entry.get("duration_value") or 0)
+			current_duration_unit = str(entry.get("duration_unit") or "weeks")
+			current_added = entry.get("added")
+		else:
+			current_tag = ""
+			current_duration_value = 0
+			current_duration_unit = "weeks"
+			current_added = None
 
-	col_tag, col_duration, col_unit = st.columns([1, 1, 1])
-	with col_tag:
-		inj_tag = st.selectbox(
-			"Injury tag",
-			options=["", "Full Season", "Half Season", "1/4 Season"],
-			index=["", "Full Season", "Half Season", "1/4 Season"].index(current_tag) if current_tag in ["Full Season", "Half Season", "1/4 Season"] else 0,
-			help="Leave blank to clear any override for this player.",
-		)
-	with col_duration:
-		duration_value = st.number_input("Duration", min_value=0, max_value=365, value=current_duration_value, step=1, help="Rough length of this injury window.")
-	with col_unit:
-		unit = st.selectbox("Unit", options=["days", "weeks", "months"], index=["days", "weeks", "months"].index(current_duration_unit) if current_duration_unit in ["days", "weeks", "months"] else 1)
+		st.markdown(f"### Editing override for **{player_name}**")
 
-	default_added = None
-	try:
-		if current_added:
-			parts = [int(p) for p in str(current_added).split("-")]
-			if len(parts) == 3:
-				default_added = date(parts[0], parts[1], parts[2])
-	except Exception:
+		col_tag, col_duration, col_unit = st.columns([1, 1, 1])
+		with col_tag:
+			inj_tag = st.selectbox(
+				"Injury tag",
+				options=["", "Full Season", "Half Season", "1/4 Season"],
+				index=["", "Full Season", "Half Season", "1/4 Season"].index(current_tag) if current_tag in ["Full Season", "Half Season", "1/4 Season"] else 0,
+				help="Leave blank to clear any override for this player.",
+			)
+		with col_duration:
+			duration_value = st.number_input("Duration", min_value=0, max_value=365, value=current_duration_value, step=1, help="Rough length of this injury window.")
+		with col_unit:
+			unit = st.selectbox("Unit", options=["days", "weeks", "months"], index=["days", "weeks", "months"].index(current_duration_unit) if current_duration_unit in ["days", "weeks", "months"] else 1)
+
 		default_added = None
+		try:
+			if current_added:
+				parts = [int(p) for p in str(current_added).split("-")]
+				if len(parts) == 3:
+					default_added = date(parts[0], parts[1], parts[2])
+		except Exception:
+			default_added = None
 
-	added_date = st.date_input("Date override added", value=default_added or date.today(), help="Used with duration to auto-expire this tag.")
+		added_date = st.date_input("Date override added", value=default_added or date.today(), help="Used with duration to auto-expire this tag.")
 
-	col_save, col_clear = st.columns([1, 1])
-	with col_save:
-		if st.button("💾 Save Override"):
-			if inj_tag:
-				inj_data[player_name] = {
-					"tag": inj_tag,
-					"duration_value": int(duration_value),
-					"duration_unit": unit,
-					"added": added_date.strftime("%Y-%m-%d"),
-				}
-				with inj_path.open("w", encoding="utf-8") as f:
-					json.dump(inj_data, f, indent=4, ensure_ascii=False)
-				st.success("Override saved.")
-			else:
+		col_save, col_clear = st.columns([1, 1])
+		with col_save:
+			if st.button("💾 Save Override"):
+				if inj_tag:
+					inj_data[player_name] = {
+						"tag": inj_tag,
+						"duration_value": int(duration_value),
+						"duration_unit": unit,
+						"added": added_date.strftime("%Y-%m-%d"),
+					}
+					with inj_path.open("w", encoding="utf-8") as f:
+						json.dump(inj_data, f, indent=4, ensure_ascii=False)
+					st.success("Override saved.")
+				else:
+					if player_name in inj_data:
+						inj_data.pop(player_name, None)
+						with inj_path.open("w", encoding="utf-8") as f:
+							json.dump(inj_data, f, indent=4, ensure_ascii=False)
+						st.success("Override cleared.")
+
+		with col_clear:
+			if st.button("🗑️ Remove Player Override"):
 				if player_name in inj_data:
 					inj_data.pop(player_name, None)
 					with inj_path.open("w", encoding="utf-8") as f:
 						json.dump(inj_data, f, indent=4, ensure_ascii=False)
-					st.success("Override cleared.")
-
-	with col_clear:
-		if st.button("🗑️ Remove Player Override"):
-			if player_name in inj_data:
-				inj_data.pop(player_name, None)
-				with inj_path.open("w", encoding="utf-8") as f:
-					json.dump(inj_data, f, indent=4, ensure_ascii=False)
-				st.success("Override removed.")
+					st.success("Override removed.")
 
 	st.markdown("---")
 	st.markdown("#### Current Overrides")
@@ -296,3 +306,155 @@ with tab7:
 		dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 	else:
 		st.caption("No overrides currently set.")
+
+
+with tab8:
+	st.subheader("📰 Newsletter Export")
+	st.caption("Generate a one-shot export bundle for AI newsletter generation.")
+
+	data_dir = Path(__file__).resolve().parent.parent / "data"
+	docs_dir = Path(__file__).resolve().parent.parent / "docs"
+
+	export_format = st.radio(
+		"Export format",
+		options=[
+			"Single JSON (recommended)",
+			"Message bundle (chat-ready 5–10 JSONs)",
+			"JSON bundle (multiple files)",
+			"ZIP (multi-file)",
+		],
+		horizontal=True,
+		key="newsletter_export_format",
+	)
+
+	col_a, col_b = st.columns([1, 1])
+	with col_a:
+		include_logs = st.checkbox(
+			"Include player game logs (can be large)",
+			value=False,
+			key="newsletter_export_include_logs",
+		)
+	with col_b:
+		include_weekly_scoring = st.checkbox(
+			"Include weekly player scoring breakdown (best-effort)",
+			value=False,
+			key="newsletter_export_include_weekly_scoring",
+		)
+
+	include_past_logs = False
+	if include_logs:
+		include_past_logs = st.checkbox(
+			"Include past seasons game logs too (very large)",
+			value=False,
+			key="newsletter_export_include_past_logs",
+		)
+
+	max_players = None
+	if include_weekly_scoring:
+		max_players = st.number_input(
+			"Max players to scan for weekly scoring (leave high for completeness)",
+			min_value=10,
+			max_value=5000,
+			value=400,
+			step=50,
+			key="newsletter_export_max_players",
+		)
+
+	row_limit = None
+	max_bytes_per_file = None
+	if export_format in {"Single JSON (recommended)", "JSON bundle (multiple files)", "Message bundle (chat-ready 5–10 JSONs)"}:
+		row_limit = st.number_input(
+			"Optional: limit rows per table (0 = no limit)",
+			min_value=0,
+			max_value=50000,
+			value=0,
+			step=500,
+			key="newsletter_export_row_limit",
+		)
+	if export_format in {"JSON bundle (multiple files)", "Message bundle (chat-ready 5–10 JSONs)"}:
+		max_bytes_per_file = st.number_input(
+			"Max size per JSON file (bytes)",
+			min_value=50_000,
+			max_value=2_000_000,
+			value=250_000,
+			step=50_000,
+			key="newsletter_export_max_bytes_per_file",
+		)
+
+	if st.button("🧰 Build Newsletter Export", type="primary", key="newsletter_export_build"):
+		try:
+			with st.spinner("Building export bundle..."):
+				if export_format == "ZIP (multi-file)":
+					export_bytes, file_name, _manifest = build_newsletter_export_zip(
+						data_dir=data_dir,
+						docs_dir=docs_dir,
+						include_player_game_logs=bool(include_logs),
+						include_past_seasons_logs=bool(include_past_logs),
+						include_weekly_player_scoring=bool(include_weekly_scoring),
+						max_players_for_weekly_scoring=int(max_players) if max_players is not None else None,
+					)
+					st.session_state["newsletter_export_bytes"] = export_bytes
+					st.session_state["newsletter_export_name"] = file_name
+					st.session_state["newsletter_export_mime"] = "application/zip"
+				elif export_format == "Message bundle (chat-ready 5–10 JSONs)":
+					limit_rows = int(row_limit) if row_limit is not None else 0
+					max_bytes = int(max_bytes_per_file) if max_bytes_per_file is not None else 250_000
+					export_bytes, file_name, _manifest = build_newsletter_export_message_bundle(
+						data_dir=data_dir,
+						docs_dir=docs_dir,
+						include_player_game_logs=bool(include_logs),
+						include_past_seasons_logs=bool(include_past_logs),
+						include_weekly_player_scoring=bool(include_weekly_scoring),
+						max_players_for_weekly_scoring=int(max_players) if max_players is not None else None,
+						max_bytes_per_file=max_bytes,
+						limit_rows_per_table=(limit_rows if limit_rows > 0 else None),
+					)
+					st.session_state["newsletter_export_bytes"] = export_bytes
+					st.session_state["newsletter_export_name"] = file_name
+					st.session_state["newsletter_export_mime"] = "application/zip"
+				elif export_format == "JSON bundle (multiple files)":
+					limit_rows = int(row_limit) if row_limit is not None else 0
+					max_bytes = int(max_bytes_per_file) if max_bytes_per_file is not None else 250_000
+					export_bytes, file_name, _manifest = build_newsletter_export_json_bundle(
+						data_dir=data_dir,
+						docs_dir=docs_dir,
+						include_player_game_logs=bool(include_logs),
+						include_past_seasons_logs=bool(include_past_logs),
+						include_weekly_player_scoring=bool(include_weekly_scoring),
+						max_players_for_weekly_scoring=int(max_players) if max_players is not None else None,
+						max_bytes_per_file=max_bytes,
+						limit_rows_per_table=(limit_rows if limit_rows > 0 else None),
+					)
+					st.session_state["newsletter_export_bytes"] = export_bytes
+					st.session_state["newsletter_export_name"] = file_name
+					st.session_state["newsletter_export_mime"] = "application/zip"
+				else:
+					limit_rows = int(row_limit) if row_limit is not None else 0
+					export_bytes, file_name, _manifest = build_newsletter_export_json(
+						data_dir=data_dir,
+						docs_dir=docs_dir,
+						include_player_game_logs=bool(include_logs),
+						include_past_seasons_logs=bool(include_past_logs),
+						include_weekly_player_scoring=bool(include_weekly_scoring),
+						max_players_for_weekly_scoring=int(max_players) if max_players is not None else None,
+						limit_rows_per_table=(limit_rows if limit_rows > 0 else None),
+					)
+					st.session_state["newsletter_export_bytes"] = export_bytes
+					st.session_state["newsletter_export_name"] = file_name
+					st.session_state["newsletter_export_mime"] = "application/json"
+			st.success("Export bundle ready.")
+		except Exception as e:
+			st.error(f"Error building export: {e}")
+
+	export_bytes = st.session_state.get("newsletter_export_bytes")
+	export_name = st.session_state.get("newsletter_export_name")
+	export_mime = st.session_state.get("newsletter_export_mime")
+	if export_bytes and export_name and export_mime:
+		st.download_button(
+			label="⬇️ Download Newsletter Export",
+			data=export_bytes,
+			file_name=export_name,
+			mime=export_mime,
+			key="newsletter_export_download",
+			width="stretch",
+		)

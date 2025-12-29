@@ -317,7 +317,7 @@ def _estimate_playoff_prob_at_wins_fast(
     team_ratings: Dict[str, float],
     current_wins: Dict[str, int],
     other_remaining: List[Tuple[str, str]],
-    num_sims: int = 300,
+    num_sims: int = 5000,
 ) -> float:
     """Fast estimation of playoff probability if team finishes with exactly target_wins."""
     if num_sims <= 0:
@@ -344,7 +344,7 @@ def _estimate_playoff_prob_at_wins_fast(
     return (made_playoffs / num_sims) * 100
 
 
-def _estimate_playoff_odds_with_forced_results(
+def _estimate_playoff_odds_batch(
     *,
     team: str,
     all_teams: List[str],
@@ -352,52 +352,67 @@ def _estimate_playoff_odds_with_forced_results(
     team_ratings: Dict[str, float],
     current_wins: Dict[str, int],
     remaining_games: List[Tuple[str, str, str]],
-    forced_winners: Dict[Tuple[str, str, str], str],
-    num_sims: int = 300,
-) -> float:
-    """Estimate playoff odds while forcing outcomes of some remaining games."""
+    batch_forced_results: List[Dict[Tuple[str, str, str], str]],
+    num_sims: int = 5000,
+    seed: int | None = None,
+) -> List[float]:
+    """Estimate playoff odds for multiple 'forced winner' scenarios using the SAME random samples.
+    
+    This ensures that differences between scenarios are caused ONLY by the forced results,
+    not by random jitter in the simulation of other games.
+    """
     if num_sims <= 0:
-        return 0.0
+        return [0.0] * len(batch_forced_results)
 
-    made_playoffs = 0
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+
+    # Pre-calculate win probabilities for all remaining games
+    matchup_probs = {}
+    for t1, t2, period in remaining_games:
+        r1 = team_ratings.get(t1, 1500)
+        r2 = team_ratings.get(t2, 1500)
+        matchup_probs[(t1, t2, period)] = 1 / (1 + 10 ** (-(r1 - r2) / 400))
+
+    # Run simulations
+    scenario_counts = [0] * len(batch_forced_results)
+    
     for _ in range(num_sims):
-        sim_wins = current_wins.copy()
+        # Generate ONE set of outcomes for all games not in ANY forced result
+        # To be safe, we'll just generate outcomes for everything and override them
+        sim_outcomes = {}
+        for (t1, t2, period), p1 in matchup_probs.items():
+            sim_outcomes[(t1, t2, period)] = t1 if random.random() < p1 else t2
 
-        for (t1, t2, period), winner in forced_winners.items():
-            if winner == t1:
-                sim_wins[t1] = sim_wins.get(t1, 0) + 1
-            elif winner == t2:
-                sim_wins[t2] = sim_wins.get(t2, 0) + 1
+        # Evaluate this set of outcomes for each forced scenario
+        for i, forced in enumerate(batch_forced_results):
+            sim_wins = current_wins.copy()
+            
+            for (t1, t2, period), outcome in sim_outcomes.items():
+                # Apply forced result if it exists for this game (or its reverse key)
+                winner = forced.get((t1, t2, period))
+                if winner is None:
+                    winner = forced.get((t2, t1, period))
+                
+                if winner is None:
+                    winner = outcome
+                
+                sim_wins[winner] = sim_wins.get(winner, 0) + 1
 
-        for t1, t2, period in remaining_games:
-            game_key = (t1, t2, period)
-            if game_key in forced_winners:
-                continue
-            rev_key = (t2, t1, period)
-            if rev_key in forced_winners:
-                continue
+            sorted_teams = sorted(all_teams, key=lambda t: (sim_wins.get(t, 0), team_ratings.get(t, 1500)), reverse=True)
+            if team in sorted_teams[:playoff_spots]:
+                scenario_counts[i] += 1
 
-            r1 = team_ratings.get(t1, 1500)
-            r2 = team_ratings.get(t2, 1500)
-            win_prob = 1 / (1 + 10 ** (-(r1 - r2) / 400))
-            if random.random() < win_prob:
-                sim_wins[t1] = sim_wins.get(t1, 0) + 1
-            else:
-                sim_wins[t2] = sim_wins.get(t2, 0) + 1
-
-        sorted_teams = sorted(all_teams, key=lambda t: sim_wins.get(t, 0), reverse=True)
-        if team in sorted_teams[:playoff_spots]:
-            made_playoffs += 1
-
-    return (made_playoffs / num_sims) * 100
+    return [(count / num_sims) * 100 for count in scenario_counts]
 
 
 def get_team_playoff_scenarios(
     schedule_df: pd.DataFrame,
     team: str,
     playoff_spots: int = 6,
-    num_threshold_sims: int = 1000,
-    num_scenario_sims: int = 300,
+    num_threshold_sims: int = 10000,
+    num_scenario_sims: int = 5000,
 ) -> Dict[str, Any]:
     """Complete path-to-playoffs analysis for a single team."""
     if schedule_df is None or schedule_df.empty:
@@ -733,37 +748,30 @@ def get_team_playoff_scenarios(
             t1, t2, period = team_game
             opp = t2 if t1 == team else t1
 
-            baseline_odds = _estimate_playoff_odds_with_forced_results(
+            # Define scenarios to evaluate
+            scenarios = [
+                {}, # Baseline
+                {_force_key(team_game): team}, # You Win
+                {_force_key(team_game): opp}, # You Lose
+            ]
+            
+            # Run batch simulation for stability
+            sim_seed = hash(f"{team}_{next_period}") % (2**32)
+            scenario_results = _estimate_playoff_odds_batch(
                 team=team,
                 all_teams=all_teams,
                 playoff_spots=playoff_spots,
                 team_ratings=team_ratings,
                 current_wins=current_wins,
                 remaining_games=remaining_games,
-                forced_winners={},
-                num_sims=min(500, num_scenario_sims),
+                batch_forced_results=scenarios,
+                num_sims=num_scenario_sims,
+                seed=sim_seed,
             )
-
-            odds_if_win = _estimate_playoff_odds_with_forced_results(
-                team=team,
-                all_teams=all_teams,
-                playoff_spots=playoff_spots,
-                team_ratings=team_ratings,
-                current_wins=current_wins,
-                remaining_games=remaining_games,
-                forced_winners={_force_key(team_game): team},
-                num_sims=min(500, num_scenario_sims),
-            )
-            odds_if_loss = _estimate_playoff_odds_with_forced_results(
-                team=team,
-                all_teams=all_teams,
-                playoff_spots=playoff_spots,
-                team_ratings=team_ratings,
-                current_wins=current_wins,
-                remaining_games=remaining_games,
-                forced_winners={_force_key(team_game): opp},
-                num_sims=min(500, num_scenario_sims),
-            )
+            
+            baseline_odds = scenario_results[0]
+            odds_if_win = scenario_results[1]
+            odds_if_loss = scenario_results[2]
 
             this_week_summary = {
                 "Period": next_period,
@@ -775,43 +783,134 @@ def get_team_playoff_scenarios(
             }
 
             watch_rows: List[Dict[str, Any]] = []
+            
+            # 1. Add User's Game first
+            watch_rows.append({
+                "Matchup": f"YOU vs {opp}",
+                "Root For": team,
+                "Odds If Root %": round(odds_if_win, 1),
+                "Alt Odds %": round(odds_if_loss, 1),
+                "Impact (pp)": round(odds_if_win - odds_if_loss, 1),
+                "Why": "Directly impacts your record",
+            })
+
+            # 2. Add other remaining games for this period
+            other_games = []
             for g1, g2, g_period in remaining_games:
                 if str(g_period).strip() != str(next_period).strip():
                     continue
                 if g1 == team or g2 == team:
                     continue
+                other_games.append((g1, g2, g_period))
 
-                odds_g1 = _estimate_playoff_odds_with_forced_results(
+            if other_games:
+                other_scenarios = []
+                for g1, g2, g_period in other_games:
+                    # We assume YOU win your game for these comparisons
+                    other_scenarios.append({_force_key(team_game): team, (g1, g2, g_period): g1})
+                    other_scenarios.append({_force_key(team_game): team, (g1, g2, g_period): g2})
+                
+                other_results = _estimate_playoff_odds_batch(
                     team=team,
                     all_teams=all_teams,
                     playoff_spots=playoff_spots,
                     team_ratings=team_ratings,
                     current_wins=current_wins,
                     remaining_games=remaining_games,
-                    forced_winners={_force_key(team_game): team, (g1, g2, g_period): g1},
-                    num_sims=min(400, num_scenario_sims),
+                    batch_forced_results=other_scenarios,
+                    num_sims=num_scenario_sims,
+                    seed=sim_seed,
                 )
-                odds_g2 = _estimate_playoff_odds_with_forced_results(
-                    team=team,
-                    all_teams=all_teams,
-                    playoff_spots=playoff_spots,
-                    team_ratings=team_ratings,
-                    current_wins=current_wins,
-                    remaining_games=remaining_games,
-                    forced_winners={_force_key(team_game): team, (g1, g2, g_period): g2},
-                    num_sims=min(400, num_scenario_sims),
-                )
-                preferred = g1 if odds_g1 >= odds_g2 else g2
-                delta = (odds_g1 - odds_g2) if preferred == g1 else (odds_g2 - odds_g1)
-                watch_rows.append(
-                    {
-                        "Matchup": f"{g1} vs {g2}",
-                        "Root For": preferred,
-                        "Odds If Root %": round(max(odds_g1, odds_g2), 1),
-                        "Alt Odds %": round(min(odds_g1, odds_g2), 1),
-                        "Impact (pp)": round(delta, 1),
-                    }
-                )
+
+                for i, (g1, g2, g_period) in enumerate(other_games):
+                    odds_g1 = other_results[i*2]
+                    odds_g2 = other_results[i*2 + 1]
+                    delta = abs(odds_g1 - odds_g2)
+                    
+                    # Heuristic fallback if simulation delta is zero or very small
+                    if delta < 0.01:
+                        # Determine which team is "farther" from the user's current rank/bubble
+                        # Usually you want the dominant leaders or the basement dwellers to win
+                        # against the people you are actually competing with for a spot.
+                        
+                        def get_team_proximity(t):
+                            t_wins = current_wins.get(t, 0)
+                            # Distance from the user's win total
+                            return abs(t_wins - team_wins)
+
+                        prox1 = get_team_proximity(g1)
+                        prox2 = get_team_proximity(g2)
+
+                        if prox1 > prox2:
+                            # g1 is farther from you in wins (either way ahead or way behind)
+                            preferred = g1
+                            reason = f"{g1} is farther from you in the standings"
+                        else:
+                            preferred = g2
+                            reason = f"{g2} is farther from you in the standings"
+                        
+                        loser = g2 if preferred == g1 else g1
+                    else:
+                        preferred = g1 if odds_g1 >= odds_g2 else g2
+                        loser = g2 if preferred == g1 else g1
+                        
+                        # Default logic for "Why" based on standings and impact
+                        p_wins, l_wins = current_wins[preferred], current_wins[loser]
+                        
+                        if p_wins < team_wins and l_wins >= team_wins:
+                            reason = f"{loser} is ahead of you; {preferred} is behind"
+                        elif p_wins >= team_wins and l_wins < team_wins:
+                            # Preferred is ahead, Loser is behind (should rarely happen with correct logic)
+                            reason = f"{preferred} is ahead of you; {loser} is behind"
+                        elif p_wins == team_wins and l_wins == team_wins:
+                            reason = "Tie-breaker impact"
+                        elif p_wins > team_wins and l_wins > team_wins:
+                            # Both ahead: root for the one further ahead (concentration)
+                            if p_wins > l_wins:
+                                reason = f"{preferred} is further ahead (better for top teams to sweep)"
+                            else:
+                                reason = f"{loser} is closer to bubble; root for leader {preferred}"
+                        elif p_wins < team_wins and l_wins < team_wins:
+                            # Both behind: root for the one further behind (basement)
+                            if p_wins < l_wins:
+                                reason = f"{preferred} is further behind (keeps bubble clear)"
+                            else:
+                                reason = f"{loser} is closer to you; root for {preferred} to stay back"
+                        else:
+                            reason = "Complexity of tie-breakers and future schedule"
+
+                    watch_rows.append(
+                        {
+                            "Matchup": f"{g1} vs {g2}",
+                            "Root For": preferred,
+                            "Odds If Root %": round(max(odds_g1, odds_g2), 1),
+                            "Alt Odds %": round(min(odds_g1, odds_g2), 1),
+                            "Impact (pp)": round(delta, 1),
+                            "Why": reason,
+                        }
+                    )
+
+            # 3. Add completed games for this period from schedule_df
+            for _, row in schedule_df.iterrows():
+                t1, t2 = row["Team 1"], row["Team 2"]
+                if str(t1).startswith("Scoring Period") or str(t2).startswith("Scoring Period"):
+                    continue
+                period = str(row.get("Scoring Period", "")).strip()
+                if period != str(next_period).strip():
+                    continue
+                
+                s1, s2 = row["Score 1"], row["Score 2"]
+                if not (pd.isna(s1) or pd.isna(s2) or (s1 == 0 and s2 == 0)):
+                    # This is a completed game
+                    winner = t1 if s1 > s2 else (t2 if s2 > s1 else "Tie")
+                    watch_rows.append({
+                        "Matchup": f"{t1} vs {t2} (Final)",
+                        "Root For": f"✅ {winner}",
+                        "Odds If Root %": round(baseline_odds, 1),
+                        "Alt Odds %": round(baseline_odds, 1),
+                        "Impact (pp)": 0.0,
+                        "Why": "Game already completed",
+                    })
 
             if watch_rows:
                 this_week_watch_df = (
@@ -834,26 +933,21 @@ def get_team_playoff_scenarios(
 
                 a, b, per = tg
                 o = b if a == team else a
-                p_win = _estimate_playoff_odds_with_forced_results(
+                # Run batch simulations for stability
+                sim_seed_per = hash(f"{team}_{per}") % (2**32)
+                p_results = _estimate_playoff_odds_batch(
                     team=team,
                     all_teams=all_teams,
                     playoff_spots=playoff_spots,
                     team_ratings=team_ratings,
                     current_wins=current_wins,
                     remaining_games=remaining_games,
-                    forced_winners={_force_key(tg): team},
-                    num_sims=min(350, num_scenario_sims),
+                    batch_forced_results=[{_force_key(tg): team}, {_force_key(tg): o}],
+                    num_sims=num_scenario_sims,
+                    seed=sim_seed_per,
                 )
-                p_loss = _estimate_playoff_odds_with_forced_results(
-                    team=team,
-                    all_teams=all_teams,
-                    playoff_spots=playoff_spots,
-                    team_ratings=team_ratings,
-                    current_wins=current_wins,
-                    remaining_games=remaining_games,
-                    forced_winners={_force_key(tg): o},
-                    num_sims=min(350, num_scenario_sims),
-                )
+                p_win = p_results[0]
+                p_loss = p_results[1]
                 week_rows.append(
                     {
                         "Period": per,

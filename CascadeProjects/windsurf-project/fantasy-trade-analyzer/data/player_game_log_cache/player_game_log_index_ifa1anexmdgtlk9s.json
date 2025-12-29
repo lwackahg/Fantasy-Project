@@ -1,6 +1,6 @@
 {
   "league_id": "ifa1anexmdgtlk9s",
-  "generated_at": "2025-12-27T05:49:35.951080",
+  "generated_at": "2025-12-29T06:11:32.857767",
   "players": {
     "0011e": {
       "player_name": "LeBron James",
@@ -37,9 +37,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 13,
+          "games": 14,
           "cache_file": "player_game_log_full_0011e_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:43.785780"
+          "last_modified": "2025-12-29T01:09:52.855223"
         }
       }
     },
@@ -78,9 +78,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 26,
+          "games": 27,
           "cache_file": "player_game_log_full_001aw_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:03.111814"
+          "last_modified": "2025-12-29T01:06:05.249440"
         }
       }
     },
@@ -119,9 +119,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 32,
           "cache_file": "player_game_log_full_005kc_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:25.835636"
+          "last_modified": "2025-12-29T01:05:33.107698"
         }
       }
     },
@@ -130,9 +130,9 @@
       "seasons": {
         "2025-26": {
           "status": "success",
-          "games": 23,
+          "games": 24,
           "cache_file": "player_game_log_full_005ki_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:39.107694"
+          "last_modified": "2025-12-29T01:10:51.253826"
         }
       }
     },
@@ -171,9 +171,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 22,
+          "games": 23,
           "cache_file": "player_game_log_full_01enh_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:07.367258"
+          "last_modified": "2025-12-29T01:06:15.686934"
         }
       }
     },
@@ -212,9 +212,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_01eo6_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:42:56.292646"
+          "last_modified": "2025-12-29T01:05:01.084321"
         }
       }
     },
@@ -255,7 +255,7 @@
           "status": "success",
           "games": 12,
           "cache_file": "player_game_log_full_01eo9_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:39.975338"
+          "last_modified": "2025-12-29T01:10:02.568025"
         }
       }
     },
@@ -294,9 +294,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 32,
           "cache_file": "player_game_log_full_01eon_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:24.016948"
+          "last_modified": "2025-12-29T01:06:28.795636"
         }
       }
     },
@@ -335,9 +335,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 13,
+          "games": 14,
           "cache_file": "player_game_log_full_01uyj_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:14.735544"
+          "last_modified": "2025-12-29T01:10:23.660869"
         }
       }
     },
@@ -378,7 +378,7 @@
           "status": "no_games_played",
           "games": 0,
           "cache_file": "player_game_log_full_027oj_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:49:24.224928"
+          "last_modified": "2025-12-29T01:11:09.429890"
         }
       }
     },
@@ -417,9 +417,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 20,
+          "games": 21,
           "cache_file": "player_game_log_full_027oz_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:48.962767"
+          "last_modified": "2025-12-29T01:06:35.444880"
         }
       }
     },
@@ -458,9 +458,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 29,
+          "games": 30,
           "cache_file": "player_game_log_full_027p0_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:59.217990"
+          "last_modified": "2025-12-29T01:06:07.503932"
         }
       }
     },
@@ -499,9 +499,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 21,
+          "games": 22,
           "cache_file": "player_game_log_full_027p4_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:36.026529"
+          "last_modified": "2025-12-29T01:09:54.971770"
         }
       }
     },
@@ -540,9 +540,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 27,
+          "games": 28,
           "cache_file": "player_game_log_full_027pe_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:52.395148"
+          "last_modified": "2025-12-29T01:05:58.928457"
         }
       }
     },
@@ -583,7 +583,7 @@
           "status": "success",
           "games": 16,
           "cache_file": "player_game_log_full_02nf1_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:27.291881"
+          "last_modified": "2025-12-29T01:08:46.828994"
         }
       }
     },
@@ -622,9 +622,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_02nf7_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:13.659221"
+          "last_modified": "2025-12-29T01:08:32.632744"
         }
       }
     },
@@ -663,9 +663,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_02nf9_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:17.904304"
+          "last_modified": "2025-12-29T01:08:36.487921"
         }
       }
     },
@@ -704,9 +704,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 25,
+          "games": 26,
           "cache_file": "player_game_log_full_02nfz_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:10.678997"
+          "last_modified": "2025-12-29T01:09:19.751321"
         }
       }
     },
@@ -745,9 +745,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_02xg9_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:37.794639"
+          "last_modified": "2025-12-29T01:05:52.083392"
         }
       }
     },
@@ -786,9 +786,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 27,
+          "games": 28,
           "cache_file": "player_game_log_full_02ym0_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:38.746654"
+          "last_modified": "2025-12-29T01:07:14.269840"
         }
       }
     },
@@ -827,9 +827,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 29,
+          "games": 30,
           "cache_file": "player_game_log_full_031lx_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:49:18.227408"
+          "last_modified": "2025-12-29T01:07:12.111343"
         }
       }
     },
@@ -868,9 +868,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 17,
+          "games": 18,
           "cache_file": "player_game_log_full_031m2_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:34.927444"
+          "last_modified": "2025-12-29T01:06:45.023922"
         }
       }
     },
@@ -879,9 +879,9 @@
       "seasons": {
         "2025-26": {
           "status": "success",
-          "games": 23,
+          "games": 25,
           "cache_file": "player_game_log_full_031m4_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-24T01:53:39.584040"
+          "last_modified": "2025-12-29T01:09:04.478235"
         }
       }
     },
@@ -920,9 +920,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_03ad2_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:06.449965"
+          "last_modified": "2025-12-29T01:07:23.383154"
         }
       }
     },
@@ -961,9 +961,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_03ad3_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:09.384055"
+          "last_modified": "2025-12-29T01:05:13.461640"
         }
       }
     },
@@ -1002,9 +1002,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_03ajv_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:05.583692"
+          "last_modified": "2025-12-29T01:05:11.243102"
         }
       }
     },
@@ -1045,7 +1045,7 @@
           "status": "success",
           "games": 13,
           "cache_file": "player_game_log_full_03al0_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:17.000137"
+          "last_modified": "2025-12-29T01:10:35.397789"
         }
       }
     },
@@ -1084,9 +1084,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 20,
+          "games": 21,
           "cache_file": "player_game_log_full_03al1_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:12.856535"
+          "last_modified": "2025-12-29T01:10:28.499156"
         }
       }
     },
@@ -1127,7 +1127,7 @@
           "status": "success",
           "games": 13,
           "cache_file": "player_game_log_full_03al2_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:04.316386"
+          "last_modified": "2025-12-29T01:10:27.447937"
         }
       }
     },
@@ -1168,7 +1168,7 @@
           "status": "success",
           "games": 23,
           "cache_file": "player_game_log_full_03ams_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:55.548798"
+          "last_modified": "2025-12-29T01:09:15.598743"
         }
       }
     },
@@ -1209,7 +1209,7 @@
           "status": "success",
           "games": 26,
           "cache_file": "player_game_log_full_03aq2_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:57.729402"
+          "last_modified": "2025-12-29T01:08:20.392445"
         }
       }
     },
@@ -1248,9 +1248,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 27,
+          "games": 28,
           "cache_file": "player_game_log_full_03e6n_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:18.864105"
+          "last_modified": "2025-12-29T01:07:28.333044"
         }
       }
     },
@@ -1289,9 +1289,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_03e75_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:42:40.477532"
+          "last_modified": "2025-12-29T01:04:40.068320"
         }
       }
     },
@@ -1332,7 +1332,7 @@
           "status": "success",
           "games": 13,
           "cache_file": "player_game_log_full_03el5_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:52.031677"
+          "last_modified": "2025-12-29T01:10:14.926086"
         }
       }
     },
@@ -1371,9 +1371,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_03lls_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:11.127407"
+          "last_modified": "2025-12-29T01:05:15.804835"
         }
       }
     },
@@ -1414,7 +1414,7 @@
           "status": "success",
           "games": 12,
           "cache_file": "player_game_log_full_03nwk_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:30.180274"
+          "last_modified": "2025-12-29T01:10:47.176234"
         }
       }
     },
@@ -1453,9 +1453,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 27,
+          "games": 28,
           "cache_file": "player_game_log_full_03nwm_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:41.086995"
+          "last_modified": "2025-12-29T01:05:56.744077"
         }
       }
     },
@@ -1494,9 +1494,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_03nwn_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:09.253096"
+          "last_modified": "2025-12-29T01:08:24.428093"
         }
       }
     },
@@ -1535,9 +1535,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 26,
+          "games": 27,
           "cache_file": "player_game_log_full_03r7z_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:28.446148"
+          "last_modified": "2025-12-29T01:06:47.211487"
         }
       }
     },
@@ -1619,7 +1619,7 @@
           "status": "no_games_played",
           "games": 0,
           "cache_file": "player_game_log_full_03xmv_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:49:28.126456"
+          "last_modified": "2025-12-29T01:11:12.368727"
         }
       }
     },
@@ -1658,9 +1658,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 32,
+          "games": 33,
           "cache_file": "player_game_log_full_042n1_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:43.193777"
+          "last_modified": "2025-12-29T01:05:49.471401"
         }
       }
     },
@@ -1699,9 +1699,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 29,
+          "games": 30,
           "cache_file": "player_game_log_full_042n4_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:00.663908"
+          "last_modified": "2025-12-29T01:05:06.270363"
         }
       }
     },
@@ -1742,7 +1742,7 @@
           "status": "success",
           "games": 21,
           "cache_file": "player_game_log_full_042n6_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:23.412078"
+          "last_modified": "2025-12-29T01:09:50.418821"
         }
       }
     },
@@ -1783,7 +1783,7 @@
           "status": "success",
           "games": 11,
           "cache_file": "player_game_log_full_042n7_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:57.933632"
+          "last_modified": "2025-12-29T01:10:25.287226"
         }
       }
     },
@@ -1822,9 +1822,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_042nm_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:19.909393"
+          "last_modified": "2025-12-29T01:05:26.527110"
         }
       }
     },
@@ -1865,7 +1865,7 @@
           "status": "no_games_played",
           "games": 0,
           "cache_file": "player_game_log_full_042nq_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:49:25.172889"
+          "last_modified": "2025-12-29T01:11:10.481999"
         }
       }
     },
@@ -1906,7 +1906,7 @@
           "status": "success",
           "games": 28,
           "cache_file": "player_game_log_full_042nt_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:05.253081"
+          "last_modified": "2025-12-29T01:06:23.968485"
         }
       }
     },
@@ -1945,9 +1945,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 21,
+          "games": 22,
           "cache_file": "player_game_log_full_0496e_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:23.625635"
+          "last_modified": "2025-12-29T01:10:37.518190"
         }
       }
     },
@@ -1988,7 +1988,7 @@
           "status": "success",
           "games": 22,
           "cache_file": "player_game_log_full_049kb_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:02.186031"
+          "last_modified": "2025-12-29T01:07:32.667027"
         }
       }
     },
@@ -2068,9 +2068,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 25,
+          "games": 26,
           "cache_file": "player_game_log_full_049kd_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:42.164176"
+          "last_modified": "2025-12-29T01:07:50.811086"
         }
       }
     },
@@ -2150,9 +2150,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 26,
+          "games": 27,
           "cache_file": "player_game_log_full_04azw_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:21.555026"
+          "last_modified": "2025-12-29T01:05:30.823696"
         }
       }
     },
@@ -2191,9 +2191,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 29,
+          "games": 30,
           "cache_file": "player_game_log_full_04ewe_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:42:49.717884"
+          "last_modified": "2025-12-29T01:04:50.325469"
         }
       }
     },
@@ -2234,7 +2234,7 @@
           "status": "success",
           "games": 24,
           "cache_file": "player_game_log_full_04ewf_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:54.476287"
+          "last_modified": "2025-12-29T01:07:21.239121"
         }
       }
     },
@@ -2275,7 +2275,7 @@
           "status": "success",
           "games": 30,
           "cache_file": "player_game_log_full_04ewk_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:36.438082"
+          "last_modified": "2025-12-29T01:09:00.727288"
         }
       }
     },
@@ -2314,9 +2314,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 21,
+          "games": 22,
           "cache_file": "player_game_log_full_04ewm_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:04.198271"
+          "last_modified": "2025-12-29T01:09:17.648537"
         }
       }
     },
@@ -2355,9 +2355,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 20,
+          "games": 21,
           "cache_file": "player_game_log_full_04ewn_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:06.330044"
+          "last_modified": "2025-12-29T01:09:08.865283"
         }
       }
     },
@@ -2396,9 +2396,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 29,
+          "games": 30,
           "cache_file": "player_game_log_full_04ewt_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:40.018961"
+          "last_modified": "2025-12-29T01:05:44.848038"
         }
       }
     },
@@ -2439,7 +2439,7 @@
           "status": "success",
           "games": 28,
           "cache_file": "player_game_log_full_04ewu_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:11.801684"
+          "last_modified": "2025-12-29T01:06:38.252083"
         }
       }
     },
@@ -2478,9 +2478,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 23,
+          "games": 24,
           "cache_file": "player_game_log_full_04ex6_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:44.246472"
+          "last_modified": "2025-12-29T01:08:14.246332"
         }
       }
     },
@@ -2519,9 +2519,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 24,
+          "games": 25,
           "cache_file": "player_game_log_full_04ex8_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:57.712580"
+          "last_modified": "2025-12-29T01:09:02.290527"
         }
       }
     },
@@ -2560,9 +2560,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_04jwd_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:50.762970"
+          "last_modified": "2025-12-29T01:08:03.412020"
         }
       }
     },
@@ -2601,9 +2601,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 22,
+          "games": 23,
           "cache_file": "player_game_log_full_04kj6_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:03.933752"
+          "last_modified": "2025-12-29T01:05:03.690746"
         }
       }
     },
@@ -2642,9 +2642,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 29,
+          "games": 30,
           "cache_file": "player_game_log_full_04qrj_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:52.831937"
+          "last_modified": "2025-12-29T01:06:58.508028"
         }
       }
     },
@@ -2683,9 +2683,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 9,
+          "games": 10,
           "cache_file": "player_game_log_full_04qrk_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:34.626444"
+          "last_modified": "2025-12-29T01:10:45.079106"
         }
       }
     },
@@ -2724,9 +2724,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_04qrl_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:51.092036"
+          "last_modified": "2025-12-29T01:07:00.692794"
         }
       }
     },
@@ -2767,7 +2767,7 @@
           "status": "success",
           "games": 23,
           "cache_file": "player_game_log_full_04qrm_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:17.799520"
+          "last_modified": "2025-12-29T01:09:44.997663"
         }
       }
     },
@@ -2806,9 +2806,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_04qrn_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:18.188965"
+          "last_modified": "2025-12-29T01:05:28.626047"
         }
       }
     },
@@ -2847,9 +2847,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_04qro_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:42:43.025428"
+          "last_modified": "2025-12-29T01:04:42.637529"
         }
       }
     },
@@ -2890,7 +2890,7 @@
           "status": "success",
           "games": 31,
           "cache_file": "player_game_log_full_04qrp_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:45.403251"
+          "last_modified": "2025-12-29T01:06:09.805748"
         }
       }
     },
@@ -2929,9 +2929,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 24,
+          "games": 25,
           "cache_file": "player_game_log_full_04qrr_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:01.438844"
+          "last_modified": "2025-12-29T01:06:01.155858"
         }
       }
     },
@@ -2970,9 +2970,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_04qru_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:12.866042"
+          "last_modified": "2025-12-29T01:06:21.729942"
         }
       }
     },
@@ -3011,9 +3011,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 25,
+          "games": 26,
           "cache_file": "player_game_log_full_04qrw_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:20.369836"
+          "last_modified": "2025-12-29T01:09:33.742720"
         }
       }
     },
@@ -3054,7 +3054,7 @@
           "status": "success",
           "games": 18,
           "cache_file": "player_game_log_full_04qry_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:15.655937"
+          "last_modified": "2025-12-29T01:09:42.846612"
         }
       }
     },
@@ -3093,9 +3093,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 27,
+          "games": 28,
           "cache_file": "player_game_log_full_04qsa_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:16.076511"
+          "last_modified": "2025-12-29T01:05:24.301997"
         }
       }
     },
@@ -3147,7 +3147,7 @@
           "status": "success",
           "games": 30,
           "cache_file": "player_game_log_full_04qse_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:45.960764"
+          "last_modified": "2025-12-29T01:10:09.504260"
         }
       }
     },
@@ -3186,9 +3186,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 16,
+          "games": 17,
           "cache_file": "player_game_log_full_051oh_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:27.170084"
+          "last_modified": "2025-12-29T01:09:31.662969"
         }
       }
     },
@@ -3227,9 +3227,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 15,
+          "games": 16,
           "cache_file": "player_game_log_full_051oi_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:06.447396"
+          "last_modified": "2025-12-29T01:10:17.320847"
         }
       }
     },
@@ -3268,9 +3268,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 17,
+          "games": 18,
           "cache_file": "player_game_log_full_051oj_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:29.330234"
+          "last_modified": "2025-12-29T01:09:40.737796"
         }
       }
     },
@@ -3309,9 +3309,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_051ok_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:43.562776"
+          "last_modified": "2025-12-29T01:09:10.969862"
         }
       }
     },
@@ -3350,9 +3350,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 16,
+          "games": 17,
           "cache_file": "player_game_log_full_051ol_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:41.712749"
+          "last_modified": "2025-12-29T01:10:01.024483"
         }
       }
     },
@@ -3391,9 +3391,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 14,
+          "games": 15,
           "cache_file": "player_game_log_full_051on_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:59.987895"
+          "last_modified": "2025-12-29T01:10:21.480464"
         }
       }
     },
@@ -3432,9 +3432,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 26,
+          "games": 27,
           "cache_file": "player_game_log_full_051op_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:31.580140"
+          "last_modified": "2025-12-29T01:09:38.633146"
         }
       }
     },
@@ -3514,9 +3514,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 26,
+          "games": 27,
           "cache_file": "player_game_log_full_051os_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:34.614857"
+          "last_modified": "2025-12-29T01:07:44.224679"
         }
       }
     },
@@ -3557,7 +3557,7 @@
           "status": "success",
           "games": 6,
           "cache_file": "player_game_log_full_051ot_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:43.338253"
+          "last_modified": "2025-12-29T01:11:02.111092"
         }
       }
     },
@@ -3596,9 +3596,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_051ox_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:18.821958"
+          "last_modified": "2025-12-29T01:06:37.173662"
         }
       }
     },
@@ -3648,9 +3648,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 13,
+          "games": 14,
           "cache_file": "player_game_log_full_051p8_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:36.826216"
+          "last_modified": "2025-12-29T01:10:53.565078"
         }
       }
     },
@@ -3689,9 +3689,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_051p9_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:00.016478"
+          "last_modified": "2025-12-29T01:07:52.467247"
         }
       }
     },
@@ -3730,9 +3730,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 12,
+          "games": 13,
           "cache_file": "player_game_log_full_051pa_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:33.707041"
+          "last_modified": "2025-12-29T01:09:35.829120"
         }
       }
     },
@@ -3771,9 +3771,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_051pb_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:16.659218"
+          "last_modified": "2025-12-29T01:06:33.287240"
         }
       }
     },
@@ -3812,9 +3812,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 21,
+          "games": 22,
           "cache_file": "player_game_log_full_051pi_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:55.831096"
+          "last_modified": "2025-12-29T01:10:04.661730"
         }
       }
     },
@@ -3853,9 +3853,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_0527h_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:40.404821"
+          "last_modified": "2025-12-29T01:06:56.081113"
         }
       }
     },
@@ -3905,9 +3905,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 27,
+          "games": 28,
           "cache_file": "player_game_log_full_05qsq_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:42:51.872892"
+          "last_modified": "2025-12-29T01:04:52.678425"
         }
       }
     },
@@ -3946,9 +3946,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_05qt0_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:04.318346"
+          "last_modified": "2025-12-29T01:07:09.824668"
         }
       }
     },
@@ -3987,9 +3987,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_05qt1_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:08.440784"
+          "last_modified": "2025-12-29T01:06:19.490869"
         }
       }
     },
@@ -4028,9 +4028,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_05qt3_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:15.025762"
+          "last_modified": "2025-12-29T01:06:31.061548"
         }
       }
     },
@@ -4039,9 +4039,9 @@
       "seasons": {
         "2025-26": {
           "status": "success",
-          "games": 11,
+          "games": 12,
           "cache_file": "player_game_log_full_05qt4_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:41.272902"
+          "last_modified": "2025-12-29T01:10:55.760305"
         }
       }
     },
@@ -4080,9 +4080,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 15,
+          "games": 16,
           "cache_file": "player_game_log_full_05qtb_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:21.535539"
+          "last_modified": "2025-12-29T01:10:33.326998"
         }
       }
     },
@@ -4121,9 +4121,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_05qtj_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:42:54.073786"
+          "last_modified": "2025-12-29T01:04:55.838986"
         }
       }
     },
@@ -4164,7 +4164,7 @@
           "status": "success",
           "games": 21,
           "cache_file": "player_game_log_full_05qto_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:12.402919"
+          "last_modified": "2025-12-29T01:07:48.545643"
         }
       }
     },
@@ -4203,9 +4203,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 24,
+          "games": 25,
           "cache_file": "player_game_log_full_05qtq_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:29.387269"
+          "last_modified": "2025-12-29T01:08:42.984872"
         }
       }
     },
@@ -4244,9 +4244,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_05qtr_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:10.292692"
+          "last_modified": "2025-12-29T01:07:30.453689"
         }
       }
     },
@@ -4285,9 +4285,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_05qtt_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:50.291040"
+          "last_modified": "2025-12-29T01:05:38.011941"
         }
       }
     },
@@ -4326,9 +4326,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 29,
+          "games": 30,
           "cache_file": "player_game_log_full_05qu0_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:13.466252"
+          "last_modified": "2025-12-29T01:07:24.435252"
         }
       }
     },
@@ -4367,9 +4367,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_05qu9_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:32.470221"
+          "last_modified": "2025-12-29T01:05:39.741571"
         }
       }
     },
@@ -4408,9 +4408,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_05qub_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:52.873907"
+          "last_modified": "2025-12-29T01:09:06.737983"
         }
       }
     },
@@ -4449,9 +4449,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 24,
+          "games": 25,
           "cache_file": "player_game_log_full_05qug_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:35.683527"
+          "last_modified": "2025-12-29T01:05:47.103669"
         }
       }
     },
@@ -4490,9 +4490,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 32,
+          "games": 33,
           "cache_file": "player_game_log_full_05qzh_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:15.746385"
+          "last_modified": "2025-12-29T01:07:42.569682"
         }
       }
     },
@@ -4531,9 +4531,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_05uib_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:42:48.132319"
+          "last_modified": "2025-12-29T01:04:47.757037"
         }
       }
     },
@@ -4574,7 +4574,7 @@
           "status": "success",
           "games": 2,
           "cache_file": "player_game_log_full_05uic_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:51.753050"
+          "last_modified": "2025-12-29T01:11:08.468645"
         }
       }
     },
@@ -4613,9 +4613,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 26,
+          "games": 27,
           "cache_file": "player_game_log_full_05uid_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:30.247478"
+          "last_modified": "2025-12-29T01:05:54.520001"
         }
       }
     },
@@ -4654,9 +4654,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 32,
+          "games": 33,
           "cache_file": "player_game_log_full_05uie_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:42:58.419119"
+          "last_modified": "2025-12-29T01:04:58.547852"
         }
       }
     },
@@ -4697,7 +4697,7 @@
           "status": "success",
           "games": 21,
           "cache_file": "player_game_log_full_05uif_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:32.098947"
+          "last_modified": "2025-12-29T01:08:54.314533"
         }
       }
     },
@@ -4736,9 +4736,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_05uig_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:02.851599"
+          "last_modified": "2025-12-29T01:05:08.711903"
         }
       }
     },
@@ -4779,7 +4779,7 @@
           "status": "success",
           "games": 24,
           "cache_file": "player_game_log_full_05uii_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:41.555894"
+          "last_modified": "2025-12-29T01:07:05.115095"
         }
       }
     },
@@ -4818,9 +4818,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 29,
+          "games": 30,
           "cache_file": "player_game_log_full_05uij_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:30.091195"
+          "last_modified": "2025-12-29T01:07:57.255678"
         }
       }
     },
@@ -4859,9 +4859,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 29,
+          "games": 30,
           "cache_file": "player_game_log_full_05uio_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:45.192691"
+          "last_modified": "2025-12-29T01:08:58.594684"
         }
       }
     },
@@ -4902,7 +4902,7 @@
           "status": "success",
           "games": 26,
           "cache_file": "player_game_log_full_05uiq_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:07.767290"
+          "last_modified": "2025-12-29T01:05:17.986632"
         }
       }
     },
@@ -4941,9 +4941,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_05uir_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:14.977098"
+          "last_modified": "2025-12-29T01:05:22.671072"
         }
       }
     },
@@ -4982,9 +4982,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 29,
+          "games": 30,
           "cache_file": "player_game_log_full_05uiu_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:42:45.290848"
+          "last_modified": "2025-12-29T01:04:45.305083"
         }
       }
     },
@@ -5023,9 +5023,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 27,
+          "games": 28,
           "cache_file": "player_game_log_full_05uiz_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:06.110708"
+          "last_modified": "2025-12-29T01:08:18.243411"
         }
       }
     },
@@ -5064,9 +5064,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 8,
+          "games": 9,
           "cache_file": "player_game_log_full_05uj1_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:45.451950"
+          "last_modified": "2025-12-29T01:10:59.912147"
         }
       }
     },
@@ -5105,9 +5105,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_05uj4_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:26.455108"
+          "last_modified": "2025-12-29T01:06:40.571141"
         }
       }
     },
@@ -5148,7 +5148,7 @@
           "status": "success",
           "games": 22,
           "cache_file": "player_game_log_full_05uj9_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:48.113078"
+          "last_modified": "2025-12-29T01:10:12.815916"
         }
       }
     },
@@ -5269,9 +5269,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_05ujd_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:46.466244"
+          "last_modified": "2025-12-29T01:08:09.696821"
         }
       }
     },
@@ -5310,9 +5310,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_05ujs_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:15.767857"
+          "last_modified": "2025-12-29T01:08:26.668886"
         }
       }
     },
@@ -5362,9 +5362,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_05uup_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:46.976521"
+          "last_modified": "2025-12-29T01:08:51.185236"
         }
       }
     },
@@ -5416,7 +5416,7 @@
           "status": "success",
           "games": 23,
           "cache_file": "player_game_log_full_05uus_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:54.886919"
+          "last_modified": "2025-12-29T01:06:13.547909"
         }
       }
     },
@@ -5457,7 +5457,7 @@
           "status": "success",
           "games": 29,
           "cache_file": "player_game_log_full_05y9y_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:12.830899"
+          "last_modified": "2025-12-29T01:09:28.013865"
         }
       }
     },
@@ -5496,9 +5496,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 21,
+          "games": 22,
           "cache_file": "player_game_log_full_06210_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:11.507649"
+          "last_modified": "2025-12-29T01:08:28.819639"
         }
       }
     },
@@ -5537,9 +5537,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 26,
+          "games": 27,
           "cache_file": "player_game_log_full_06211_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:43.180130"
+          "last_modified": "2025-12-29T01:06:52.145612"
         }
       }
     },
@@ -5578,9 +5578,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 27,
+          "games": 28,
           "cache_file": "player_game_log_full_06212_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:36.855978"
+          "last_modified": "2025-12-29T01:07:38.150612"
         }
       }
     },
@@ -5621,7 +5621,7 @@
           "status": "success",
           "games": 15,
           "cache_file": "player_game_log_full_06213_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:53.635610"
+          "last_modified": "2025-12-29T01:10:19.365020"
         }
       }
     },
@@ -5701,9 +5701,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 20,
+          "games": 21,
           "cache_file": "player_game_log_full_06215_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:49:20.882299"
+          "last_modified": "2025-12-29T01:09:30.087363"
         }
       }
     },
@@ -5742,9 +5742,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 27,
+          "games": 28,
           "cache_file": "player_game_log_full_06216_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:33.533926"
+          "last_modified": "2025-12-29T01:07:34.902468"
         }
       }
     },
@@ -5783,9 +5783,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_06217_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:10.672064"
+          "last_modified": "2025-12-29T01:06:18.191144"
         }
       }
     },
@@ -5824,9 +5824,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 12,
+          "games": 13,
           "cache_file": "player_game_log_full_0621b_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:19.333988"
+          "last_modified": "2025-12-29T01:10:30.595848"
         }
       }
     },
@@ -5865,9 +5865,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_0621c_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:26.966383"
+          "last_modified": "2025-12-29T01:05:36.351690"
         }
       }
     },
@@ -5906,9 +5906,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 26,
+          "games": 27,
           "cache_file": "player_game_log_full_0621e_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:59.982085"
+          "last_modified": "2025-12-29T01:07:16.942439"
         }
       }
     },
@@ -5947,9 +5947,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 14,
+          "games": 15,
           "cache_file": "player_game_log_full_0621g_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:27.986759"
+          "last_modified": "2025-12-29T01:10:40.749099"
         }
       }
     },
@@ -5958,9 +5958,9 @@
       "seasons": {
         "2025-26": {
           "status": "success",
-          "games": 29,
+          "games": 30,
           "cache_file": "player_game_log_full_0621i_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:08.442834"
+          "last_modified": "2025-12-29T01:09:24.084810"
         }
       }
     },
@@ -5971,7 +5971,7 @@
           "status": "success",
           "games": 11,
           "cache_file": "player_game_log_full_0621k_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-24T01:55:07.504902"
+          "last_modified": "2025-12-29T01:10:57.904733"
         }
       }
     },
@@ -6051,9 +6051,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 23,
+          "games": 24,
           "cache_file": "player_game_log_full_0621u_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:30.497481"
+          "last_modified": "2025-12-29T01:08:38.595591"
         }
       }
     },
@@ -6092,9 +6092,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_0621y_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:41.451804"
+          "last_modified": "2025-12-29T01:08:52.237080"
         }
       }
     },
@@ -6135,7 +6135,7 @@
           "status": "success",
           "games": 30,
           "cache_file": "player_game_log_full_06226_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:03.960620"
+          "last_modified": "2025-12-29T01:08:22.158270"
         }
       }
     },
@@ -6174,9 +6174,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_06227_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:23.671034"
+          "last_modified": "2025-12-29T01:05:35.230603"
         }
       }
     },
@@ -6256,9 +6256,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_06234_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:02.129951"
+          "last_modified": "2025-12-29T01:09:21.965329"
         }
       }
     },
@@ -6297,9 +6297,20 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_0623e_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:20.933788"
+          "last_modified": "2025-12-29T01:06:26.433500"
+        }
+      }
+    },
+    "0623m": {
+      "player_name": "Keon Ellis",
+      "seasons": {
+        "2025-26": {
+          "status": "success",
+          "games": 30,
+          "cache_file": "player_game_log_full_0623m_ifa1anexmdgtlk9s_2025_26.json",
+          "last_modified": "2025-12-29T01:10:39.119719"
         }
       }
     },
@@ -6338,9 +6349,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_062dn_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:25.723130"
+          "last_modified": "2025-12-29T01:08:40.773669"
         }
       }
     },
@@ -6401,9 +6412,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 11,
+          "games": 12,
           "cache_file": "player_game_log_full_064tp_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:47.509568"
+          "last_modified": "2025-12-29T01:11:04.270329"
         }
       }
     },
@@ -6442,9 +6453,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_06ca8_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:57.084524"
+          "last_modified": "2025-12-29T01:06:03.004396"
         }
       }
     },
@@ -6483,9 +6494,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_06cbx_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:56.134626"
+          "last_modified": "2025-12-29T01:07:02.860527"
         }
       }
     },
@@ -6524,9 +6535,20 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_06cby_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:13.318310"
+          "last_modified": "2025-12-29T01:05:20.498465"
+        }
+      }
+    },
+    "06cc1": {
+      "player_name": "Bilal Coulibaly",
+      "seasons": {
+        "2025-26": {
+          "status": "success",
+          "games": 16,
+          "cache_file": "player_game_log_full_06cc1_ifa1anexmdgtlk9s_2025_26.json",
+          "last_modified": "2025-12-29T01:10:43.017210"
         }
       }
     },
@@ -6565,9 +6587,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_06cc5_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:22.218359"
+          "last_modified": "2025-12-29T01:07:07.598396"
         }
       }
     },
@@ -6606,9 +6628,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_06cc7_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:26.835526"
+          "last_modified": "2025-12-29T01:07:40.271338"
         }
       }
     },
@@ -6649,7 +6671,7 @@
           "status": "success",
           "games": 7,
           "cache_file": "player_game_log_full_06cc8_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:49.580008"
+          "last_modified": "2025-12-29T01:11:06.349896"
         }
       }
     },
@@ -6690,7 +6712,7 @@
           "status": "success",
           "games": 15,
           "cache_file": "player_game_log_full_06cca_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:10.686072"
+          "last_modified": "2025-12-29T01:10:32.181630"
         }
       }
     },
@@ -6729,9 +6751,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_06ccd_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:40.316416"
+          "last_modified": "2025-12-29T01:08:56.402774"
         }
       }
     },
@@ -6770,9 +6792,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 27,
+          "games": 28,
           "cache_file": "player_game_log_full_06ccf_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:23.457749"
+          "last_modified": "2025-12-29T01:08:34.262516"
         }
       }
     },
@@ -6811,9 +6833,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 18,
+          "games": 19,
           "cache_file": "player_game_log_full_06cch_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:38.054094"
+          "last_modified": "2025-12-29T01:06:49.495548"
         }
       }
     },
@@ -6863,9 +6885,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_06cd4_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:24.344562"
+          "last_modified": "2025-12-29T01:07:26.198745"
         }
       }
     },
@@ -6906,7 +6928,7 @@
           "status": "no_games_played",
           "games": 0,
           "cache_file": "player_game_log_full_06cdn_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:49:26.667478"
+          "last_modified": "2025-12-29T01:11:11.430228"
         }
       }
     },
@@ -6945,9 +6967,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 20,
+          "games": 21,
           "cache_file": "player_game_log_full_06mju_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:08.204164"
+          "last_modified": "2025-12-29T01:08:11.896737"
         }
       }
     },
@@ -6986,9 +7008,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 28,
+          "games": 29,
           "cache_file": "player_game_log_full_06mjv_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:40.494347"
+          "last_modified": "2025-12-29T01:07:15.342676"
         }
       }
     },
@@ -7027,9 +7049,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 21,
+          "games": 22,
           "cache_file": "player_game_log_full_06mjw_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:53.247656"
+          "last_modified": "2025-12-29T01:08:05.213773"
         }
       }
     },
@@ -7068,9 +7090,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 27,
+          "games": 28,
           "cache_file": "player_game_log_full_06mjz_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:45.415969"
+          "last_modified": "2025-12-29T01:06:54.282738"
         }
       }
     },
@@ -7111,7 +7133,7 @@
           "status": "success",
           "games": 11,
           "cache_file": "player_game_log_full_06mk1_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:25.739842"
+          "last_modified": "2025-12-29T01:10:41.990157"
         }
       }
     },
@@ -7150,9 +7172,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_06mk3_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:28.485079"
+          "last_modified": "2025-12-29T01:07:46.457220"
         }
       }
     },
@@ -7161,9 +7183,9 @@
       "seasons": {
         "2025-26": {
           "status": "success",
-          "games": 29,
+          "games": 30,
           "cache_file": "player_game_log_full_06mk6_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:47:14.025211"
+          "last_modified": "2025-12-29T01:09:25.747954"
         }
       }
     },
@@ -7202,9 +7224,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_06mk7_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:34.611842"
+          "last_modified": "2025-12-29T01:05:43.129019"
         }
       }
     },
@@ -7254,9 +7276,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 27,
+          "games": 28,
           "cache_file": "player_game_log_full_06mkc_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:02.214926"
+          "last_modified": "2025-12-29T01:08:00.694660"
         }
       }
     },
@@ -7297,7 +7319,7 @@
           "status": "success",
           "games": 27,
           "cache_file": "player_game_log_full_06mkg_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:46.910480"
+          "last_modified": "2025-12-29T01:07:08.698656"
         }
       }
     },
@@ -7317,9 +7339,9 @@
       "seasons": {
         "2025-26": {
           "status": "success",
-          "games": 29,
+          "games": 30,
           "cache_file": "player_game_log_full_06mle_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:38.529086"
+          "last_modified": "2025-12-29T01:08:48.965095"
         }
       }
     },
@@ -7328,9 +7350,9 @@
       "seasons": {
         "2025-26": {
           "status": "success",
-          "games": 26,
+          "games": 27,
           "cache_file": "player_game_log_full_06mlg_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:32.543962"
+          "last_modified": "2025-12-29T01:10:49.544223"
         }
       }
     },
@@ -7369,9 +7391,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 29,
+          "games": 30,
           "cache_file": "player_game_log_full_06mlk_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:48.566344"
+          "last_modified": "2025-12-29T01:08:07.480342"
         }
       }
     },
@@ -7380,9 +7402,9 @@
       "seasons": {
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_06mll_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:34.290030"
+          "last_modified": "2025-12-29T01:08:44.666923"
         }
       }
     },
@@ -7443,9 +7465,9 @@
       "seasons": {
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_06mlz_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:08.159083"
+          "last_modified": "2025-12-29T01:07:19.112718"
         }
       }
     },
@@ -7525,9 +7547,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 32,
+          "games": 33,
           "cache_file": "player_game_log_full_06v5g_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:19.635994"
+          "last_modified": "2025-12-29T01:08:30.480155"
         }
       }
     },
@@ -7566,9 +7588,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 32,
+          "games": 33,
           "cache_file": "player_game_log_full_06v5h_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:44:31.711765"
+          "last_modified": "2025-12-29T01:06:42.893085"
         }
       }
     },
@@ -7607,9 +7629,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 25,
+          "games": 26,
           "cache_file": "player_game_log_full_06v5k_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:55.474044"
+          "last_modified": "2025-12-29T01:08:16.568452"
         }
       }
     },
@@ -7648,9 +7670,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 31,
+          "games": 32,
           "cache_file": "player_game_log_full_06v5l_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:28.590830"
+          "last_modified": "2025-12-29T01:05:40.926032"
         }
       }
     },
@@ -7691,7 +7713,7 @@
           "status": "success",
           "games": 31,
           "cache_file": "player_game_log_full_06v5n_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:43:48.666453"
+          "last_modified": "2025-12-29T01:06:11.964067"
         }
       }
     },
@@ -7730,9 +7752,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 26,
+          "games": 27,
           "cache_file": "player_game_log_full_06v5r_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:49:23.258980"
+          "last_modified": "2025-12-29T01:09:47.291647"
         }
       }
     },
@@ -7771,9 +7793,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 30,
+          "games": 31,
           "cache_file": "player_game_log_full_06v5v_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:45:31.911735"
+          "last_modified": "2025-12-29T01:07:54.557171"
         }
       }
     },
@@ -7812,9 +7834,9 @@
         },
         "2025-26": {
           "status": "success",
-          "games": 20,
+          "games": 21,
           "cache_file": "player_game_log_full_06v5y_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:02.154843"
+          "last_modified": "2025-12-29T01:10:06.788935"
         }
       }
     },
@@ -7855,7 +7877,7 @@
           "status": "success",
           "games": 26,
           "cache_file": "player_game_log_full_06v80_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:46:50.701029"
+          "last_modified": "2025-12-29T01:09:13.127155"
         }
       }
     },
@@ -7864,9 +7886,9 @@
       "seasons": {
         "2025-26": {
           "status": "success",
-          "games": 22,
+          "games": 24,
           "cache_file": "player_game_log_full_06v88_ifa1anexmdgtlk9s_2025_26.json",
-          "last_modified": "2025-12-27T00:48:08.587309"
+          "last_modified": "2025-12-29T01:09:58.300787"
         }
       }
     },
