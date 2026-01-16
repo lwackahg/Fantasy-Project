@@ -1,0 +1,104 @@
+{
+    "metadata": {
+        "league_id": "8iozphpglhqp92bj",
+        "timestamp": 1767647894.1284728
+    },
+    "data": [
+        {
+            "team_name": "Stairway to Kevin",
+            "W": 17.0,
+            "L": 1.0,
+            "T": 0.0,
+            "FPtsF": 9097.8,
+            "FPtsA": 7332.82
+        },
+        {
+            "team_name": "Pizza Time \ud83c\udf55",
+            "W": 13.0,
+            "L": 5.0,
+            "T": 0.0,
+            "FPtsF": 8299.51,
+            "FPtsA": 7616.84
+        },
+        {
+            "team_name": "Big Black Coconuts",
+            "W": 12.0,
+            "L": 6.0,
+            "T": 0.0,
+            "FPtsF": 8452.27,
+            "FPtsA": 8044.63
+        },
+        {
+            "team_name": "\ud83d\udea8Gianni\u2026 Fire the N Missile \ud83d\udea8",
+            "W": 10.0,
+            "L": 8.0,
+            "T": 0.0,
+            "FPtsF": 8217.2,
+            "FPtsA": 7858.14
+        },
+        {
+            "team_name": "Adam Silver's Sovereign Wealth Fund",
+            "W": 10.0,
+            "L": 8.0,
+            "T": 0.0,
+            "FPtsF": 8026.81,
+            "FPtsA": 7789.52
+        },
+        {
+            "team_name": "\u5982\u679c\u4f60\u8b80\u5230\u9019\u7bc7\u6587\u7ae0\u4f60\u5c31\u662f\u540c\u6027\u6200",
+            "W": 10.0,
+            "L": 8.0,
+            "T": 0.0,
+            "FPtsF": 7800.68,
+            "FPtsA": 7738.21
+        },
+        {
+            "team_name": "Chungus Szn",
+            "W": 7.0,
+            "L": 11.0,
+            "T": 0.0,
+            "FPtsF": 7196.9,
+            "FPtsA": 7961.99
+        },
+        {
+            "team_name": "The Diddler",
+            "W": 6.0,
+            "L": 12.0,
+            "T": 0.0,
+            "FPtsF": 7972.99,
+            "FPtsA": 8050.79
+        },
+        {
+            "team_name": "SpeckledGnu",
+            "W": 6.0,
+            "L": 12.0,
+            "T": 0.0,
+            "FPtsF": 7636.69,
+            "FPtsA": 8268.2
+        },
+        {
+            "team_name": "Deez",
+            "W": 6.0,
+            "L": 12.0,
+            "T": 0.0,
+            "FPtsF": 7286.16,
+            "FPtsA": 7972.28
+        },
+        {
+            "team_name": "MyNword",
+            "W": 6.0,
+            "L": 12.0,
+            "T": 0.0,
+            "FPtsF": 7178.86,
+            "FPtsA": 8012.81
+        },
+        {
+            "team_name": "EpsteinsIslandBoys",
+            "W": 5.0,
+            "L": 13.0,
+            "T": 0.0,
+            "FPtsF": 7252.83,
+            "FPtsA": 7772.47
+        }
+    ]
+}

@@ -1,0 +1,88 @@
+{
+    "metadata": {
+        "league_id": "sq5r3uxjl4nbtttj",
+        "timestamp": 1767647896.5271049
+    },
+    "data": [
+        {
+            "team_name": "Gianni\u2019s Secret Move",
+            "W": 14.0,
+            "L": 4.0,
+            "T": 0.0,
+            "FPtsF": 8050.05,
+            "FPtsA": 7226.69
+        },
+        {
+            "team_name": "LeBronto",
+            "W": 12.0,
+            "L": 5.0,
+            "T": 1.0,
+            "FPtsF": 8275.64,
+            "FPtsA": 7014.65
+        },
+        {
+            "team_name": "Zenkevafuck",
+            "W": 12.0,
+            "L": 6.0,
+            "T": 0.0,
+            "FPtsF": 8542.39,
+            "FPtsA": 7042.65
+        },
+        {
+            "team_name": "SpeckledGnu",
+            "W": 12.0,
+            "L": 6.0,
+            "T": 0.0,
+            "FPtsF": 8301.25,
+            "FPtsA": 8354.79
+        },
+        {
+            "team_name": "Pizza Time \ud83c\udf55",
+            "W": 10.0,
+            "L": 8.0,
+            "T": 0.0,
+            "FPtsF": 8419.2,
+            "FPtsA": 8024.4
+        },
+        {
+            "team_name": "2024 MVP Ding Yanyuhang",
+            "W": 8.0,
+            "L": 10.0,
+            "T": 0.0,
+            "FPtsF": 7913.24,
+            "FPtsA": 8376.9
+        },
+        {
+            "team_name": "Tiger Blood",
+            "W": 8.0,
+            "L": 10.0,
+            "T": 0.0,
+            "FPtsF": 7578.07,
+            "FPtsA": 6619.7
+        },
+        {
+            "team_name": "ManchuWok",
+            "W": 7.0,
+            "L": 11.0,
+            "T": 0.0,
+            "FPtsF": 6870.85,
+            "FPtsA": 8355.77
+        },
+        {
+            "team_name": "I Got You Kobe",
+            "W": 4.0,
+            "L": 13.0,
+            "T": 1.0,
+            "FPtsF": 6904.95,
+            "FPtsA": 7508.79
+        },
+        {
+            "team_name": "Team IAMCANADA",
+            "W": 2.0,
+            "L": 16.0,
+            "T": 0.0,
+            "FPtsF": 5746.3,
+            "FPtsA": 8077.6
+        }
+    ]
+}

@@ -1,0 +1,64 @@
+{
+    "metadata": {
+        "league_id": "ajaqbnoekuklk4k8",
+        "timestamp": 1767647898.3706698
+    },
+    "data": [
+        {
+            "team_name": "Tiger Blood",
+            "W": 18.0,
+            "L": 2.0,
+            "T": 0.0,
+            "FPtsF": 9109.02,
+            "FPtsA": 7760.368
+        },
+        {
+            "team_name": "Bingsussychilling",
+            "W": 13.0,
+            "L": 7.0,
+            "T": 0.0,
+            "FPtsF": 8411.85,
+            "FPtsA": 7472.519
+        },
+        {
+            "team_name": "Gianni\u2019s Secret Move",
+            "W": 11.0,
+            "L": 8.0,
+            "T": 1.0,
+            "FPtsF": 8302.99,
+            "FPtsA": 7419.348
+        },
+        {
+            "team_name": "Pizza Time \ud83c\udf55",
+            "W": 10.0,
+            "L": 10.0,
+            "T": 0.0,
+            "FPtsF": 7706.22,
+            "FPtsA": 8205.222
+        },
+        {
+            "team_name": "Team IAMCANADA",
+            "W": 9.0,
+            "L": 10.0,
+            "T": 1.0,
+            "FPtsF": 6800.12,
+            "FPtsA": 7721.69
+        },
+        {
+            "team_name": "SpeckledGnu",
+            "W": 7.0,
+            "L": 12.0,
+            "T": 1.0,
+            "FPtsF": 7896.04,
+            "FPtsA": 7285.317
+        },
+        {
+            "team_name": "ManchuWok",
+            "W": 4.0,
+            "L": 15.0,
+            "T": 1.0,
+            "FPtsF": 6659.58,
+            "FPtsA": 8122.118
+        }
+    ]
+}
