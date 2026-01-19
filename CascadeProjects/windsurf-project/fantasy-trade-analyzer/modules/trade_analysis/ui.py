@@ -710,7 +710,7 @@ def _display_traded_players_game_logs(results: Dict[str, Any], key_suffix: str =
         return
     
     with st.expander("📋 View Traded Players' Game Logs", expanded=False):
-widget_key_suffix = f"{team_id}{key_suffix}"
+        widget_key_suffix = f"{team_id}{key_suffix}"
         selected_player = st.selectbox(
             "Player",
             options=all_players,
