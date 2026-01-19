@@ -117,7 +117,10 @@ def display_trade_analysis_page():
                     # Narrow column just holds the button
                     col1, col2 = st.columns([1, 5])
                     with col1:
-                        if st.button("View details", key=f"history_view_{idx}"):
+                        entry_id = entry.get("id")
+                        if not entry_id:
+                            entry_id = f"{date}_{label}_{idx}".replace(" ", "_")
+                        if st.button("View details", key=f"history_view_{entry_id}"):
                             selected_entry = entry
                     st.write("---")
 

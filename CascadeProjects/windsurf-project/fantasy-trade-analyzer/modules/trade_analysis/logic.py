@@ -8,6 +8,7 @@ from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 import json
 import time
+import uuid
 
 from data_loader import TEAM_MAPPINGS
 from debug import debug_manager
@@ -402,6 +403,7 @@ def run_trade_analysis(
             except Exception:
                 summary = ""
             history_entry = {
+                "id": uuid.uuid4().hex,
                 "trade_teams": trade_teams,
                 "summary": summary,
                 "label": trade_label or "",
