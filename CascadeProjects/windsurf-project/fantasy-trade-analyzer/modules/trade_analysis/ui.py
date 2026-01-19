@@ -1070,11 +1070,11 @@ def _render_friend_value_lens(results: Dict[str, Any]) -> None:
     lines = []
     lines.append("**Friend dollar-value lens (YTD):**")
     if outgoing_items:
-        parts = ", ".join(f"`{_clean_name(name)}` (\${dollars:.1f})" for name, dollars in outgoing_items)
-        lines.append(f"Outgoing package: {parts} → **total \${outgoing_total:.1f}**")
+        parts = ", ".join(f"`{_clean_name(name)}` (${dollars:.1f})" for name, dollars in outgoing_items)
+        lines.append(f"Outgoing package: {parts} → **total ${outgoing_total:.1f}**")
     if incoming_items:
-        parts = ", ".join(f"`{_clean_name(name)}` (\${dollars:.1f})" for name, dollars in incoming_items)
-        lines.append(f"Incoming package: {parts} → **total \${incoming_total:.1f}**")
+        parts = ", ".join(f"`{_clean_name(name)}` (${dollars:.1f})" for name, dollars in incoming_items)
+        lines.append(f"Incoming package: {parts} → **total ${incoming_total:.1f}**")
     if ratio_text:
         lines.append(ratio_text)
     if verdict_text:
