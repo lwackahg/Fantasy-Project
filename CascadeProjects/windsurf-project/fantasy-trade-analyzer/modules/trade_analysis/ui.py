@@ -491,10 +491,12 @@ def display_trade_comparison(results_a: Dict[str, Dict[str, Any]], results_b: Di
 def display_trade_results(analysis_results: Dict[str, Dict[str, Any]], key_suffix: str = ""):
     """Display the trade analysis results."""
     time_ranges = list(next(iter(analysis_results.values()))['pre_trade_metrics'].keys())
-    
-    team_tabs = st.tabs([f"Team: {get_team_name(team)}" for team in analysis_results.keys()])
-    
-    for team_tab, (team, results) in zip(team_tabs, analysis_results.items()):
+
+    teams = sorted(list(analysis_results.keys()), key=get_team_name)
+    team_tabs = st.tabs([f"Team: {get_team_name(team)}" for team in teams])
+
+    for team_tab, team in zip(team_tabs, teams):
+        results = analysis_results[team]
         with team_tab:
             _display_trade_overview(results, key_suffix)
             _display_trade_impact_section(team, results, time_ranges)
@@ -686,75 +688,78 @@ def _display_traded_players_game_logs(results: Dict[str, Any], key_suffix: str =
         return
     
     with st.expander("📋 View Traded Players' Game Logs", expanded=False):
-        player_tabs = st.tabs(all_players)
-        
-        for player_tab, player_name in zip(player_tabs, all_players):
-            with player_tab:
-                # Find and load player's game log using centralized loader
-                preferred_season = results.get("season") if isinstance(results, dict) else None
-                game_log_df = get_player_game_log_df(player_name, league_id, preferred_season)
-                
-                if game_log_df is not None and not game_log_df.empty:
-                    # For historical trades, filter logs to games on or before the trade date
-                    trade_date_str = results.get("trade_date") if isinstance(results, dict) else None
-                    if trade_date_str and preferred_season and "Date" in game_log_df.columns:
-                        try:
-                            from modules.historical_trade_analyzer.logic import _parse_game_dates_for_season
-                            trade_dt = pd.to_datetime(trade_date_str, errors="coerce")
-                            if not pd.isna(trade_dt):
-                                parsed_dates = _parse_game_dates_for_season(game_log_df["Date"], preferred_season)
-                                game_log_df = game_log_df.copy()
-                                game_log_df["DateParsed"] = parsed_dates
-                                game_log_df = game_log_df[game_log_df["DateParsed"] <= trade_dt]
-                                game_log_df = game_log_df.drop(columns=["DateParsed"])
-                        except Exception:
-                            # If anything goes wrong, fall back to full log display
-                            pass
-                
-                if game_log_df is not None and not game_log_df.empty:
-                    # Display consistency metrics
-                    consistency = load_player_consistency(player_name, league_id)
-                    if consistency:
-                        col1, col2, col3, col4 = st.columns(4)
-                        with col1:
-                            st.metric("Games", consistency['games_played'])
-                            st.metric("Mean FPts", f"{consistency['mean_fpts']:.1f}")
-                        with col2:
-                            st.metric("CV%", f"{consistency['cv_percent']:.1f}%", help="Lower = more consistent")
-                            st.metric("Consistency", consistency['consistency_tier'])
-                        with col3:
-                            st.metric("Boom Games", consistency['boom_games'], help=f"{consistency['boom_rate']:.1f}% of games")
-                            st.metric("Bust Games", consistency['bust_games'], help=f"{consistency['bust_rate']:.1f}% of games")
-                        with col4:
-                            st.metric("Min FPts", f"{consistency['min_fpts']:.0f}")
-                            st.metric("Max FPts", f"{consistency['max_fpts']:.0f}")
-                    
-                    st.markdown("---")
-                    
-                    # Display game log table
-                    priority_cols = ['Date', 'Team', 'Opp', 'Score', 'FPts', 'MIN', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO']
-                    other_cols = [col for col in game_log_df.columns if col not in priority_cols]
-                    display_cols = [col for col in priority_cols if col in game_log_df.columns] + other_cols
-                    
-                    dataframe(
-                        game_log_df[display_cols],
-                        width="stretch",
-                        height=400
-                    )
-                    
-                    # Download button
-                    csv = game_log_df.to_csv(index=False)
-                    # Create unique key by combining player name with index to avoid duplicates
-                    unique_key = f"trade_download_{player_name.replace(' ', '_')}_{all_players.index(player_name)}{key_suffix}"
-                    st.download_button(
-                        label=f"📥 Download {player_name} Game Log",
-                        data=csv,
-                        file_name=f"{player_name.replace(' ', '_')}_game_log.csv",
-                        mime="text/csv",
-                        key=unique_key
-                    )
-                else:
-                    st.info(f"No game log data available for {player_name}. Run Bulk Scrape in Admin Tools to populate cache.")
+        selected_player = st.selectbox(
+            "Player",
+            options=all_players,
+            key=f"trade_game_logs_player_select{key_suffix}",
+        )
+
+        player_name = selected_player
+
+        # Find and load player's game log using centralized loader
+        preferred_season = results.get("season") if isinstance(results, dict) else None
+        game_log_df = get_player_game_log_df(player_name, league_id, preferred_season)
+
+        if game_log_df is not None and not game_log_df.empty:
+            # For historical trades, filter logs to games on or before the trade date
+            trade_date_str = results.get("trade_date") if isinstance(results, dict) else None
+            if trade_date_str and preferred_season and "Date" in game_log_df.columns:
+                try:
+                    from modules.historical_trade_analyzer.logic import _parse_game_dates_for_season
+                    trade_dt = pd.to_datetime(trade_date_str, errors="coerce")
+                    if not pd.isna(trade_dt):
+                        parsed_dates = _parse_game_dates_for_season(game_log_df["Date"], preferred_season)
+                        game_log_df = game_log_df.copy()
+                        game_log_df["DateParsed"] = parsed_dates
+                        game_log_df = game_log_df[game_log_df["DateParsed"] <= trade_dt]
+                        game_log_df = game_log_df.drop(columns=["DateParsed"])
+                except Exception:
+                    # If anything goes wrong, fall back to full log display
+                    pass
+
+        if game_log_df is not None and not game_log_df.empty:
+            # Display consistency metrics
+            consistency = load_player_consistency(player_name, league_id)
+            if consistency:
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Games", consistency['games_played'])
+                    st.metric("Mean FPts", f"{consistency['mean_fpts']:.1f}")
+                with col2:
+                    st.metric("CV%", f"{consistency['cv_percent']:.1f}%", help="Lower = more consistent")
+                    st.metric("Consistency", consistency['consistency_tier'])
+                with col3:
+                    st.metric("Boom Games", consistency['boom_games'], help=f"{consistency['boom_rate']:.1f}% of games")
+                    st.metric("Bust Games", consistency['bust_games'], help=f"{consistency['bust_rate']:.1f}% of games")
+                with col4:
+                    st.metric("Min FPts", f"{consistency['min_fpts']:.0f}")
+                    st.metric("Max FPts", f"{consistency['max_fpts']:.0f}")
+
+            st.markdown("---")
+
+            # Display game log table
+            priority_cols = ['Date', 'Team', 'Opp', 'Score', 'FPts', 'MIN', 'PTS', 'REB', 'AST', 'ST', 'BLK', 'TO']
+            other_cols = [col for col in game_log_df.columns if col not in priority_cols]
+            display_cols = [col for col in priority_cols if col in game_log_df.columns] + other_cols
+
+            dataframe(
+                game_log_df[display_cols],
+                width="stretch",
+                height=400
+            )
+
+            # Download button
+            csv = game_log_df.to_csv(index=False)
+            unique_key = f"trade_download_{player_name.replace(' ', '_')}{key_suffix}"
+            st.download_button(
+                label=f"📥 Download {player_name} Game Log",
+                data=csv,
+                file_name=f"{player_name.replace(' ', '_')}_game_log.csv",
+                mime="text/csv",
+                key=unique_key
+            )
+        else:
+            st.info(f"No game log data available for {player_name}. Run Bulk Scrape in Admin Tools to populate cache.")
 
 def _render_overall_assessment(results, ytd_pre, ytd_post, ytd_pre_consistency, ytd_post_consistency):
     """Render overall trade assessment and key metrics."""
