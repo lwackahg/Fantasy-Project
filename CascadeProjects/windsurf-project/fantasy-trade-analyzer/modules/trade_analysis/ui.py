@@ -620,7 +620,7 @@ def _display_trade_metrics_table(results: Dict[str, Any], time_ranges: List[str]
     
     combined_df = pd.DataFrame(combined_data)
     st.markdown("### Trade Metrics (Before → After)")
-    st.markdown(combined_df.to_html(escape=False, index=False), unsafe_allow_html=True)
+    _safe_html_table(combined_df)
     
     # Add consistency summary if available
     _display_consistency_summary(results, time_ranges)
@@ -637,6 +637,28 @@ def _create_performance_chart(metric_data: pd.DataFrame, display_name: str):
         title=f"{display_name} Trend (Before vs. After Trade)"
     )
     return fig
+
+def _safe_html_table(df: pd.DataFrame, max_cells: int = 200) -> None:
+    """Render a DataFrame as HTML safely on Streamlit Cloud with fallback to native dataframe."""
+    if df.empty:
+        st.info("No data to display.")
+        return
+    rows, cols = df.shape
+    if rows * cols > max_cells:
+        st.caption("Table is large; showing native view to avoid frontend crashes.")
+        st.dataframe(df, use_container_width=True)
+        return
+    try:
+        html = df.to_html(escape=False, index=False, table_id="trade_metrics_table")
+        # Rough size guard to prevent huge HTML deltas
+        if len(html) > 80_000:
+            st.caption("HTML table is large; showing native view to avoid frontend crashes.")
+            st.dataframe(df, use_container_width=True)
+        else:
+            st.markdown(html, unsafe_allow_html=True)
+    except Exception:
+        st.caption("HTML rendering failed; falling back to native view.")
+        st.dataframe(df, use_container_width=True)
 
 def _display_performance_visualizations(results: Dict[str, Any], time_ranges: List[str]):
     """Generates and displays performance charts for key metrics."""
@@ -688,7 +710,7 @@ def _display_traded_players_game_logs(results: Dict[str, Any], key_suffix: str =
         return
     
     with st.expander("📋 View Traded Players' Game Logs", expanded=False):
-        widget_key_suffix = f"{team_id}{key_suffix}" if team_id else key_suffix
+widget_key_suffix = f"{team_id}{key_suffix}"
         selected_player = st.selectbox(
             "Player",
             options=all_players,
