@@ -19,7 +19,10 @@ from dotenv import load_dotenv, find_dotenv
 from datetime import datetime, date, timedelta
 import atexit
 import numpy as np
-from . import db_store
+try:
+    from modules.player_game_log_scraper import db_store
+except Exception:  # pragma: no cover
+    from . import db_store
 
 # --- CONFIGURATION ---
 load_dotenv(find_dotenv('fantrax.env'))
