@@ -498,7 +498,7 @@ def display_trade_results(analysis_results: Dict[str, Dict[str, Any]], key_suffi
     for team_tab, team in zip(team_tabs, teams):
         results = analysis_results[team]
         with team_tab:
-            _display_trade_overview(results, key_suffix)
+            _display_trade_overview(results, key_suffix, team_id=team)
             _display_trade_impact_section(team, results, time_ranges)
 
 def _display_trade_impact_section(team_id: str, results: Dict[str, Any], time_ranges: List[str]):
@@ -559,7 +559,7 @@ def _display_trade_impact_section(team_id: str, results: Dict[str, Any], time_ra
         else:
             st.info("No player comparison data available")
 
-def _display_trade_overview(results: Dict[str, Any], key_suffix: str = ""):
+def _display_trade_overview(results: Dict[str, Any], key_suffix: str = "", team_id: str = ""):
     st.title("Trade Overview")
     col1, col2 = st.columns(2)
     with col1:
@@ -573,7 +573,7 @@ def _display_trade_overview(results: Dict[str, Any], key_suffix: str = ""):
     st.write("---")
     
     # Add player game logs viewer
-    _display_traded_players_game_logs(results, key_suffix)
+    _display_traded_players_game_logs(results, key_suffix, team_id=team_id)
 
 def _display_trade_metrics_table(results: Dict[str, Any], time_ranges: List[str]):
     st.markdown(
@@ -674,7 +674,7 @@ def _display_styled_roster(title: str, roster_data: List[Dict[str, Any]], player
     else:
         st.write("No data available.")
 
-def _display_traded_players_game_logs(results: Dict[str, Any], key_suffix: str = ""):
+def _display_traded_players_game_logs(results: Dict[str, Any], key_suffix: str = "", team_id: str = ""):
     """Display game logs for all players involved in the trade."""
     from modules.trade_analysis.consistency_integration import load_player_consistency, get_player_game_log_df
     import json
@@ -688,10 +688,11 @@ def _display_traded_players_game_logs(results: Dict[str, Any], key_suffix: str =
         return
     
     with st.expander("📋 View Traded Players' Game Logs", expanded=False):
+        widget_key_suffix = f"{team_id}{key_suffix}" if team_id else key_suffix
         selected_player = st.selectbox(
             "Player",
             options=all_players,
-            key=f"trade_game_logs_player_select{key_suffix}",
+            key=f"trade_game_logs_player_select{widget_key_suffix}",
         )
 
         player_name = selected_player
@@ -750,7 +751,7 @@ def _display_traded_players_game_logs(results: Dict[str, Any], key_suffix: str =
 
             # Download button
             csv = game_log_df.to_csv(index=False)
-            unique_key = f"trade_download_{player_name.replace(' ', '_')}{key_suffix}"
+            unique_key = f"trade_download_{player_name.replace(' ', '_')}{widget_key_suffix}"
             st.download_button(
                 label=f"📥 Download {player_name} Game Log",
                 data=csv,
