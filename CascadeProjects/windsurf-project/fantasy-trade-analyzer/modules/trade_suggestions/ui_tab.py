@@ -149,6 +149,21 @@ def display_trade_suggestions_tab():
 
 		with col2:
 			your_team_df = rosters_by_team[your_team_name]
+			all_nba_teams = set()
+			try:
+				for df in rosters_by_team.values():
+					if df is None or df.empty:
+						continue
+					if 'NBA Team' in df.columns:
+						all_nba_teams.update([t for t in df['NBA Team'].dropna().tolist() if str(t).strip()])
+			except Exception:
+				all_nba_teams = set()
+			exclude_nba_teams = st.multiselect(
+				"Exclude NBA Teams",
+				options=sorted(list(all_nba_teams)),
+				help="Exclude all players from these NBA teams (on both sides of a trade)",
+				key="tab_exclude_nba_teams",
+			)
 			exclude_players = st.multiselect(
 				"Exclude Your Players (untouchables)",
 				options=sorted(your_team_df['Player'].tolist()),
@@ -215,6 +230,7 @@ def display_trade_suggestions_tab():
 				exclude_teams=exclude_teams if exclude_teams else None,
 				target_opposing_players=target_opposing_players if target_opposing_players else None,
 				exclude_opposing_players=exclude_opposing_players if exclude_opposing_players else None,
+				exclude_nba_teams=exclude_nba_teams if exclude_nba_teams else None,
 				require_all_include_players=require_all_include_players,
 				min_incoming_fp_g=min_incoming_fp_g,
 			)

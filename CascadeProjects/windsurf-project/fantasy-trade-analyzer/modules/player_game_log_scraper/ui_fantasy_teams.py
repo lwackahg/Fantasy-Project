@@ -132,6 +132,17 @@ def _build_fantasy_team_view(league_id, cache_files, season):
 			if not entry or entry['games'].empty or 'FPts' not in entry['games']:
 				continue
 			
+			nba_team = None
+			try:
+				games_df = entry.get('games')
+				if games_df is not None and not games_df.empty and 'Team' in games_df.columns:
+					team_series = games_df['Team'].dropna()
+					if not team_series.empty:
+						# Use the mode as the canonical NBA team for the player.
+						nba_team = team_series.mode().iloc[0]
+			except Exception:
+				nba_team = None
+			
 			# Calculate multi-range stats
 			multi_stats = calculate_multi_range_stats(entry['games'])
 			if not multi_stats or 'YTD' not in multi_stats:
@@ -144,7 +155,8 @@ def _build_fantasy_team_view(league_id, cache_files, season):
 				'GP': ytd['games_played'],
 				'Mean FPts': round(ytd['mean_fpts'], 1),
 				'CV %': round(ytd['coefficient_of_variation'], 1),
-				'code': entry['code']
+				'code': entry['code'],
+				'NBA Team': nba_team,
 			}
 			
 			avail_info = availability_players.get(name)

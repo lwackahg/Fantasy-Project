@@ -109,6 +109,7 @@ def estimate_trade_search_complexity(
 	exclude_players: Optional[List[str]] = None,
 	exclude_teams: Optional[List[str]] = None,
 	exclude_opposing_players: Optional[List[str]] = None,
+	exclude_nba_teams: Optional[List[str]] = None,
 ) -> int:
 	if your_team is None or your_team.empty or not other_teams:
 		return 0
@@ -124,6 +125,8 @@ def estimate_trade_search_complexity(
 	your_trade_team = your_team
 	if exclude_players:
 		your_trade_team = your_trade_team[~your_trade_team['Player'].isin(exclude_players)]
+	if exclude_nba_teams and 'NBA Team' in your_trade_team.columns:
+		your_trade_team = your_trade_team[~your_trade_team['NBA Team'].isin(exclude_nba_teams)]
 
 	len_y = len(your_trade_team)
 	if len_y <= 0:
@@ -138,6 +141,8 @@ def estimate_trade_search_complexity(
 		team_df = df
 		if exclude_opposing_players and 'Player' in team_df.columns:
 			team_df = team_df[~team_df['Player'].isin(exclude_opposing_players)]
+		if exclude_nba_teams and 'NBA Team' in team_df.columns:
+			team_df = team_df[~team_df['NBA Team'].isin(exclude_nba_teams)]
 		len_t = len(team_df)
 		if len_t <= 0:
 			continue
@@ -437,6 +442,7 @@ def find_trade_suggestions(
 	exclude_teams: List[str] = None,
 	target_opposing_players: List[str] = None,
 	exclude_opposing_players: List[str] = None,
+	exclude_nba_teams: List[str] = None,
 	player_fpts_overrides: Dict[str, float] = None,
 	require_all_include_players: bool = False,
 	min_incoming_fp_g: Optional[float] = None,
@@ -500,6 +506,21 @@ def find_trade_suggestions(
 		other_teams = {k: v for k, v in other_teams.items() if k in target_teams}
 	if exclude_teams:
 		other_teams = {k: v for k, v in other_teams.items() if k not in exclude_teams}
+	
+	# Exclude NBA teams from all candidate pools (both your side and opponents)
+	if exclude_nba_teams:
+		if 'NBA Team' in your_full_team.columns:
+			your_full_team = your_full_team[~your_full_team['NBA Team'].isin(exclude_nba_teams)].copy()
+		filtered_other_teams = {}
+		for name, team_df in other_teams.items():
+			if team_df is None or team_df.empty:
+				filtered_other_teams[name] = team_df
+				continue
+			if 'NBA Team' in team_df.columns:
+				filtered_other_teams[name] = team_df[~team_df['NBA Team'].isin(exclude_nba_teams)].copy()
+			else:
+				filtered_other_teams[name] = team_df
+		other_teams = filtered_other_teams
 	
 	# GP-based eligibility filter using share of max GP in league
 	all_teams_raw = {**other_teams, 'Your Team': your_full_team}
@@ -565,6 +586,7 @@ def find_trade_suggestions(
 			exclude_players=exclude_players,
 			exclude_teams=exclude_teams,
 			exclude_opposing_players=exclude_opposing_players,
+			exclude_nba_teams=exclude_nba_teams,
 		)
 	except Exception:
 		est_ops = 0
@@ -590,6 +612,7 @@ def find_trade_suggestions(
 				exclude_players=exclude_players,
 				exclude_teams=exclude_teams,
 				exclude_opposing_players=exclude_opposing_players,
+				exclude_nba_teams=exclude_nba_teams,
 			)
 	
 	# Derive core size and baseline core value; these will be used by downstream logic
@@ -638,6 +661,8 @@ def find_trade_suggestions(
 		# Apply opposing player exclusion early to reduce search space
 		if exclude_opposing_players and 'Player' in team_df.columns:
 			team_df = team_df[~team_df['Player'].isin(exclude_opposing_players)].copy()
+		if exclude_nba_teams and 'NBA Team' in team_df.columns:
+			team_df = team_df[~team_df['NBA Team'].isin(exclude_nba_teams)].copy()
 		# Exclude obvious drop-tier pieces from the opponent candidate pool
 		if 'Mean FPts' in team_df.columns:
 			cutoff = MIN_TRADE_FP_G
