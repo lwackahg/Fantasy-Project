@@ -347,7 +347,7 @@ def scrape_all_league_standings(username: str, password: str, league_ids: Option
             if is_stop_requested():
                 break
 
-            standings_url = f'https://www.fantrax.com/fantasy/league/{lid}/standings'
+            standings_url = f'https://www.fantrax.com/fantasy/league/{lid}/standings;view=REGULAR_SEASON'
 
             def get_standings():
                 driver.get(standings_url)

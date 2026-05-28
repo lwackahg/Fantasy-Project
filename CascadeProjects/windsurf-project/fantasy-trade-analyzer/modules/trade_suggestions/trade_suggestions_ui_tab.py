@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 import re
+from typing import Dict
 from streamlit_compat import plotly_chart
 from streamlit_compat import dataframe
 from modules.trade_suggestions import find_trade_suggestions, estimate_trade_search_complexity, calculate_exponential_value, set_trade_balance_preset
@@ -308,6 +309,25 @@ def _render_roster_snapshot(suggestion, rosters_by_team, your_team_name):
     your_before = your_roster.copy()
     opp_before = opp_roster.copy()
 
+    overrides = st.session_state.get("tab_player_fpts_overrides") or {}
+    if isinstance(overrides, dict) and overrides:
+        for df in (your_before, opp_before):
+            if df is None or df.empty or "Player" not in df.columns:
+                continue
+            for player_name, fpts in overrides.items():
+                if player_name not in set(df["Player"].astype(str).tolist()):
+                    continue
+                try:
+                    val = float(fpts)
+                except (TypeError, ValueError):
+                    continue
+                if "Mean FPts" in df.columns:
+                    df.loc[df["Player"] == player_name, "Mean FPts"] = val
+                if "FP/G" in df.columns:
+                    df.loc[df["Player"] == player_name, "FP/G"] = val
+                if "YTD FPts" in df.columns:
+                    df.loc[df["Player"] == player_name, "YTD FPts"] = val
+
     # Build after rosters
     if "Player" in your_before.columns:
         your_after = your_before[~your_before["Player"].isin(suggestion["you_give"])].copy()
@@ -329,6 +349,12 @@ def _render_roster_snapshot(suggestion, rosters_by_team, your_team_name):
         if df is None or df.empty:
             return pd.DataFrame()
         view = df.copy()
+
+        lens = st.session_state.get("tab_display_lens", "Blend") or "Blend"
+        value_col = "Mean FPts"
+        if str(lens).upper() == "YTD" and "YTD FPts" in view.columns:
+            value_col = "YTD FPts"
+
         if "Player" in view.columns:
             def _status(p):
                 if p in highlight_out:
@@ -337,13 +363,13 @@ def _render_roster_snapshot(suggestion, rosters_by_team, your_team_name):
                     return "🟢 IN"
                 return ""
             view["Status"] = view["Player"].apply(_status)
-        for sort_col in ["Mean FPts", "FP/G"]:
+        for sort_col in [value_col, "Mean FPts", "FP/G"]:
             if sort_col in view.columns:
                 view = view.sort_values(sort_col, ascending=False)
                 break
         if len(view) > 8:
             view = view.head(8)
-        cols = [c for c in ["Player", "Mean FPts", "Status"] if c in view.columns]
+        cols = [c for c in ["Player", value_col, "Status"] if c in view.columns]
         return view[cols] if cols else view
 
     col1, col2 = st.columns(2)
@@ -371,6 +397,92 @@ def _render_roster_snapshot(suggestion, rosters_by_team, your_team_name):
         if incoming_opp:
             opp_after = pd.concat([opp_after] + incoming_opp, ignore_index=True)
         dataframe(_prepare_roster(opp_after, [], suggestion["you_give"]), hide_index=True, width="stretch")
+
+    def _compare_blend_vs_ytd(df: pd.DataFrame, top_n: int = 8) -> pd.DataFrame:
+        if df is None or df.empty or "Player" not in df.columns:
+            return pd.DataFrame()
+        if "Mean FPts" not in df.columns:
+            return pd.DataFrame()
+        if "YTD FPts" not in df.columns:
+            return pd.DataFrame()
+        view = df[["Player", "Mean FPts", "YTD FPts"]].copy()
+        view["Mean FPts"] = pd.to_numeric(view["Mean FPts"], errors="coerce").fillna(0.0)
+        view["YTD FPts"] = pd.to_numeric(view["YTD FPts"], errors="coerce").fillna(0.0)
+        view = view.sort_values("Mean FPts", ascending=False)
+        if len(view) > top_n:
+            view = view.head(top_n)
+        view["Δ (Blend - YTD)"] = view["Mean FPts"] - view["YTD FPts"]
+        return view.rename(columns={"Mean FPts": "Recency Blend"})
+
+    def _sum_for_players(df: pd.DataFrame, player_names, col: str) -> float:
+        if df is None or df.empty or not player_names:
+            return 0.0
+        if "Player" not in df.columns or col not in df.columns:
+            return 0.0
+        sub = df[df["Player"].isin(list(player_names))].copy()
+        if sub.empty:
+            return 0.0
+        vals = pd.to_numeric(sub[col], errors="coerce").fillna(0.0)
+        return float(vals.sum())
+
+    # Visual: side-by-side Blend vs YTD
+    if "YTD FPts" in your_before.columns and "YTD FPts" in opp_before.columns:
+        with st.expander("📊 Recency Blend vs YTD (Side-by-Side)", expanded=False):
+            tab_yours, tab_opp = st.tabs(["Your Team", suggestion["team"]])
+            with tab_yours:
+                t1, t2 = st.tabs(["Before", "After"])
+                with t1:
+                    dfv = _compare_blend_vs_ytd(your_before)
+                    if dfv.empty:
+                        st.caption("No comparison data available.")
+                    else:
+                        dataframe(dfv, hide_index=True, width="stretch")
+                with t2:
+                    dfv = _compare_blend_vs_ytd(your_after)
+                    if dfv.empty:
+                        st.caption("No comparison data available.")
+                    else:
+                        dataframe(dfv, hide_index=True, width="stretch")
+            with tab_opp:
+                t1, t2 = st.tabs(["Before", "After"])
+                with t1:
+                    dfv = _compare_blend_vs_ytd(opp_before)
+                    if dfv.empty:
+                        st.caption("No comparison data available.")
+                    else:
+                        dataframe(dfv, hide_index=True, width="stretch")
+                with t2:
+                    dfv = _compare_blend_vs_ytd(opp_after)
+                    if dfv.empty:
+                        st.caption("No comparison data available.")
+                    else:
+                        dataframe(dfv, hide_index=True, width="stretch")
+
+    # Visual: opponent lens summary (what they might be thinking vs what you feel)
+    if "YTD FPts" in your_before.columns and "YTD FPts" in opp_before.columns:
+        with st.expander("🧠 Opponent Lens (YTD) vs Your Lens (Blend)", expanded=False):
+            you_give = suggestion.get("you_give") or []
+            you_get = suggestion.get("you_get") or []
+
+            # Your view
+            your_blend_net = _sum_for_players(your_before, you_get, "Mean FPts") - _sum_for_players(your_before, you_give, "Mean FPts")
+            your_ytd_net = _sum_for_players(your_before, you_get, "YTD FPts") - _sum_for_players(your_before, you_give, "YTD FPts")
+
+            # Opponent view
+            opp_blend_net = _sum_for_players(opp_before, you_give, "Mean FPts") - _sum_for_players(opp_before, you_get, "Mean FPts")
+            opp_ytd_net = _sum_for_players(opp_before, you_give, "YTD FPts") - _sum_for_players(opp_before, you_get, "YTD FPts")
+
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**You (net FP/G on the package)**")
+                st.metric("Blend net", f"{your_blend_net:+.1f}")
+                st.metric("YTD net", f"{your_ytd_net:+.1f}")
+                st.caption("Blend net is what the engine is optimizing; YTD net is what many opponents anchor on.")
+            with c2:
+                st.markdown(f"**{suggestion['team']} (net FP/G on the package)**")
+                st.metric("Blend net", f"{opp_blend_net:+.1f}")
+                st.metric("YTD net", f"{opp_ytd_net:+.1f}")
+                st.caption("If their YTD net looks bad but blend net looks okay, you may need to add a sweetener they value on YTD.")
 
 
 def _render_similarity_analysis(suggestion, rosters_by_team, rank):
@@ -459,11 +571,16 @@ def _render_full_trade_analysis_button(suggestion, your_team_name, rank):
     }
     label = f"{your_team_name} vs {opp_name} - {suggestion.get('pattern', '')} (#{rank})"
     
+    overrides = st.session_state.get("tab_player_fpts_overrides")
+    if not isinstance(overrides, dict) or not overrides:
+        overrides = None
+
     if st.button("🔬 Run Full Trade Analysis", key=f"full_analysis_{rank}_{opp_name}"):
         results = run_trade_analysis(
             trade_teams=trade_teams,
             num_players=8,
             trade_label=label,
+            assumed_fpg_overrides=overrides,
         )
         if not results:
             st.warning("No analysis results. Check that trade data is loaded.")
@@ -690,6 +807,91 @@ def display_trade_suggestions_tab():
     st.markdown("---")
     st.markdown("## ⚙️ Configuration")
 
+    def _blend_weights_from_emphasis(emphasis: int) -> Dict[str, float]:
+        e = max(0, min(100, int(emphasis)))
+        if e <= 50:
+            t = e / 50.0
+            ytd = 1.0 * (1.0 - t) + 0.50 * t
+            d60 = 0.00 * (1.0 - t) + 0.25 * t
+            d30 = 0.00 * (1.0 - t) + 0.15 * t
+            d14 = 0.00 * (1.0 - t) + 0.10 * t
+        else:
+            t = (e - 50) / 50.0
+            ytd = 0.50 * (1.0 - t) + 0.20 * t
+            d60 = 0.25 * (1.0 - t) + 0.30 * t
+            d30 = 0.15 * (1.0 - t) + 0.30 * t
+            d14 = 0.10 * (1.0 - t) + 0.20 * t
+        weights = {"YTD": ytd, "L60": d60, "L30": d30, "L14": d14}
+        s = sum(weights.values())
+        if s > 0:
+            for k in list(weights.keys()):
+                weights[k] = float(weights[k]) / float(s)
+        return weights
+
+    def _apply_recency_blend_to_rosters(rosters_by_team: Dict[str, pd.DataFrame], emphasis: int, min_games: int) -> Dict[str, pd.DataFrame]:
+        weights = _blend_weights_from_emphasis(emphasis)
+        min_g = max(0, int(min_games))
+        out = {}
+        for team_name, df in (rosters_by_team or {}).items():
+            if df is None or df.empty:
+                out[team_name] = df
+                continue
+            if "Mean FPts" not in df.columns or "Player" not in df.columns:
+                out[team_name] = df
+                continue
+
+            view = df.copy()
+            if "YTD FPts" not in view.columns:
+                view["YTD FPts"] = view["Mean FPts"]
+
+            def _get_num(row, col):
+                v = row.get(col)
+                if v is None or pd.isna(v):
+                    return None
+                try:
+                    return float(v)
+                except Exception:
+                    return None
+
+            def _get_int(row, col):
+                v = row.get(col)
+                if v is None or pd.isna(v):
+                    return None
+                try:
+                    return int(float(v))
+                except Exception:
+                    return None
+
+            def _blend_row(row):
+                candidates = [
+                    ("YTD", "Mean FPts", "GP"),
+                    ("L60", "L60 FPts", "L60 GP"),
+                    ("L30", "L30 FPts", "L30 GP"),
+                    ("L14", "L14 FPts", "L14 GP"),
+                ]
+                num = 0.0
+                den = 0.0
+                for key, val_col, gp_col in candidates:
+                    w = float(weights.get(key, 0.0) or 0.0)
+                    if w <= 0:
+                        continue
+                    val = _get_num(row, val_col)
+                    if val is None:
+                        continue
+                    gp = _get_int(row, gp_col)
+                    if min_g > 0 and gp is not None and gp < min_g:
+                        continue
+                    num += w * float(val)
+                    den += w
+                if den <= 0:
+                    fallback = _get_num(row, "Mean FPts")
+                    return float(fallback or 0.0)
+                return float(num / den)
+
+            view["Mean FPts"] = view.apply(_blend_row, axis=1)
+            out[team_name] = view
+        return out
+
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -798,6 +1000,44 @@ def display_trade_suggestions_tab():
             ),
             key="tab_trade_balance_level",
         )
+
+    with st.expander("⏱️ Time-Range Weighting (Recency Blend)", expanded=False):
+        recency_emphasis = st.slider(
+            "Recency emphasis (0=YTD only, 50=preset blend, 100=very recent)",
+            min_value=0,
+            max_value=100,
+            value=int(st.session_state.get("tab_recency_emphasis", 50) or 50),
+            step=5,
+            key="tab_recency_emphasis",
+        )
+        min_games_blend = st.number_input(
+            "Min games required per window",
+            min_value=0,
+            max_value=20,
+            value=int(st.session_state.get("tab_recency_min_games", 5) or 5),
+            step=1,
+            key="tab_recency_min_games",
+        )
+
+        weights = _blend_weights_from_emphasis(recency_emphasis)
+        st.caption(
+            f"Active weights: YTD {weights['YTD']:.2f}, 60d {weights['L60']:.2f}, 30d {weights['L30']:.2f}, 14d {weights['L14']:.2f}"
+        )
+
+    st.radio(
+        "Display lens (visual only)",
+        options=["Blend", "YTD"],
+        index=0,
+        horizontal=True,
+        help="Controls what you see in roster snapshot tables. The suggestion engine still runs on the blended values.",
+        key="tab_display_lens",
+    )
+
+    rosters_by_team = _apply_recency_blend_to_rosters(
+        rosters_by_team,
+        emphasis=int(st.session_state.get("tab_recency_emphasis", 50) or 50),
+        min_games=int(st.session_state.get("tab_recency_min_games", 5) or 5),
+    )
 
     min_ytd_fp_change = -2.0
 
@@ -967,6 +1207,13 @@ def display_trade_suggestions_tab():
                 if df is not None and "Player" in df.columns:
                     all_players_set.update(df["Player"].dropna().tolist())
         all_players_sorted = sorted(list(all_players_set))
+
+
+        out_players = st.multiselect(
+            "Mark players OUT (force 0 FP/G)",
+            options=all_players_sorted,
+            key="tab_out_players_select",
+        )
         
         selected_override_players = st.multiselect(
             "Select Players to Override",
@@ -975,6 +1222,10 @@ def display_trade_suggestions_tab():
         )
         
         player_fpts_overrides = {}
+
+        for p in out_players or []:
+            player_fpts_overrides[str(p)] = 0.0
+
         if selected_override_players:
             st.markdown("##### Set Assumed FP/G")
             cols = st.columns(3)
@@ -997,6 +1248,8 @@ def display_trade_suggestions_tab():
                         key=f"override_fpts_{player}"
                     )
                     player_fpts_overrides[player] = new_fpts
+
+        st.session_state["tab_player_fpts_overrides"] = dict(player_fpts_overrides)
 
     suggestions_session_key = "tab_trade_suggestions_results"
     try:

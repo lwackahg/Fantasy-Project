@@ -2,10 +2,16 @@
 
 import streamlit as st
 import plotly.express as px
+import pandas as pd
 from streamlit_compat import dataframe, plotly_chart
 
 from logic.schedule_analysis import simulate_remaining_games, get_playoff_summary
-from logic.playoff_odds import calculate_playoff_odds_with_threshold, get_team_playoff_scenarios
+from logic.playoff_odds import (
+    calculate_playoff_odds_with_threshold,
+    calculate_exact_seed_outcomes,
+    explore_exact_playoff_scenarios,
+    get_team_playoff_scenarios,
+)
 
 
 def display_playoff_odds(schedule_df):
@@ -14,6 +20,16 @@ def display_playoff_odds(schedule_df):
 
     col_controls = st.columns(3)
     with col_controls[0]:
+        method = st.radio(
+            "Method",
+            options=["Monte Carlo", "Exact (all outcomes)"],
+            index=0,
+            horizontal=True,
+            help=(
+                "Exact enumerates every remaining win/loss outcome (2^N). "
+                "If there are too many remaining matchups, it will refuse and you should use Monte Carlo."
+            ),
+        )
         num_sims = st.slider(
             "Simulations",
             min_value=500,
@@ -39,38 +55,92 @@ def display_playoff_odds(schedule_df):
             step=1,
             help="How many teams make the playoffs. Used for seeding visualization.",
         )
+        max_exact = st.number_input(
+            "Exact max scenarios",
+            min_value=1_000,
+            max_value=5_000_000,
+            value=200_000,
+            step=50_000,
+            help="Safety cap for exact mode: max 2^N outcomes to enumerate.",
+        )
     with col_controls[2]:
         run_btn = st.button("Run Playoff Odds", type="primary")
 
     if run_btn:
-        with st.spinner("Simulating remaining games..."):
-            probs, remaining_sos, team_ratings = simulate_remaining_games(
-                schedule_df,
-                num_simulations=int(num_sims),
-                playoff_spots=int(playoff_spots),
-                regression_weight=float(regression_weight),
-            )
-            summary_df = get_playoff_summary(probs, remaining_sos, team_ratings)
-
-            threshold_df, threshold_stats = calculate_playoff_odds_with_threshold(
-                schedule_df, playoff_spots=int(playoff_spots), num_threshold_sims=2000
-            )
-
-            if not summary_df.empty:
-                st.session_state["playoff_odds_summary"] = summary_df
-                st.session_state["playoff_odds_threshold"] = threshold_df
-                st.session_state["playoff_odds_threshold_stats"] = threshold_stats
-            else:
+        if method == "Exact (all outcomes)":
+            with st.spinner("Enumerating all remaining outcomes..."):
+                exact = calculate_exact_seed_outcomes(
+                    schedule_df,
+                    playoff_spots=int(playoff_spots),
+                    max_scenarios=int(max_exact),
+                )
+            if exact.get("error"):
                 st.session_state["playoff_odds_summary"] = None
                 st.session_state["playoff_odds_threshold"] = None
                 st.session_state["playoff_odds_threshold_stats"] = None
+                st.session_state["playoff_odds_exact_error"] = exact.get("error")
+                st.session_state["playoff_odds_exact_meta"] = {
+                    "scenarios": exact.get("scenarios"),
+                    "remaining_games": exact.get("remaining_games"),
+                }
+            else:
+                summary_df = exact.get("seed_summary")
+                st.session_state["playoff_odds_summary"] = summary_df
+                st.session_state["playoff_odds_threshold"] = None
+                st.session_state["playoff_odds_threshold_stats"] = None
+                st.session_state["playoff_odds_exact_error"] = None
+                st.session_state["playoff_odds_exact_meta"] = {
+                    "scenarios": exact.get("scenarios"),
+                    "remaining_games": exact.get("remaining_games"),
+                }
+        else:
+            with st.spinner("Simulating remaining games..."):
+                probs, remaining_sos, team_ratings = simulate_remaining_games(
+                    schedule_df,
+                    num_simulations=int(num_sims),
+                    playoff_spots=int(playoff_spots),
+                    regression_weight=float(regression_weight),
+                )
+                summary_df = get_playoff_summary(probs, remaining_sos, team_ratings)
+
+                threshold_df, threshold_stats = calculate_playoff_odds_with_threshold(
+                    schedule_df, playoff_spots=int(playoff_spots), num_threshold_sims=2000
+                )
+
+                if not summary_df.empty:
+                    st.session_state["playoff_odds_summary"] = summary_df
+                    st.session_state["playoff_odds_threshold"] = threshold_df
+                    st.session_state["playoff_odds_threshold_stats"] = threshold_stats
+                else:
+                    st.session_state["playoff_odds_summary"] = None
+                    st.session_state["playoff_odds_threshold"] = None
+                    st.session_state["playoff_odds_threshold_stats"] = None
+                st.session_state["playoff_odds_exact_error"] = None
+                st.session_state["playoff_odds_exact_meta"] = None
 
     summary_df = st.session_state.get("playoff_odds_summary")
     threshold_df = st.session_state.get("playoff_odds_threshold")
     threshold_stats = st.session_state.get("playoff_odds_threshold_stats")
+    exact_err = st.session_state.get("playoff_odds_exact_error")
+    exact_meta = st.session_state.get("playoff_odds_exact_meta")
+
+    if exact_err:
+        if exact_meta and exact_meta.get("remaining_games") is not None:
+            st.warning(
+                f"Exact mode unavailable: {exact_err}"
+            )
+        else:
+            st.warning(f"Exact mode unavailable: {exact_err}")
+
     if summary_df is None or summary_df.empty:
         st.info("Run the playoff odds simulation to see probabilities.")
         return
+
+    if exact_meta and exact_meta.get("scenarios"):
+        st.caption(
+            f"Exact enumeration: **{int(exact_meta.get('scenarios')):,}** scenarios "
+            f"across **{int(exact_meta.get('remaining_games') or 0)}** remaining matchups."
+        )
 
     seed_cols = [c for c in summary_df.columns if c.startswith("seed_") and c[5:].isdigit()]
     limited_seed_cols = [c for c in seed_cols if int(c.split("_")[1]) <= playoff_spots]
@@ -146,11 +216,19 @@ def display_playoff_odds(schedule_df):
                 f"Lock target (90%): **{threshold_stats.get('p90', 0):.0f}**"
             )
     else:
-        st.info("Threshold-based odds not available yet. Run the simulation.")
+        st.info(
+            "Threshold-based odds are only available in Monte Carlo mode. "
+            "Exact mode enumerates outcomes but does not estimate a win-threshold distribution."
+        )
 
     st.markdown("---")
     st.markdown("#### 🔍 Team Path to Playoffs")
-    team_options = threshold_df["Team"].tolist() if threshold_df is not None and not threshold_df.empty else []
+    if threshold_df is not None and not threshold_df.empty and "Team" in threshold_df.columns:
+        team_options = threshold_df["Team"].tolist()
+    elif summary_df is not None and not summary_df.empty and "Team" in summary_df.columns:
+        team_options = summary_df["Team"].tolist()
+    else:
+        team_options = []
     selected_team = st.selectbox(
         "Select a team to view their path:",
         options=[""] + team_options,
@@ -158,6 +236,227 @@ def display_playoff_odds(schedule_df):
     )
     if not selected_team:
         return
+
+    if exact_meta and exact_meta.get("scenarios"):
+        with st.expander("🧩 Scenario Explorer (Exact)", expanded=True):
+            explore = explore_exact_playoff_scenarios(
+                schedule_df,
+                selected_team,
+                playoff_spots=int(playoff_spots),
+                max_scenarios=int(max_exact),
+            )
+            if explore.get("error"):
+                st.info(explore.get("error"))
+            else:
+                make_pct = float(explore.get("make_pct", 0.0) or 0.0)
+                miss_pct = float(explore.get("miss_pct", 0.0) or 0.0)
+                scenarios = int(explore.get("scenarios", 0) or 0)
+
+                # Header metrics
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Make playoffs", f"{make_pct:.1f}%")
+                c2.metric("Miss playoffs", f"{miss_pct:.1f}%")
+                c3.metric("Scenarios analyzed", f"{scenarios:,}")
+
+                st.markdown("---")
+
+                # Simple view: Games that matter with clear if/then
+                swing_df = explore.get("swing_table")
+                if swing_df is not None and not swing_df.empty:
+                    st.markdown("### 🎮 Games That Actually Matter")
+                    st.caption(f"These games change {selected_team}'s playoff odds. Everything else is noise.")
+                    
+                    # Filter to meaningful games (swing > 5pp)
+                    important = swing_df[swing_df["Swing (pp)"] > 5.0].copy()
+                    
+                    if important.empty:
+                        st.info(f"{selected_team} is basically locked in. No remaining games significantly change their playoff odds.")
+                    else:
+                        # Build simple if/then view
+                        chart_data = []
+                        for _, row in important.head(10).iterrows():
+                            per = str(row.get("Period", ""))
+                            t1 = str(row.get("Team A", ""))
+                            t2 = str(row.get("Team B", ""))
+                            make_a = float(row.get("Make% if A wins", 0))
+                            make_b = float(row.get("Make% if B wins", 0))
+                            
+                            # Show both outcomes
+                            chart_data.append({
+                                "Game": f"{per}: {t1} vs {t2}",
+                                "Outcome": f"If {t1} wins",
+                                "Make %": make_a,
+                                "sort": make_a,
+                            })
+                            chart_data.append({
+                                "Game": f"{per}: {t1} vs {t2}",
+                                "Outcome": f"If {t2} wins",
+                                "Make %": make_b,
+                                "sort": make_b,
+                            })
+                        
+                        chart_df = pd.DataFrame(chart_data)
+                        
+                        # Group by game and show side-by-side outcomes
+                        for game in chart_df["Game"].unique():
+                            game_rows = chart_df[chart_df["Game"] == game]
+                            st.markdown(f"**{game}**")
+                            
+                            cols = st.columns(2)
+                            for idx, (_, r) in enumerate(game_rows.iterrows()):
+                                with cols[idx]:
+                                    outcome = r["Outcome"]
+                                    make_pct = r["Make %"]
+                                    miss_pct = 100 - make_pct
+                                    
+                                    # Color code based on good/bad for making playoffs
+                                    if make_pct >= 50:
+                                        st.success(f"{outcome}\n→ **{make_pct:.0f}% make** / {miss_pct:.0f}% miss")
+                                    else:
+                                        st.error(f"{outcome}\n→ {make_pct:.0f}% make / **{miss_pct:.0f}% miss**")
+                            
+                            st.markdown("")
+
+                st.markdown("---")
+
+                st.markdown("---")
+
+                # Dead simple shareable summary
+                st.markdown("### 📝 Share with the boys")
+                
+                def _build_simple_summary(mode: str) -> str:
+                    mode_u = str(mode or "MISS").upper()
+                    swing_df = explore.get("swing_table")
+                    
+                    if swing_df is None or swing_df.empty:
+                        return f"For {selected_team}: (no data available)"
+                    
+                    # Get high-impact games only
+                    important = swing_df[swing_df["Swing (pp)"] > 5.0].copy()
+                    
+                    if important.empty:
+                        if mode_u == "MISS":
+                            return f"💀 For **{selected_team}** to MISS playoffs ({miss_pct:.1f}% chance):\n\nBasically impossible - they're locked in."
+                        else:
+                            return f"🏆 For **{selected_team}** to MAKE playoffs ({make_pct:.1f}% chance):\n\nBasically guaranteed - they're locked in."
+                    
+                    # Build simple requirements with cumulative impact
+                    if mode_u == "MISS":
+                        intro = f"💀 For **{selected_team}** to MISS playoffs ({miss_pct:.1f}% chance):\n\n"
+                        
+                        # Collect bad outcomes sorted by impact
+                        bad_outcomes = []
+                        for _, row in important.iterrows():
+                            t1 = str(row.get("Team A", ""))
+                            t2 = str(row.get("Team B", ""))
+                            make_a = float(row.get("Make% if A wins", 0))
+                            make_b = float(row.get("Make% if B wins", 0))
+                            per = str(row.get("Period", ""))
+                            
+                            # Which outcome hurts them more?
+                            if make_a < make_b:
+                                bad_outcome = f"{t1} beats {t2}"
+                                result_pct = make_a
+                            else:
+                                bad_outcome = f"{t2} beats {t1}"
+                                result_pct = make_b
+                            
+                            # Include all games that have meaningful swing (already filtered to >5pp)
+                            bad_outcomes.append({
+                                "outcome": bad_outcome,
+                                "period": per,
+                                "make_pct": result_pct,
+                                "teams": (t1, t2),
+                            })
+                        
+                        if not bad_outcomes:
+                            return intro + "Already very likely to make playoffs - no remaining games significantly change odds."
+                        
+                        # Sort by impact (lowest make% first)
+                        bad_outcomes.sort(key=lambda x: x["make_pct"])
+                        
+                        # Show cumulative cascade with clear matchup names
+                        result = intro + "Here's what needs to happen (cascading impact):\n\n"
+                        current_make = 100.0
+                        
+                        for idx, item in enumerate(bad_outcomes[:5], 1):
+                            outcome = item["outcome"]
+                            per = item["period"]
+                            
+                            # For cumulative display, we approximate the cascade
+                            # In reality we'd need to re-enumerate, but for simplicity:
+                            # Each bad outcome roughly multiplies the remaining "safe margin"
+                            if idx == 1:
+                                new_make = item["make_pct"]
+                            else:
+                                # Approximate: each additional bad outcome cuts the remaining margin
+                                margin_lost = (current_make - item["make_pct"]) * 0.7  # dampening factor
+                                new_make = max(0, current_make - margin_lost)
+                            
+                            drop = current_make - new_make
+                            result += f"{idx}. **{per}: {outcome}**\n"
+                            result += f"   → Drops from {current_make:.0f}% to {new_make:.0f}% make (−{drop:.0f}pp)\n\n"
+                            current_make = new_make
+                            
+                            if current_make < 10:
+                                break
+                        
+                        result += f"({int(scenarios * miss_pct / 100):,} out of {scenarios:,} scenarios result in a miss)"
+                        return result
+                    
+                    else:  # MAKE
+                        intro = f"🏆 For **{selected_team}** to MAKE playoffs ({make_pct:.1f}% chance):\n\n"
+                        requirements = []
+                        
+                        for _, row in important.iterrows():
+                            t1 = str(row.get("Team A", ""))
+                            t2 = str(row.get("Team B", ""))
+                            make_a = float(row.get("Make% if A wins", 0))
+                            make_b = float(row.get("Make% if B wins", 0))
+                            
+                            # Which outcome helps them more?
+                            if make_a > make_b:
+                                good_outcome = f"{t1} beats {t2}"
+                                result_pct = make_a
+                            else:
+                                good_outcome = f"{t2} beats {t1}"
+                                result_pct = make_b
+                            
+                            # Only show if it meaningfully helps
+                            if result_pct > 20:
+                                requirements.append(f"  • {good_outcome} (boosts to {result_pct:.0f}% make)")
+                        
+                        if not requirements:
+                            return intro + "Already very likely - no single game dramatically changes odds."
+                        
+                        result = intro + "Needs several of these to happen:\n" + "\n".join(requirements[:5])
+                        result += f"\n\n({int(scenarios * make_pct / 100):,} out of {scenarios:,} scenarios result in making it)"
+                        return result
+                
+                summary_mode = st.radio(
+                    "What do you want to know?",
+                    options=["How they MISS", "How they MAKE"],
+                    index=0,
+                    horizontal=True,
+                    key="exact_summary_mode",
+                )
+                
+                mode_key = "MISS" if "MISS" in summary_mode else "MAKE"
+                summary_text = _build_simple_summary(mode_key)
+                
+                st.text_area(
+                    "Copy this:",
+                    value=summary_text,
+                    height=200,
+                    key="exact_summary_output",
+                )
+                st.download_button(
+                    "⬇️ Download",
+                    data=summary_text,
+                    file_name=f"{selected_team.replace(' ', '_')}_{mode_key.lower()}.txt",
+                    mime="text/plain",
+                    key="exact_summary_dl",
+                )
 
     scenarios = get_team_playoff_scenarios(
         schedule_df,

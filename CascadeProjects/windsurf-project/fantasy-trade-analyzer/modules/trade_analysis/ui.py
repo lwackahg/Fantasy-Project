@@ -221,6 +221,68 @@ def _display_player_selection_interface(selected_teams: List[str], key_suffix: s
 							assumed_fpg_overrides[player] = assumed_val
 	return trade_teams, assumed_fpg_overrides
 
+
+def _display_global_fpg_override_interface(selected_teams: List[str], key_suffix: str = "") -> Dict[str, float]:
+	global_overrides: Dict[str, float] = {}
+	if st.session_state.get("combined_data") is None:
+		return global_overrides
+
+	team_data = st.session_state.combined_data.reset_index()
+	if selected_teams:
+		team_data = team_data[team_data["Status"].isin(selected_teams)].copy()
+
+	all_players = []
+	if not team_data.empty and "Player" in team_data.columns:
+		try:
+			all_players = sorted([p for p in team_data["Player"].dropna().unique().tolist() if str(p).strip()])
+		except Exception:
+			all_players = []
+
+	if not all_players:
+		return global_overrides
+
+	with st.expander("⚙️ Player Availability / Assumed FP/G (optional)", expanded=False):
+		st.caption("Use this to account for injuries (e.g. mark Trae Young out -> 0 FP/G) so roster strength isn't inflated.")
+
+		out_players = st.multiselect(
+			"Mark players OUT (force 0 FP/G)",
+			options=all_players,
+			key=f"trade_analysis_out_players{key_suffix}",
+		)
+		for p in out_players or []:
+			global_overrides[str(p)] = 0.0
+
+		override_players = st.multiselect(
+			"Override assumed FP/G for players",
+			options=all_players,
+			key=f"trade_analysis_override_players{key_suffix}",
+		)
+
+		if override_players:
+			st.markdown("##### Set Assumed FP/G")
+			cols = st.columns(3)
+			for i, player in enumerate(override_players):
+				current_fpg = 0.0
+				try:
+					match = team_data[team_data["Player"] == player]
+					if not match.empty and "FP/G" in match.columns:
+						val = match.iloc[0].get("FP/G")
+						if val is not None and not pd.isna(val):
+							current_fpg = float(val)
+				except Exception:
+					current_fpg = 0.0
+				with cols[i % 3]:
+					new_fpg = st.number_input(
+						f"{player}",
+						value=float(current_fpg),
+						step=0.1,
+						format="%.1f",
+						key=f"trade_analysis_override_fpg_{player}{key_suffix}",
+					)
+					global_overrides[str(player)] = float(new_fpg)
+
+	return global_overrides
+
 def _replay_trade_from_history(entry: Dict[str, Any]) -> None:
     """Recompute and display a read-only view of a cached trade history entry.
 
@@ -333,6 +395,25 @@ def trade_setup():
         help="Turn this off for faster runs if you don't need consistency and value-score details."
     )
 
+    with st.expander("⏱️ Time-Range Weighting (Recency Blend)", expanded=False):
+        st.caption("Controls the primary FP/G signal used for trade impact. 0=YTD only; 50=preset blend; 100=very recent.")
+        st.slider(
+            "Recency emphasis",
+            min_value=0,
+            max_value=100,
+            value=int(st.session_state.get("trade_analysis_recency_emphasis", 50) or 50),
+            step=5,
+            key="trade_analysis_recency_emphasis",
+        )
+        st.number_input(
+            "Min games required per window",
+            min_value=0,
+            max_value=20,
+            value=int(st.session_state.get("trade_analysis_recency_min_games", 5) or 5),
+            step=1,
+            key="trade_analysis_recency_min_games",
+        )
+
     st.write("### Select Teams to Trade Between (2 or more)")
     teams = get_all_teams()
     if not teams:
@@ -363,11 +444,14 @@ def trade_setup():
         tab1, tab2 = st.tabs(["Scenario A (Primary)", "Scenario B (Alternative)"])
         with tab1:
             trade_teams_1, overrides_1 = _display_player_selection_interface(selected_teams, key_suffix="_scen_a")
+            global_overrides_1 = _display_global_fpg_override_interface(selected_teams, key_suffix="_scen_a")
         with tab2:
             st.info("Define the alternative trade package below.")
             trade_teams_2, overrides_2 = _display_player_selection_interface(selected_teams, key_suffix="_scen_b")
+            global_overrides_2 = _display_global_fpg_override_interface(selected_teams, key_suffix="_scen_b")
     else:
         trade_teams_1, overrides_1 = _display_player_selection_interface(selected_teams, key_suffix="")
+        global_overrides_1 = _display_global_fpg_override_interface(selected_teams, key_suffix="")
 
     last_duration = st.session_state.get("trade_analysis_last_duration_sec")
     if last_duration:
@@ -393,21 +477,31 @@ def trade_setup():
             spinner_msg = f"Running trade analysis (expected ~{est_seconds} seconds)..."
 
         with st.spinner(spinner_msg):
+            merged_overrides_1 = {}
+            if global_overrides_1:
+                merged_overrides_1.update(global_overrides_1)
+            if overrides_1:
+                merged_overrides_1.update(overrides_1)
             results1 = run_trade_analysis(
                 trade_teams_1,
                 num_players,
                 trade_label=f"{trade_label} (Scenario A)" if trade_label else "Scenario A",
                 include_advanced_metrics=include_advanced_metrics,
-                assumed_fpg_overrides=overrides_1,
+                assumed_fpg_overrides=merged_overrides_1,
             )
             
             if enable_comparison:
+                merged_overrides_2 = {}
+                if global_overrides_2:
+                    merged_overrides_2.update(global_overrides_2)
+                if overrides_2:
+                    merged_overrides_2.update(overrides_2)
                 results2 = run_trade_analysis(
                     trade_teams_2,
                     num_players,
                     trade_label=f"{trade_label} (Scenario B)" if trade_label else "Scenario B",
                     include_advanced_metrics=include_advanced_metrics,
-                    assumed_fpg_overrides=overrides_2,
+                    assumed_fpg_overrides=merged_overrides_2,
                 )
                 if results1 and results2:
                     display_trade_comparison(results1, results2)
@@ -505,10 +599,11 @@ def _display_trade_impact_section(team_id: str, results: Dict[str, Any], time_ra
     """Display the main trade impact analysis section for a single team tab."""
     
     # Calculate common metrics needed for insights
-    ytd_pre = results.get('pre_trade_metrics', {}).get('YTD', {})
-    ytd_post = results.get('post_trade_metrics', {}).get('YTD', {})
-    ytd_pre_consistency = results.get('pre_trade_consistency', {}).get('YTD', {})
-    ytd_post_consistency = results.get('post_trade_consistency', {}).get('YTD', {})
+    primary_range = 'Recency Blend' if 'Recency Blend' in (time_ranges or []) else 'YTD'
+    ytd_pre = results.get('pre_trade_metrics', {}).get(primary_range, {})
+    ytd_post = results.get('post_trade_metrics', {}).get(primary_range, {})
+    ytd_pre_consistency = results.get('pre_trade_consistency', {}).get(primary_range, {})
+    ytd_post_consistency = results.get('post_trade_consistency', {}).get(primary_range, {})
     
     has_ytd = bool(ytd_pre and ytd_post)
 
@@ -531,6 +626,7 @@ def _display_trade_impact_section(team_id: str, results: Dict[str, Any], time_ra
     # Tab 2: Deep Dive (Metrics Table, Trends, Charts)
     with tabs[1]:
         _display_trade_metrics_table(results, time_ranges)
+        _display_recency_blend_vs_ytd(results, time_ranges)
         st.markdown("---")
         if has_ytd:
              _render_trend_analysis(results, time_ranges)
@@ -624,6 +720,70 @@ def _display_trade_metrics_table(results: Dict[str, Any], time_ranges: List[str]
     
     # Add consistency summary if available
     _display_consistency_summary(results, time_ranges)
+
+
+def _display_recency_blend_vs_ytd(results: Dict[str, Any], time_ranges: List[str]) -> None:
+    if not time_ranges:
+        return
+    if "Recency Blend" not in time_ranges or "YTD" not in time_ranges:
+        return
+
+    pre_rosters = results.get("pre_trade_rosters", {}) or {}
+    post_rosters = results.get("post_trade_rosters", {}) or {}
+
+    pre_blend = pre_rosters.get("Recency Blend") or []
+    pre_ytd = pre_rosters.get("YTD") or []
+    post_blend = post_rosters.get("Recency Blend") or []
+    post_ytd = post_rosters.get("YTD") or []
+
+    if (not pre_blend and not pre_ytd) and (not post_blend and not post_ytd):
+        return
+
+    def _build_compare_df(blend_rows, ytd_rows) -> pd.DataFrame:
+        if not blend_rows and not ytd_rows:
+            return pd.DataFrame()
+
+        b = pd.DataFrame(blend_rows) if blend_rows else pd.DataFrame(columns=["Player", "FP/G"])
+        y = pd.DataFrame(ytd_rows) if ytd_rows else pd.DataFrame(columns=["Player", "FP/G"])
+
+        if "Player" not in b.columns:
+            b["Player"] = []
+        if "Player" not in y.columns:
+            y["Player"] = []
+
+        if "FP/G" not in b.columns:
+            b["FP/G"] = 0.0
+        if "FP/G" not in y.columns:
+            y["FP/G"] = 0.0
+
+        b = b[["Player", "FP/G"]].rename(columns={"FP/G": "Recency Blend"}).copy()
+        y = y[["Player", "FP/G"]].rename(columns={"FP/G": "YTD"}).copy()
+
+        merged = b.merge(y, on="Player", how="outer")
+        merged["Recency Blend"] = pd.to_numeric(merged["Recency Blend"], errors="coerce").fillna(0.0)
+        merged["YTD"] = pd.to_numeric(merged["YTD"], errors="coerce").fillna(0.0)
+        merged["Δ (Blend - YTD)"] = merged["Recency Blend"] - merged["YTD"]
+        merged = merged.sort_values("Recency Blend", ascending=False)
+        return merged
+
+    pre_df = _build_compare_df(pre_blend, pre_ytd)
+    post_df = _build_compare_df(post_blend, post_ytd)
+
+    st.markdown("---")
+    st.markdown("### Recency Blend vs YTD (Visual Sanity Check)")
+    st.caption("Shows how each player's blended FP/G differs from their YTD FP/G. This does not change your data—it's just a side-by-side view.")
+
+    tab_pre, tab_post = st.tabs(["Before", "After"])
+    with tab_pre:
+        if pre_df.empty:
+            st.info("No roster data available for comparison.")
+        else:
+            dataframe(pre_df, hide_index=True, width="stretch")
+    with tab_post:
+        if post_df.empty:
+            st.info("No roster data available for comparison.")
+        else:
+            dataframe(post_df, hide_index=True, width="stretch")
 
 def _create_performance_chart(metric_data: pd.DataFrame, display_name: str):
     """Creates a line chart to visualize performance metrics."""
@@ -963,14 +1123,15 @@ def _render_trend_analysis(results, time_ranges):
         with col2:
             st.metric("Trend Consistency", trend_consistency, help="How consistent is the impact across time ranges")
             st.metric("Recent (7d) Impact", f"{recent_trend:+.1f} FP/G")
-            st.metric("Long-term (YTD) Impact", f"{long_term_trend:+.1f} FP/G")
+            st.metric("Long-term (Recency Blend) Impact", f"{long_term_trend:+.1f} FP/G")
 
 
 def _render_friend_value_lens(results: Dict[str, Any]) -> None:
     pre_rosters = results.get("pre_trade_rosters", {}) or {}
     post_rosters = results.get("post_trade_rosters", {}) or {}
-    ytd_pre = pre_rosters.get("YTD") or []
-    ytd_post = post_rosters.get("YTD") or []
+    primary_range = "Recency Blend" if pre_rosters.get("Recency Blend") or post_rosters.get("Recency Blend") else "YTD"
+    ytd_pre = pre_rosters.get(primary_range) or []
+    ytd_post = post_rosters.get(primary_range) or []
     if not ytd_pre and not ytd_post:
         return
 
@@ -1068,7 +1229,7 @@ def _render_friend_value_lens(results: Dict[str, Any]) -> None:
         return n.strip("'").strip("`")
 
     lines = []
-    lines.append("**Friend dollar-value lens (YTD):**")
+    lines.append(f"**Friend dollar-value lens ({primary_range}):**")
     if outgoing_items:
         parts = ", ".join(f"`{_clean_name(name)}` (${dollars:.1f})" for name, dollars in outgoing_items)
         lines.append(f"Outgoing package: {parts} → **total ${outgoing_total:.1f}**")
@@ -1176,8 +1337,9 @@ def _display_monte_carlo_simulation(results: Dict[str, Any], team_id: str | None
     # Get roster data
     pre_rosters = results.get("pre_trade_rosters", {}) or {}
     post_rosters = results.get("post_trade_rosters", {}) or {}
-    ytd_pre = pre_rosters.get("YTD") or []
-    ytd_post = post_rosters.get("YTD") or []
+    primary_range = "Recency Blend" if pre_rosters.get("Recency Blend") or post_rosters.get("Recency Blend") else "YTD"
+    ytd_pre = pre_rosters.get(primary_range) or []
+    ytd_post = post_rosters.get(primary_range) or []
     
     if not ytd_pre or not ytd_post:
         st.info("Insufficient roster data for Monte Carlo simulation")

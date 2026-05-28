@@ -1,136 +1,136 @@
 {
     "metadata": {
         "league_id": "ifa1anexmdgtlk9s",
-        "timestamp": 1767647888.4075303
+        "timestamp": 1772257244.1888835
     },
     "data": [
         {
-            "team_name": "The Noto Son",
-            "W": 8.0,
-            "L": 2.0,
-            "T": 0.0,
-            "FPtsF": 14233.0,
-            "FPtsA": 13016.0
-        },
-        {
             "team_name": "The Pentagon",
-            "W": 8.0,
+            "W": 14.0,
             "L": 2.0,
             "T": 0.0,
-            "FPtsF": 15376.0,
-            "FPtsA": 13991.0
+            "FPtsF": 25629.0,
+            "FPtsA": 22264.0
         },
         {
-            "team_name": "George W Bush",
-            "W": 7.0,
-            "L": 3.0,
-            "T": 0.0,
-            "FPtsF": 14196.0,
-            "FPtsA": 13197.0
-        },
-        {
-            "team_name": "Jesus Christ",
-            "W": 6.0,
+            "team_name": "The Noto Son",
+            "W": 12.0,
             "L": 4.0,
             "T": 0.0,
-            "FPtsF": 14641.0,
-            "FPtsA": 13228.0
+            "FPtsF": 24032.0,
+            "FPtsA": 22500.0
         },
         {
             "team_name": "LAMELOcan Airlines Flight 11",
-            "W": 6.0,
-            "L": 4.0,
-            "T": 0.0,
-            "FPtsF": 14661.0,
-            "FPtsA": 13801.0
-        },
-        {
-            "team_name": "Daaaaaa Jankees lose",
-            "W": 5.0,
+            "W": 11.0,
             "L": 5.0,
             "T": 0.0,
-            "FPtsF": 13597.0,
-            "FPtsA": 13734.0
+            "FPtsF": 24969.0,
+            "FPtsA": 23003.0
+        },
+        {
+            "team_name": "George W Bush",
+            "W": 10.0,
+            "L": 6.0,
+            "T": 0.0,
+            "FPtsF": 23292.0,
+            "FPtsA": 21957.0
+        },
+        {
+            "team_name": "Jesus Christ",
+            "W": 9.0,
+            "L": 7.0,
+            "T": 0.0,
+            "FPtsF": 23727.0,
+            "FPtsA": 22227.0
         },
         {
             "team_name": "Kevin O\u2019Leary",
-            "W": 5.0,
-            "L": 5.0,
+            "W": 9.0,
+            "L": 7.0,
             "T": 0.0,
-            "FPtsF": 13522.0,
-            "FPtsA": 13778.0
-        },
-        {
-            "team_name": "9/11 First Tower",
-            "W": 5.0,
-            "L": 5.0,
-            "T": 0.0,
-            "FPtsF": 12959.0,
-            "FPtsA": 12993.0
-        },
-        {
-            "team_name": "A Stupid Silly Cat",
-            "W": 5.0,
-            "L": 5.0,
-            "T": 0.0,
-            "FPtsF": 13563.0,
-            "FPtsA": 13215.0
-        },
-        {
-            "team_name": "President of Retarded Operations",
-            "W": 5.0,
-            "L": 5.0,
-            "T": 0.0,
-            "FPtsF": 14090.0,
-            "FPtsA": 14043.0
+            "FPtsF": 23304.0,
+            "FPtsA": 22473.0
         },
         {
             "team_name": "I'm Your Uber Driver",
-            "W": 5.0,
-            "L": 5.0,
+            "W": 9.0,
+            "L": 7.0,
             "T": 0.0,
-            "FPtsF": 13425.0,
-            "FPtsA": 13364.0
+            "FPtsF": 23067.0,
+            "FPtsA": 22634.0
+        },
+        {
+            "team_name": "Daaaaaa Jankees lose",
+            "W": 8.0,
+            "L": 8.0,
+            "T": 0.0,
+            "FPtsF": 22479.0,
+            "FPtsA": 22533.0
+        },
+        {
+            "team_name": "President of Retarded Operations",
+            "W": 8.0,
+            "L": 8.0,
+            "T": 0.0,
+            "FPtsF": 23720.0,
+            "FPtsA": 23571.0
+        },
+        {
+            "team_name": "A Stupid Silly Cat",
+            "W": 8.0,
+            "L": 8.0,
+            "T": 0.0,
+            "FPtsF": 23033.0,
+            "FPtsA": 22646.0
         },
         {
             "team_name": "Haliban\u2019s Heroes",
-            "W": 4.0,
-            "L": 6.0,
+            "W": 6.0,
+            "L": 10.0,
             "T": 0.0,
-            "FPtsF": 13813.0,
-            "FPtsA": 14558.0
+            "FPtsF": 23498.0,
+            "FPtsA": 23427.0
         },
         {
             "team_name": "Kamala's Gunz",
-            "W": 4.0,
-            "L": 6.0,
+            "W": 6.0,
+            "L": 10.0,
             "T": 0.0,
-            "FPtsF": 12381.0,
-            "FPtsA": 12709.0
+            "FPtsF": 20596.0,
+            "FPtsA": 21643.0
+        },
+        {
+            "team_name": "9/11 First Tower",
+            "W": 6.0,
+            "L": 10.0,
+            "T": 0.0,
+            "FPtsF": 21044.0,
+            "FPtsA": 22218.0
         },
         {
             "team_name": "9/11 Second Tower",
-            "W": 3.0,
-            "L": 7.0,
+            "W": 6.0,
+            "L": 10.0,
             "T": 0.0,
-            "FPtsF": 12833.0,
-            "FPtsA": 13421.0
+            "FPtsF": 21915.0,
+            "FPtsA": 22773.0
+        },
+        {
+            "team_name": "PartyMarty__",
+            "W": 4.0,
+            "L": 12.0,
+            "T": 0.0,
+            "FPtsF": 18711.0,
+            "FPtsA": 22675.0
         },
         {
             "team_name": "CaitlinClark KeepsItHairy",
             "W": 2.0,
-            "L": 8.0,
+            "L": 14.0,
             "T": 0.0,
-            "FPtsF": 11553.0,
-            "FPtsA": 14073.0
-        },
-        {
-            "team_name": "PartyMarty__",
-            "W": 2.0,
-            "L": 8.0,
-            "T": 0.0,
-            "FPtsF": 11127.0,
-            "FPtsA": 12849.0
+            "FPtsF": 18838.0,
+            "FPtsA": 23310.0
         }
     ]
 }

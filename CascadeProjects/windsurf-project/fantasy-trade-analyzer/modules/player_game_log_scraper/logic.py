@@ -990,12 +990,13 @@ def calculate_multi_range_stats(game_log_df):
 			'max_fpts': fpts_all.max()
 		}
 	
-	# Day-based recent windows: last 7/14/30 calendar days if we have dates,
+	# Day-based recent windows: last 7/14/30/60 calendar days if we have dates,
 	# otherwise fall back to last 7/14/30 games.
 	range_days = {
 		'Last 7': 7,
 		'Last 14': 14,
 		'Last 30': 30,
+		'Last 60': 60,
 	}
 	
 	if has_valid_dates:

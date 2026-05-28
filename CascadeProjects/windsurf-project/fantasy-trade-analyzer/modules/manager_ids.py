@@ -65,3 +65,95 @@ def get_manager_list(df: pd.DataFrame) -> pd.DataFrame:
         grouped.append({"managerid": mid, "label": label})
 
     return pd.DataFrame(grouped)
+
+
+def get_team_name_for_season(df: pd.DataFrame, manager_id: str, season: str) -> str:
+    """Get the team name for a specific manager in a specific season.
+    
+    Args:
+        df: ManagerIDs DataFrame
+        manager_id: Manager ID (e.g., 'M001')
+        season: Season string (e.g., '2025-26')
+    
+    Returns:
+        Team name string, or empty string if not found
+    """
+    if df is None or df.empty:
+        return ""
+    
+    match = df[(df["managerid"] == manager_id) & (df["season"] == season)]
+    if match.empty:
+        return ""
+    
+    return str(match.iloc[0]["team_name"]).strip()
+
+
+def get_current_team_name(df: pd.DataFrame, manager_id: str) -> str:
+    """Get the most recent team name for a manager.
+    
+    Args:
+        df: ManagerIDs DataFrame
+        manager_id: Manager ID (e.g., 'M001')
+    
+    Returns:
+        Most recent team name, or empty string if not found
+    """
+    if df is None or df.empty:
+        return ""
+    
+    mgr_data = df[df["managerid"] == manager_id].copy()
+    if mgr_data.empty:
+        return ""
+    
+    mgr_data = mgr_data.sort_values("season")
+    return str(mgr_data.iloc[-1]["team_name"]).strip()
+
+
+def get_manager_id_from_team(df: pd.DataFrame, team_name: str, season: str = None) -> str:
+    """Get manager ID from team name, optionally filtered by season.
+    
+    Args:
+        df: ManagerIDs DataFrame
+        team_name: Team name to search for
+        season: Optional season to filter by (e.g., '2025-26')
+    
+    Returns:
+        Manager ID string, or empty string if not found
+    """
+    if df is None or df.empty:
+        return ""
+    
+    # Normalize for matching
+    def normalize(s: str) -> str:
+        return "".join(ch.lower() for ch in str(s) if ch.isalnum())
+    
+    target = normalize(team_name)
+    search_df = df.copy()
+    
+    if season:
+        search_df = search_df[search_df["season"] == season]
+    
+    search_df["_norm"] = search_df["team_name"].apply(normalize)
+    match = search_df[search_df["_norm"] == target]
+    
+    if match.empty:
+        return ""
+    
+    return str(match.iloc[0]["managerid"]).strip()
+
+
+def get_all_seasons_for_manager(df: pd.DataFrame, manager_id: str) -> pd.DataFrame:
+    """Get all season records for a specific manager.
+    
+    Args:
+        df: ManagerIDs DataFrame
+        manager_id: Manager ID (e.g., 'M001')
+    
+    Returns:
+        DataFrame with all seasons for this manager, sorted by season
+    """
+    if df is None or df.empty:
+        return pd.DataFrame()
+    
+    mgr_data = df[df["managerid"] == manager_id].copy()
+    return mgr_data.sort_values("season")

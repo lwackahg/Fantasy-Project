@@ -114,9 +114,132 @@ class TradeAnalyzer:
         """
         analysis_results = {}
 
+        def _blend_weights_from_emphasis(emphasis: int) -> Dict[str, float]:
+            e = max(0, min(100, int(emphasis)))
+            if e <= 50:
+                t = e / 50.0
+                ytd = 1.0 * (1.0 - t) + 0.50 * t
+                d60 = 0.00 * (1.0 - t) + 0.25 * t
+                d30 = 0.00 * (1.0 - t) + 0.15 * t
+                d14 = 0.00 * (1.0 - t) + 0.10 * t
+            else:
+                t = (e - 50) / 50.0
+                ytd = 0.50 * (1.0 - t) + 0.20 * t
+                d60 = 0.25 * (1.0 - t) + 0.30 * t
+                d30 = 0.15 * (1.0 - t) + 0.30 * t
+                d14 = 0.10 * (1.0 - t) + 0.20 * t
+            weights = {"YTD": ytd, "60 Days": d60, "30 Days": d30, "14 Days": d14}
+            s = sum(weights.values())
+            if s > 0:
+                for k in list(weights.keys()):
+                    weights[k] = float(weights[k]) / float(s)
+            return weights
+
+        def _build_recency_blend_df(source_df: pd.DataFrame, team_id: str) -> pd.DataFrame:
+            if source_df is None or source_df.empty:
+                return pd.DataFrame()
+            if "Player" not in source_df.columns or "Timestamp" not in source_df.columns:
+                return pd.DataFrame()
+
+            emphasis = int(st.session_state.get("trade_analysis_recency_emphasis", 50) or 50)
+            min_games = int(st.session_state.get("trade_analysis_recency_min_games", 5) or 5)
+            weights = _blend_weights_from_emphasis(emphasis)
+
+            pivot_fp = {}
+            pivot_gp = {}
+
+            for tr in ["YTD", "60 Days", "30 Days", "14 Days"]:
+                sub = source_df[source_df["Timestamp"] == tr].copy()
+                if sub.empty:
+                    continue
+
+                # Apply assumed overrides to this sub-range (same logic as the per-range loop).
+                if assumed_fpg_overrides and "Player" in sub.columns and "FP/G" in sub.columns:
+                    try:
+                        common = set(sub["Player"].astype(str).unique().tolist()).intersection(assumed_fpg_overrides.keys())
+                    except Exception:
+                        common = set()
+                    if common:
+                        for player_name in common:
+                            try:
+                                new_fpg = float(assumed_fpg_overrides.get(player_name))
+                            except (TypeError, ValueError):
+                                continue
+                            sub.loc[sub["Player"] == player_name, "FP/G"] = new_fpg
+                            if "GP" in sub.columns and "FPts" in sub.columns:
+                                gp_vals = pd.to_numeric(sub.loc[sub["Player"] == player_name, "GP"], errors="coerce").fillna(0.0)
+                                sub.loc[sub["Player"] == player_name, "FPts"] = new_fpg * gp_vals
+
+                try:
+                    fp_map = dict(zip(sub["Player"].astype(str), pd.to_numeric(sub["FP/G"], errors="coerce")))
+                except Exception:
+                    fp_map = {}
+                try:
+                    gp_map = dict(zip(sub["Player"].astype(str), pd.to_numeric(sub.get("GP"), errors="coerce")))
+                except Exception:
+                    gp_map = {}
+                pivot_fp[tr] = fp_map
+                pivot_gp[tr] = gp_map
+
+            # Use YTD rows as the base for identity/team/GP.
+            base = source_df[source_df["Timestamp"] == "YTD"].reset_index().copy()
+            if base.empty:
+                # If YTD missing, fall back to the most recent available range.
+                for tr in ["60 Days", "30 Days", "14 Days"]:
+                    base = source_df[source_df["Timestamp"] == tr].reset_index().copy()
+                    if not base.empty:
+                        break
+            if base.empty:
+                return pd.DataFrame()
+
+            if "Player" not in base.columns:
+                return pd.DataFrame()
+
+            def _blend_player(player_name: str) -> float:
+                num = 0.0
+                den = 0.0
+                for tr, w in weights.items():
+                    if w <= 0:
+                        continue
+                    fp = (pivot_fp.get(tr) or {}).get(player_name)
+                    if fp is None or pd.isna(fp):
+                        continue
+                    gp = (pivot_gp.get(tr) or {}).get(player_name)
+                    if min_games > 0 and gp is not None and not pd.isna(gp):
+                        try:
+                            if float(gp) < float(min_games):
+                                continue
+                        except Exception:
+                            pass
+                    num += float(w) * float(fp)
+                    den += float(w)
+                if den <= 0:
+                    # Fallback to any available range.
+                    for tr in ["YTD", "60 Days", "30 Days", "14 Days"]:
+                        fp = (pivot_fp.get(tr) or {}).get(player_name)
+                        if fp is not None and not pd.isna(fp):
+                            try:
+                                return float(fp)
+                            except Exception:
+                                continue
+                    return 0.0
+                return float(num / den)
+
+            base_players = base["Player"].astype(str)
+            base["FP/G"] = base_players.map(lambda p: _blend_player(str(p))).astype(float)
+            base["Status"] = team_id
+            if "GP" not in base.columns:
+                base["GP"] = 0
+            if "FPts" in base.columns:
+                gp_vals = pd.to_numeric(base["GP"], errors="coerce").fillna(0.0)
+                base["FPts"] = base["FP/G"].astype(float) * gp_vals
+
+            keep = [c for c in ["Player", "Team", "FPts", "FP/G", "GP", "Status"] if c in base.columns]
+            return base[keep].copy()
+
         for team, players in trade_teams.items():
             team_data = self.data[self.data['Status'] == team].copy()
-            time_ranges = ['YTD', '60 Days', '30 Days', '14 Days', '7 Days']
+            time_ranges = ['Recency Blend', 'YTD', '60 Days', '30 Days', '14 Days', '7 Days']
             pre_trade_rosters = {}
             post_trade_rosters = {}
             outgoing_players = list(players.keys())
@@ -127,7 +250,10 @@ class TradeAnalyzer:
                         incoming_players.append(player)
 
             for time_range in time_ranges:
-                range_data = team_data[team_data['Timestamp'] == time_range].reset_index()
+                if time_range == 'Recency Blend':
+                    range_data = _build_recency_blend_df(team_data, team)
+                else:
+                    range_data = team_data[team_data['Timestamp'] == time_range].reset_index()
                 if not range_data.empty:
                     # Apply assumed FP/G overrides to this team's data for this time range, if provided
                     if assumed_fpg_overrides:
@@ -152,10 +278,14 @@ class TradeAnalyzer:
                     post_trade_data = range_data[~range_data['Player'].isin(outgoing_players)].copy()
                     incoming_data = []
                     for player in incoming_players:
-                        player_data = self.data[
-                            (self.data.index == player) &
-                            (self.data['Timestamp'] == time_range)
-                        ].reset_index()
+                        if time_range == 'Recency Blend':
+                            src_df = self.data[(self.data.index == player)].copy()
+                            player_data = _build_recency_blend_df(src_df, team)
+                        else:
+                            player_data = self.data[
+                                (self.data.index == player) &
+                                (self.data['Timestamp'] == time_range)
+                            ].reset_index()
                         if not player_data.empty:
                             # Apply assumed FP/G overrides for incoming players, if provided
                             if assumed_fpg_overrides and player in assumed_fpg_overrides:

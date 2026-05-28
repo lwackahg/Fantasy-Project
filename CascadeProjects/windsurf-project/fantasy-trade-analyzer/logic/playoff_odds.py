@@ -5,7 +5,7 @@ This module contains the threshold-based playoff odds and team path analysis.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
 import random
 
@@ -20,6 +20,566 @@ from logic.schedule_analysis import (
     _determine_status,
     _simulate_games_once,
 )
+
+
+def calculate_exact_seed_outcomes(
+    schedule_df: pd.DataFrame,
+    playoff_spots: int = 6,
+    max_scenarios: int = 200_000,
+) -> Dict[str, Any]:
+    """Enumerate all remaining win/loss outcomes and compute exact seed distributions.
+
+    This is an *exact* enumeration over remaining matchups (2^N outcomes).
+    Because N can get large quickly, this function enforces a `max_scenarios`
+    guard and will return an error payload if enumeration is infeasible.
+
+    Notes:
+    - Enumeration treats each remaining matchup as a binary win/loss.
+    - Tie-breakers are approximated using head-to-head results (including
+      hypothetical remaining games) and then falling back to alphabetical.
+      (Season-long PF/PA for future weeks is unknown, so we do not try to
+      simulate PF-based tie-breakers in this exact mode.)
+    """
+    if schedule_df is None or schedule_df.empty:
+        return {"error": "Empty schedule."}
+
+    all_teams = sorted(
+        list(set(schedule_df["Team 1"].unique()) | set(schedule_df["Team 2"].unique()))
+    )
+    all_teams = [team for team in all_teams if not str(team).startswith("Scoring Period")]
+    if not all_teams:
+        return {"error": "No teams found in schedule."}
+
+    completed_games: List[Tuple[str, str, float, float]] = []
+    remaining_games: List[Tuple[str, str, str]] = []
+
+    for _, row in schedule_df.iterrows():
+        team1, team2 = row.get("Team 1"), row.get("Team 2")
+        if str(team1).startswith("Scoring Period") or str(team2).startswith("Scoring Period"):
+            continue
+        score1, score2 = row.get("Score 1"), row.get("Score 2")
+        period = str(row.get("Scoring Period", "")).strip()
+
+        if pd.isna(score1) or pd.isna(score2) or (score1 == 0 and score2 == 0):
+            remaining_games.append((str(team1), str(team2), period))
+        else:
+            completed_games.append((str(team1), str(team2), float(score1), float(score2)))
+
+    n_remaining = len(remaining_games)
+    if n_remaining <= 0:
+        # Season complete: deterministic seeds from completed games using existing standings logic.
+        final_order = _calculate_simulated_standings(completed_games, all_teams)
+        cutoff = max(2, min(int(playoff_spots), len(all_teams)))
+        seed_rows = []
+        for team in all_teams:
+            seed = final_order.index(team) + 1
+            seed_rows.append(
+                {
+                    "Team": team,
+                    "Playoff %": 100.0 if seed <= cutoff else 0.0,
+                    "Most Likely Seed": seed,
+                    "Seed Confidence": 100.0,
+                    f"seed_{seed}": 100.0,
+                }
+            )
+        return {
+            "method": "exact",
+            "scenarios": 1,
+            "seed_summary": pd.DataFrame(seed_rows),
+            "remaining_games": n_remaining,
+        }
+
+    # Feasibility check
+    total_scenarios = 2 ** n_remaining
+    if total_scenarios > int(max_scenarios):
+        return {
+            "error": (
+                f"Exact enumeration is too large: {n_remaining} remaining matchups "
+                f"→ 2^{n_remaining} = {total_scenarios:,} scenarios (cap {max_scenarios:,})."
+            ),
+            "method": "exact",
+            "remaining_games": n_remaining,
+            "scenarios": int(total_scenarios),
+        }
+
+    # Build current standings state from completed games
+    wins = {t: 0 for t in all_teams}
+    losses = {t: 0 for t in all_teams}
+    ties = {t: 0 for t in all_teams}
+    h2h: Dict[str, Dict[str, Dict[str, int]]] = {t: {} for t in all_teams}
+
+    def _ensure_cell(a: str, b: str) -> Dict[str, int]:
+        if b not in h2h[a]:
+            h2h[a][b] = {"wins": 0, "losses": 0, "ties": 0}
+        return h2h[a][b]
+
+    for t1, t2, s1, s2 in completed_games:
+        _ensure_cell(t1, t2)
+        _ensure_cell(t2, t1)
+        if s1 > s2:
+            wins[t1] += 1
+            losses[t2] += 1
+            h2h[t1][t2]["wins"] += 1
+            h2h[t2][t1]["losses"] += 1
+        elif s2 > s1:
+            wins[t2] += 1
+            losses[t1] += 1
+            h2h[t2][t1]["wins"] += 1
+            h2h[t1][t2]["losses"] += 1
+        else:
+            ties[t1] += 1
+            ties[t2] += 1
+            h2h[t1][t2]["ties"] += 1
+            h2h[t2][t1]["ties"] += 1
+
+    def _win_pct(t: str) -> float:
+        total = wins[t] + losses[t] + ties[t]
+        if total <= 0:
+            return 0.0
+        return (wins[t] + 0.5 * ties[t]) / total
+
+    def _h2h_pct(team: str, group_teams: List[str]) -> float:
+        w = 0
+        l = 0
+        ti = 0
+        for opp in group_teams:
+            if opp == team:
+                continue
+            cell = h2h.get(team, {}).get(opp)
+            if not cell:
+                continue
+            w += int(cell.get("wins", 0))
+            l += int(cell.get("losses", 0))
+            ti += int(cell.get("ties", 0))
+        total = w + l + ti
+        return (w + 0.5 * ti) / total if total > 0 else 0.5
+
+    def _rank_teams() -> List[str]:
+        # Sort by win pct first.
+        base = sorted(all_teams, key=lambda t: _win_pct(t), reverse=True)
+
+        ranked: List[str] = []
+        i = 0
+        while i < len(base):
+            group = [base[i]]
+            j = i + 1
+            while j < len(base) and abs(_win_pct(base[j]) - _win_pct(base[i])) < 1e-12:
+                group.append(base[j])
+                j += 1
+            if len(group) == 1:
+                ranked.append(group[0])
+            else:
+                # Tie-breaker: head-to-head within tied group, then alphabetical.
+                group_sorted = sorted(
+                    group,
+                    key=lambda t: (_h2h_pct(t, group), t),
+                    reverse=True,
+                )
+                ranked.extend(group_sorted)
+            i = j
+        return ranked
+
+    # Seed counters
+    seed_counts: Dict[str, Dict[int, int]] = {t: {} for t in all_teams}
+    playoff_counts: Dict[str, int] = {t: 0 for t in all_teams}
+    cutoff = max(2, min(int(playoff_spots), len(all_teams)))
+
+    # Recursive enumeration
+    def _recurse(idx: int) -> None:
+        if idx >= n_remaining:
+            order = _rank_teams()
+            for seed, team in enumerate(order, start=1):
+                seed_counts[team][seed] = seed_counts[team].get(seed, 0) + 1
+                if seed <= cutoff:
+                    playoff_counts[team] += 1
+            return
+
+        t1, t2, _per = remaining_games[idx]
+        # Outcome A: t1 wins
+        _ensure_cell(t1, t2)
+        _ensure_cell(t2, t1)
+        wins[t1] += 1
+        losses[t2] += 1
+        h2h[t1][t2]["wins"] += 1
+        h2h[t2][t1]["losses"] += 1
+        _recurse(idx + 1)
+        h2h[t1][t2]["wins"] -= 1
+        h2h[t2][t1]["losses"] -= 1
+        wins[t1] -= 1
+        losses[t2] -= 1
+
+        # Outcome B: t2 wins
+        wins[t2] += 1
+        losses[t1] += 1
+        h2h[t2][t1]["wins"] += 1
+        h2h[t1][t2]["losses"] += 1
+        _recurse(idx + 1)
+        h2h[t2][t1]["wins"] -= 1
+        h2h[t1][t2]["losses"] -= 1
+        wins[t2] -= 1
+        losses[t1] -= 1
+
+    _recurse(0)
+
+    # Build summary df
+    rows: List[Dict[str, Any]] = []
+    for team in all_teams:
+        team_total = int(total_scenarios)
+        team_playoff = float(playoff_counts.get(team, 0))
+        most_likely_seed = None
+        best_seed = None
+        worst_seed = None
+        most_likely_prob = 0.0
+
+        seed_map = seed_counts.get(team, {})
+        if seed_map:
+            best_seed = min(seed_map.keys())
+            worst_seed = max(seed_map.keys())
+            most_likely_seed = max(seed_map.items(), key=lambda kv: kv[1])[0]
+            most_likely_prob = 100.0 * float(seed_map.get(most_likely_seed, 0)) / float(team_total)
+
+        row: Dict[str, Any] = {
+            "Team": team,
+            "Playoff %": 100.0 * team_playoff / float(team_total),
+            "Miss %": 100.0 - (100.0 * team_playoff / float(team_total)),
+            "Most Likely Seed": int(most_likely_seed) if most_likely_seed is not None else None,
+            "Seed Confidence": float(most_likely_prob),
+            "Best Seed": int(best_seed) if best_seed is not None else None,
+            "Worst Seed": int(worst_seed) if worst_seed is not None else None,
+        }
+
+        for seed, count in seed_map.items():
+            row[f"seed_{seed}"] = 100.0 * float(count) / float(team_total)
+
+        rows.append(row)
+
+    summary = pd.DataFrame(rows)
+    if not summary.empty:
+        summary = summary.sort_values("Playoff %", ascending=False).reset_index(drop=True)
+
+    return {
+        "method": "exact",
+        "scenarios": int(total_scenarios),
+        "remaining_games": int(n_remaining),
+        "seed_summary": summary,
+    }
+
+
+def explore_exact_playoff_scenarios(
+    schedule_df: pd.DataFrame,
+    team: str,
+    playoff_spots: int = 6,
+    max_scenarios: int = 200_000,
+    max_example_games: int = 40,
+) -> Dict[str, Any]:
+    """Exact scenario explorer for a single team.
+
+    Returns:
+    - Overall exact make/miss % (assuming all remaining outcomes equally likely)
+    - Per-matchup conditional make % if Team 1 wins vs Team 2 wins
+    - One example path where the team makes playoffs and one where they miss
+
+    This uses the same enumeration size guardrail as `calculate_exact_seed_outcomes`.
+    """
+    if schedule_df is None or schedule_df.empty:
+        return {"error": "Empty schedule."}
+
+    team = str(team)
+    all_teams = sorted(
+        list(set(schedule_df["Team 1"].unique()) | set(schedule_df["Team 2"].unique()))
+    )
+    all_teams = [t for t in all_teams if not str(t).startswith("Scoring Period")]
+    if team not in all_teams:
+        return {"error": f"Team '{team}' not found in schedule."}
+
+    completed_games: List[Tuple[str, str, float, float]] = []
+    remaining_games: List[Tuple[str, str, str]] = []
+
+    for _, row in schedule_df.iterrows():
+        t1, t2 = row.get("Team 1"), row.get("Team 2")
+        if str(t1).startswith("Scoring Period") or str(t2).startswith("Scoring Period"):
+            continue
+        s1, s2 = row.get("Score 1"), row.get("Score 2")
+        per = str(row.get("Scoring Period", "")).strip()
+
+        if pd.isna(s1) or pd.isna(s2) or (s1 == 0 and s2 == 0):
+            remaining_games.append((str(t1), str(t2), per))
+        else:
+            completed_games.append((str(t1), str(t2), float(s1), float(s2)))
+
+    n_remaining = len(remaining_games)
+    total_scenarios = 2 ** n_remaining
+    if total_scenarios > int(max_scenarios):
+        return {
+            "error": (
+                f"Exact enumeration is too large: {n_remaining} remaining matchups "
+                f"→ 2^{n_remaining} = {total_scenarios:,} scenarios (cap {max_scenarios:,})."
+            ),
+            "remaining_games": n_remaining,
+            "scenarios": int(total_scenarios),
+        }
+
+    wins = {t: 0 for t in all_teams}
+    losses = {t: 0 for t in all_teams}
+    ties = {t: 0 for t in all_teams}
+    h2h: Dict[str, Dict[str, Dict[str, int]]] = {t: {} for t in all_teams}
+
+    def _ensure_cell(a: str, b: str) -> None:
+        if b not in h2h[a]:
+            h2h[a][b] = {"wins": 0, "losses": 0, "ties": 0}
+
+    for t1, t2, s1, s2 in completed_games:
+        _ensure_cell(t1, t2)
+        _ensure_cell(t2, t1)
+        if s1 > s2:
+            wins[t1] += 1
+            losses[t2] += 1
+            h2h[t1][t2]["wins"] += 1
+            h2h[t2][t1]["losses"] += 1
+        elif s2 > s1:
+            wins[t2] += 1
+            losses[t1] += 1
+            h2h[t2][t1]["wins"] += 1
+            h2h[t1][t2]["losses"] += 1
+        else:
+            ties[t1] += 1
+            ties[t2] += 1
+            h2h[t1][t2]["ties"] += 1
+            h2h[t2][t1]["ties"] += 1
+
+    def _win_pct(t: str) -> float:
+        total = wins[t] + losses[t] + ties[t]
+        if total <= 0:
+            return 0.0
+        return (wins[t] + 0.5 * ties[t]) / total
+
+    def _h2h_pct(t: str, group: List[str]) -> float:
+        w = 0
+        l = 0
+        ti = 0
+        for opp in group:
+            if opp == t:
+                continue
+            cell = h2h.get(t, {}).get(opp)
+            if not cell:
+                continue
+            w += int(cell.get("wins", 0))
+            l += int(cell.get("losses", 0))
+            ti += int(cell.get("ties", 0))
+        total = w + l + ti
+        return (w + 0.5 * ti) / total if total > 0 else 0.5
+
+    def _rank() -> List[str]:
+        base = sorted(all_teams, key=lambda t: _win_pct(t), reverse=True)
+        ranked: List[str] = []
+        i = 0
+        while i < len(base):
+            group = [base[i]]
+            j = i + 1
+            while j < len(base) and abs(_win_pct(base[j]) - _win_pct(base[i])) < 1e-12:
+                group.append(base[j])
+                j += 1
+            if len(group) == 1:
+                ranked.append(group[0])
+            else:
+                ranked.extend(sorted(group, key=lambda t: (_h2h_pct(t, group), t), reverse=True))
+            i = j
+        return ranked
+
+    cutoff = max(2, min(int(playoff_spots), len(all_teams)))
+
+    # Conditional counters per remaining game
+    # game_idx -> {"t1": make_count_when_t1_wins, "t2": make_count_when_t2_wins}
+    cond_make = [{"t1": 0, "t2": 0} for _ in range(n_remaining)]
+    cond_total = [{"t1": 0, "t2": 0} for _ in range(n_remaining)]
+
+    # Outcome frequencies conditioned on make vs miss
+    make_outcome = [{"t1": 0, "t2": 0} for _ in range(n_remaining)]
+    miss_outcome = [{"t1": 0, "t2": 0} for _ in range(n_remaining)]
+
+    make_count = 0
+    miss_count = 0
+
+    example_make: Optional[List[Dict[str, str]]] = None
+    example_miss: Optional[List[Dict[str, str]]] = None
+
+    # Track chosen outcomes along the recursion
+    chosen: List[int] = []  # 0 => t1 wins, 1 => t2 wins
+
+    example_make_standings: Optional[List[Dict[str, Any]]] = None
+    example_miss_standings: Optional[List[Dict[str, Any]]] = None
+
+    def _leaf_update(in_playoffs: bool) -> None:
+        nonlocal make_count, miss_count, example_make, example_miss, example_make_standings, example_miss_standings
+        if in_playoffs:
+            make_count += 1
+            if example_make is None:
+                example_make = []
+                for i, outcome in enumerate(chosen[:max_example_games]):
+                    t1, t2, per = remaining_games[i]
+                    winner = t1 if outcome == 0 else t2
+                    example_make.append({"Period": per, "Matchup": f"{t1} vs {t2}", "Winner": winner})
+                # Capture final standings for this scenario
+                order = _rank()
+                example_make_standings = []
+                for seed, tm in enumerate(order, start=1):
+                    example_make_standings.append({
+                        "Seed": seed,
+                        "Team": tm,
+                        "Wins": wins[tm],
+                        "Losses": losses[tm],
+                        "Ties": ties[tm],
+                        "Win%": round(_win_pct(tm) * 100, 1),
+                        "Playoff": "✓" if seed <= cutoff else "",
+                    })
+        else:
+            miss_count += 1
+            if example_miss is None:
+                example_miss = []
+                for i, outcome in enumerate(chosen[:max_example_games]):
+                    t1, t2, per = remaining_games[i]
+                    winner = t1 if outcome == 0 else t2
+                    example_miss.append({"Period": per, "Matchup": f"{t1} vs {t2}", "Winner": winner})
+                # Capture final standings for this scenario
+                order = _rank()
+                example_miss_standings = []
+                for seed, tm in enumerate(order, start=1):
+                    example_miss_standings.append({
+                        "Seed": seed,
+                        "Team": tm,
+                        "Wins": wins[tm],
+                        "Losses": losses[tm],
+                        "Ties": ties[tm],
+                        "Win%": round(_win_pct(tm) * 100, 1),
+                        "Playoff": "✓" if seed <= cutoff else "",
+                    })
+
+        # Update conditional counts for each game given the realized outcome
+        for i, outcome in enumerate(chosen):
+            key = "t1" if outcome == 0 else "t2"
+            cond_total[i][key] += 1
+            if in_playoffs:
+                cond_make[i][key] += 1
+                make_outcome[i][key] += 1
+            else:
+                miss_outcome[i][key] += 1
+
+    def _recurse(idx: int) -> None:
+        if idx >= n_remaining:
+            order = _rank()
+            seed = order.index(team) + 1
+            _leaf_update(seed <= cutoff)
+            return
+
+        t1, t2, _per = remaining_games[idx]
+        _ensure_cell(t1, t2)
+        _ensure_cell(t2, t1)
+
+        # Outcome 0: t1 wins
+        chosen.append(0)
+        wins[t1] += 1
+        losses[t2] += 1
+        h2h[t1][t2]["wins"] += 1
+        h2h[t2][t1]["losses"] += 1
+        _recurse(idx + 1)
+        h2h[t1][t2]["wins"] -= 1
+        h2h[t2][t1]["losses"] -= 1
+        wins[t1] -= 1
+        losses[t2] -= 1
+        chosen.pop()
+
+        # Outcome 1: t2 wins
+        chosen.append(1)
+        wins[t2] += 1
+        losses[t1] += 1
+        h2h[t2][t1]["wins"] += 1
+        h2h[t1][t2]["losses"] += 1
+        _recurse(idx + 1)
+        h2h[t2][t1]["wins"] -= 1
+        h2h[t1][t2]["losses"] -= 1
+        wins[t2] -= 1
+        losses[t1] -= 1
+        chosen.pop()
+
+    _recurse(0)
+
+    team_total = int(total_scenarios)
+    make_pct = 100.0 * float(make_count) / float(team_total) if team_total else 0.0
+    miss_pct = 100.0 - make_pct
+
+    swing_rows: List[Dict[str, Any]] = []
+    for i, (t1, t2, per) in enumerate(remaining_games):
+        t1_total = cond_total[i]["t1"]
+        t2_total = cond_total[i]["t2"]
+        p_make_t1 = 100.0 * float(cond_make[i]["t1"]) / float(t1_total) if t1_total else 0.0
+        p_make_t2 = 100.0 * float(cond_make[i]["t2"]) / float(t2_total) if t2_total else 0.0
+        swing_rows.append(
+            {
+                "Period": per,
+                "Team A": t1,
+                "Team B": t2,
+                "Make% if A wins": round(p_make_t1, 1),
+                "Make% if B wins": round(p_make_t2, 1),
+                "Swing (pp)": round(abs(p_make_t1 - p_make_t2), 1),
+                "Root For": t1 if p_make_t1 >= p_make_t2 else t2,
+            }
+        )
+
+    swing_df = pd.DataFrame(swing_rows)
+    if not swing_df.empty and "Swing (pp)" in swing_df.columns:
+        swing_df = swing_df.sort_values("Swing (pp)", ascending=False).reset_index(drop=True)
+
+    # Build driver tables: outcomes that strongly associate with making vs missing
+    driver_rows: List[Dict[str, Any]] = []
+    for i, (t1, t2, per) in enumerate(remaining_games):
+        make_total = int(make_count)
+        miss_total = int(miss_count)
+
+        # Probabilities of each outcome conditioned on make/miss
+        p_t1_make = (100.0 * float(make_outcome[i]["t1"]) / float(make_total)) if make_total else 0.0
+        p_t2_make = (100.0 * float(make_outcome[i]["t2"]) / float(make_total)) if make_total else 0.0
+        p_t1_miss = (100.0 * float(miss_outcome[i]["t1"]) / float(miss_total)) if miss_total else 0.0
+        p_t2_miss = (100.0 * float(miss_outcome[i]["t2"]) / float(miss_total)) if miss_total else 0.0
+
+        driver_rows.append(
+            {
+                "Period": per,
+                "Matchup": f"{t1} vs {t2}",
+                "Outcome": f"{t1} wins",
+                "P(outcome | MAKE)": round(p_t1_make, 1),
+                "P(outcome | MISS)": round(p_t1_miss, 1),
+                "Lift (MAKE - MISS)": round(p_t1_make - p_t1_miss, 1),
+            }
+        )
+        driver_rows.append(
+            {
+                "Period": per,
+                "Matchup": f"{t1} vs {t2}",
+                "Outcome": f"{t2} wins",
+                "P(outcome | MAKE)": round(p_t2_make, 1),
+                "P(outcome | MISS)": round(p_t2_miss, 1),
+                "Lift (MAKE - MISS)": round(p_t2_make - p_t2_miss, 1),
+            }
+        )
+
+    drivers_df = pd.DataFrame(driver_rows)
+    if not drivers_df.empty and "Lift (MAKE - MISS)" in drivers_df.columns:
+        drivers_df = drivers_df.sort_values("Lift (MAKE - MISS)", ascending=False).reset_index(drop=True)
+
+    return {
+        "method": "exact",
+        "team": team,
+        "scenarios": int(total_scenarios),
+        "remaining_games": int(n_remaining),
+        "make_pct": float(round(make_pct, 2)),
+        "miss_pct": float(round(miss_pct, 2)),
+        "swing_table": swing_df,
+        "drivers": drivers_df,
+        "example_make": pd.DataFrame(example_make) if example_make else pd.DataFrame(),
+        "example_miss": pd.DataFrame(example_miss) if example_miss else pd.DataFrame(),
+        "example_make_standings": pd.DataFrame(example_make_standings) if example_make_standings else pd.DataFrame(),
+        "example_miss_standings": pd.DataFrame(example_miss_standings) if example_miss_standings else pd.DataFrame(),
+    }
 
 
 def estimate_playoff_threshold(
